@@ -1,0 +1,17 @@
+BasedOnStyle: Mozilla
+AlignAfterOpenBracket: DontAlign
+AlignOperands: false
+AllowShortFunctionsOnASingleLine: None
+AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterDefinitionReturnType: None
+BreakBeforeBraces: Allman
+BinPackArguments: true
+BinPackParameters: true
+BraceWrapping:
+  BeforeLambdaBody: true
+ColumnLimit: 100
+InsertBraces: true
+SortIncludes: false
+IndentWidth: 4
+TabWidth: 4
+Standard: Cpp11

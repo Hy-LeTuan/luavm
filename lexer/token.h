@@ -1,0 +1,70 @@
+#ifndef lexer_token_h
+#define lexer_token_h
+
+enum Token
+{
+    // keywords
+    TOKEN_AND,
+    TOKEN_BREAK,
+    TOKEN_DO,
+    TOKEN_ELSE,
+    TOKEN_ELSEIF,
+    TOKEN_END,
+    TOKEN_FALSE,
+    TOKEN_FOR,
+    TOKEN_FUNCTION,
+    TOKEN_IF,
+    TOKEN_IN,
+    TOKEN_LOCAL,
+    TOKEN_NIL,
+    TOKEN_NOT,
+    TOKEN_OR,
+    TOKEN_REPEAT,
+    TOKEN_RETURN,
+    TOKEN_THEN,
+    TOKEN_TRUE,
+    TOKEN_UNTIL,
+    TOKEN_WHILE,
+
+    // 1 character
+    TOKEN_PLUS,
+    TOKEN_MINUS,
+    TOKEN_STAR,
+    TOKEN_SLASH,
+    TOKEN_PERCENT,
+    TOKEN_CARET,
+    TOKEN_HASH,
+    TOKEN_LESS,
+    TOKEN_GREATER,
+    TOKEN_EQUAL,
+    TOKEN_LEFT_PAREN,
+    TOKEN_RIGHT_PAREN,
+    TOKEN_LEFT_BRACE,
+    TOKEN_RIGHT_BRACE,
+    TOKEN_LEFT_SQUARE,
+    TOKEN_RIGHT_SQUARE,
+    TOKEN_SEMICOLON,
+    TOKEN_COLON,
+    TOKEN_COMMA,
+    TOKEN_DOT,
+
+    // 2 characters
+    TOKEN_EQUAL_EQUAL,
+    TOKEN_TILDE_EQUAL,
+    TOKEN_LESS_EQUAL,
+    TOKEN_GREATER_EQUAL,
+    TOKEN_DOT_DOT,
+
+    // 3 characters
+    TOKEN_THREE_DOTS,
+
+    // literals
+    TOKEN_IDENTIFIER,
+    TOKEN_STRING,
+    TOKEN_NUMBER,
+
+    // specials
+    TOKEN_EOF
+};
+
+#endif
