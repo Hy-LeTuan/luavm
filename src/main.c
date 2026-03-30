@@ -1,11 +1,7 @@
-#include <token.h>
+#include <vm.h>
 
 #include <stdlib.h>
 #include <stdio.h>
-
-void interpret(const char* source)
-{
-}
 
 static char* readFile(const char* path)
 {
@@ -48,9 +44,8 @@ static char* readFile(const char* path)
 static void runFile(const char* path)
 {
     const char* source = readFile(path);
-
-    printf("reading source at %s:\n", path);
-    printf("%s", source);
+    interpret(source);
+    free((void*)source);
 }
 
 static void repl()

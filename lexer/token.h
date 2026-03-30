@@ -1,31 +1,10 @@
 #ifndef lexer_token_h
 #define lexer_token_h
 
-enum Token
-{
-    // keywords
-    TOKEN_AND,
-    TOKEN_BREAK,
-    TOKEN_DO,
-    TOKEN_ELSE,
-    TOKEN_ELSEIF,
-    TOKEN_END,
-    TOKEN_FALSE,
-    TOKEN_FOR,
-    TOKEN_FUNCTION,
-    TOKEN_IF,
-    TOKEN_IN,
-    TOKEN_LOCAL,
-    TOKEN_NIL,
-    TOKEN_NOT,
-    TOKEN_OR,
-    TOKEN_REPEAT,
-    TOKEN_RETURN,
-    TOKEN_THEN,
-    TOKEN_TRUE,
-    TOKEN_UNTIL,
-    TOKEN_WHILE,
+#include <stdlib.h>
 
+typedef enum
+{
     // 1 character
     TOKEN_PLUS,
     TOKEN_MINUS,
@@ -58,13 +37,45 @@ enum Token
     // 3 characters
     TOKEN_THREE_DOTS,
 
+    // keywords
+    TOKEN_AND,
+    TOKEN_BREAK,
+    TOKEN_DO,
+    TOKEN_ELSE,
+    TOKEN_ELSEIF,
+    TOKEN_END,
+    TOKEN_FALSE,
+    TOKEN_FOR,
+    TOKEN_FUNCTION,
+    TOKEN_IF,
+    TOKEN_IN,
+    TOKEN_LOCAL,
+    TOKEN_NIL,
+    TOKEN_NOT,
+    TOKEN_OR,
+    TOKEN_REPEAT,
+    TOKEN_RETURN,
+    TOKEN_THEN,
+    TOKEN_TRUE,
+    TOKEN_UNTIL,
+    TOKEN_WHILE,
+
     // literals
     TOKEN_IDENTIFIER,
     TOKEN_STRING,
     TOKEN_NUMBER,
 
     // specials
-    TOKEN_EOF
-};
+    TOKEN_EOF,
+    TOKEN_ERROR
+} TokenType;
+
+typedef struct
+{
+    TokenType type;
+    const char* start;
+    size_t length;
+    size_t line;
+} Token;
 
 #endif
