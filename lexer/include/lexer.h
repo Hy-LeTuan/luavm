@@ -14,6 +14,8 @@ typedef struct
 void initLexer(const char* source, Lexer* lexer);
 Token lex(Lexer* lexer);
 
-void printToken(Token* token);
+#ifdef DEBUG_PRINT_TOKEN
+string convertToken(Token* token);
+#endif
 
 #endif

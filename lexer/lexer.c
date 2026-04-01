@@ -218,166 +218,166 @@ Token lex(Lexer* lexer)
     }
 }
 
-#define DEBUG_PRINT
-void printToken(Token* token)
+#ifdef DEBUG_PRINT_TOKEN
+string convertToken(Token* token)
 {
     switch (token->type)
     {
         case TOKEN_PLUS:
-            printf("[TOKEN_PLUS]");
+            return "[TOKEN_PLUS]";
             break;
         case TOKEN_MINUS:
-            printf("[TOKEN_MINUS]");
+            return "[TOKEN_MINUS]";
             break;
         case TOKEN_STAR:
-            printf("[TOKEN_STAR]");
+            return "[TOKEN_STAR]";
             break;
         case TOKEN_SLASH:
-            printf("[TOKEN_SLASH]");
+            return "[TOKEN_SLASH]";
             break;
         case TOKEN_PERCENT:
-            printf("[TOKEN_PERCENT]");
+            return "[TOKEN_PERCENT]";
             break;
         case TOKEN_CARET:
-            printf("[TOKEN_CARET]");
+            return "[TOKEN_CARET]";
             break;
         case TOKEN_HASH:
-            printf("[TOKEN_HASH]");
+            return "[TOKEN_HASH]";
             break;
         case TOKEN_LESS:
-            printf("[TOKEN_LESS]");
+            return "[TOKEN_LESS]";
             break;
         case TOKEN_GREATER:
-            printf("[TOKEN_GREATER]");
+            return "[TOKEN_GREATER]";
             break;
         case TOKEN_EQUAL:
-            printf("[TOKEN_EQUAL]");
+            return "[TOKEN_EQUAL]";
             break;
         case TOKEN_LEFT_PAREN:
-            printf("[TOKEN_LEFT_PAREN]");
+            return "[TOKEN_LEFT_PAREN]";
             break;
         case TOKEN_RIGHT_PAREN:
-            printf("[TOKEN_RIGHT_PAREN]");
+            return "[TOKEN_RIGHT_PAREN]";
             break;
         case TOKEN_LEFT_BRACE:
-            printf("[TOKEN_LEFT_BRACE]");
+            return "[TOKEN_LEFT_BRACE]";
             break;
         case TOKEN_RIGHT_BRACE:
-            printf("[TOKEN_RIGHT_BRACE]");
+            return "[TOKEN_RIGHT_BRACE]";
             break;
         case TOKEN_LEFT_SQUARE:
-            printf("[TOKEN_LEFT_SQUARE]");
+            return "[TOKEN_LEFT_SQUARE]";
             break;
         case TOKEN_RIGHT_SQUARE:
-            printf("[TOKEN_RIGHT_SQUARE]");
+            return "[TOKEN_RIGHT_SQUARE]";
             break;
         case TOKEN_SEMICOLON:
-            printf("[TOKEN_SEMICOLON]");
+            return "[TOKEN_SEMICOLON]";
             break;
         case TOKEN_COLON:
-            printf("[TOKEN_COLON]");
+            return "[TOKEN_COLON]";
             break;
         case TOKEN_COMMA:
-            printf("[TOKEN_COMMA]");
+            return "[TOKEN_COMMA]";
             break;
         case TOKEN_DOT:
-            printf("[TOKEN_DOT]");
+            return "[TOKEN_DOT]";
             break;
         case TOKEN_EQUAL_EQUAL:
-            printf("[TOKEN_EQUAL_EQUAL]");
+            return "[TOKEN_EQUAL_EQUAL]";
             break;
         case TOKEN_TILDE_EQUAL:
-            printf("[TOKEN_TILDE_EQUAL]");
+            return "[TOKEN_TILDE_EQUAL]";
             break;
         case TOKEN_LESS_EQUAL:
-            printf("[TOKEN_LESS_EQUAL]");
+            return "[TOKEN_LESS_EQUAL]";
             break;
         case TOKEN_GREATER_EQUAL:
-            printf("[TOKEN_GREATER_EQUAL]");
+            return "[TOKEN_GREATER_EQUAL]";
             break;
         case TOKEN_DOT_DOT:
-            printf("[TOKEN_DOT_DOT]");
+            return "[TOKEN_DOT_DOT]";
             break;
         case TOKEN_THREE_DOTS:
-            printf("[TOKEN_THREE_DOTS]");
+            return "[TOKEN_THREE_DOTS]";
             break;
         case TOKEN_AND:
-            printf("[TOKEN_AND]");
+            return "[TOKEN_AND]";
             break;
         case TOKEN_BREAK:
-            printf("[TOKEN_BREAK]");
+            return "[TOKEN_BREAK]";
             break;
         case TOKEN_DO:
-            printf("[TOKEN_DO]");
+            return "[TOKEN_DO]";
             break;
         case TOKEN_ELSE:
-            printf("[TOKEN_ELSE]");
+            return "[TOKEN_ELSE]";
             break;
         case TOKEN_ELSEIF:
-            printf("[TOKEN_ELSEIF]");
+            return "[TOKEN_ELSEIF]";
             break;
         case TOKEN_END:
-            printf("[TOKEN_END]");
+            return "[TOKEN_END]";
             break;
         case TOKEN_FALSE:
-            printf("[TOKEN_FALSE]");
+            return "[TOKEN_FALSE]";
             break;
         case TOKEN_FOR:
-            printf("[TOKEN_FOR]");
+            return "[TOKEN_FOR]";
             break;
         case TOKEN_FUNCTION:
-            printf("[TOKEN_FUNCTION]");
+            return "[TOKEN_FUNCTION]";
             break;
         case TOKEN_IF:
-            printf("[TOKEN_IF]");
+            return "[TOKEN_IF]";
             break;
         case TOKEN_IN:
-            printf("[TOKEN_IN]");
+            return "[TOKEN_IN]";
             break;
         case TOKEN_LOCAL:
-            printf("[TOKEN_LOCAL]");
+            return "[TOKEN_LOCAL]";
             break;
         case TOKEN_NIL:
-            printf("[TOKEN_NIL]");
+            return "[TOKEN_NIL]";
             break;
         case TOKEN_NOT:
-            printf("[TOKEN_NOT]");
+            return "[TOKEN_NOT]";
             break;
         case TOKEN_OR:
-            printf("[TOKEN_OR]");
+            return "[TOKEN_OR]";
             break;
         case TOKEN_REPEAT:
-            printf("[TOKEN_REPEAT]");
+            return "[TOKEN_REPEAT]";
             break;
         case TOKEN_RETURN:
-            printf("[TOKEN_RETURN]");
+            return "[TOKEN_RETURN]";
             break;
         case TOKEN_THEN:
-            printf("[TOKEN_THEN]");
+            return "[TOKEN_THEN]";
             break;
         case TOKEN_TRUE:
-            printf("[TOKEN_TRUE]");
+            return "[TOKEN_TRUE]";
             break;
         case TOKEN_UNTIL:
-            printf("[TOKEN_UNTIL]");
+            return "[TOKEN_UNTIL]";
             break;
         case TOKEN_WHILE:
-            printf("[TOKEN_WHILE]");
+            return "[TOKEN_WHILE]";
             break;
         case TOKEN_IDENTIFIER:
-            printf("[TOKEN_IDENTIFIER]");
+            return "[TOKEN_IDENTIFIER]";
             break;
         case TOKEN_STRING:
-            printf("[TOKEN_STRING]");
+            return "[TOKEN_STRING]";
             break;
         case TOKEN_NUMBER:
-            printf("[TOKEN_NUMBER]");
+            return "[TOKEN_NUMBER]";
             break;
         case TOKEN_EOF:
-            printf("[TOKEN_EOF]");
+            return "[TOKEN_EOF]";
             break;
         case TOKEN_ERROR:
             break;
     }
 }
-#undef DEBUG_PRINT
+#endif
