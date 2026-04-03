@@ -2,18 +2,42 @@
 #include <token.h>
 
 #include <stdio.h>
-
-static void error(const char* message, Lexer* lexer)
-{
-    fprintf(stderr, "Error at line %zu, character '%c'.\n", lexer->line, *lexer->current);
-    fprintf(stderr, "Error reads: %s.", message);
-}
+#include <ctype.h>
+#include <string.h>
 
 void initLexer(const char* source, Lexer* lexer)
 {
     lexer->start = source;
     lexer->current = source;
     lexer->line = 1;
+}
+
+static bool isAlpha(char c)
+{
+    return isalpha(c) || c == '_';
+}
+
+static bool isAlphaNum(char c)
+{
+    return isalnum(c) || c == '_';
+}
+
+static Token makeToken(TokenType type, Lexer* lexer)
+{
+    Token token;
+
+    token.type = type;
+    token.start = lexer->start;
+    token.length = lexer->current - lexer->start;
+    token.line = lexer->line;
+
+    return token;
+}
+
+static void error(const char* message, Lexer* lexer)
+{
+    fprintf(stderr, "Error at line %zu, character '%c'.\n", lexer->line, *lexer->current);
+    fprintf(stderr, "Error reads: %s.", message);
 }
 
 bool isAtEnd(Lexer* lexer)
@@ -60,16 +84,35 @@ static void skipWhitespace(Lexer* lexer)
     }
 }
 
-Token makeToken(TokenType type, Lexer* lexer)
+static Token identifier(Lexer* lexer)
 {
-    Token token;
+    while (!isAtEnd(lexer) && isAlphaNum(peek(lexer)))
+    {
+        advance(lexer);
+    }
 
-    token.type = type;
-    token.start = lexer->start;
-    token.length = lexer->current - lexer->start;
-    token.line = lexer->line;
+    return makeToken(TOKEN_IDENTIFIER, lexer);
+}
 
-    return token;
+static Token keyword(TokenType type, const char* word, int length, Lexer* lexer)
+{
+    if (strncmp(lexer->start, word, length) == 0)
+    {
+        // if the keyword actually ends and not a part of a bigger identifer
+        if (!isalpha(*(lexer->start + length)))
+        {
+            lexer->current = lexer->start + length;
+            return makeToken(type, lexer);
+        }
+    }
+
+    return identifier(lexer);
+}
+
+static Token number(Lexer* lexer)
+{
+    // implement this
+    return makeToken(TOKEN_NUMBER, lexer);
 }
 
 Token lex(Lexer* lexer)
@@ -80,6 +123,7 @@ Token lex(Lexer* lexer)
 
     switch (c)
     {
+        // symbols
         case '+':
             return makeToken(TOKEN_PLUS, lexer);
         case '-':
@@ -204,6 +248,97 @@ Token lex(Lexer* lexer)
             {
                 return makeToken(TOKEN_DOT, lexer);
             }
+        // keywords
+        case 'a':
+            return keyword(TOKEN_AND, "and", 3, lexer);
+        case 'b':
+            return keyword(TOKEN_BREAK, "break", 5, lexer);
+        case 'd':
+            return keyword(TOKEN_DO, "do", 2, lexer);
+        case 'e':
+            if (match('n', lexer))
+            {
+                return keyword(TOKEN_END, "end", 3, lexer);
+            }
+            else if (match('l', lexer) && match('s', lexer) && match('e', lexer))
+            {
+                if (match('i', lexer))
+                {
+                    return keyword(TOKEN_ELSEIF, "elseif", 6, lexer);
+                }
+                else
+                {
+                    return keyword(TOKEN_ELSE, "else", 4, lexer);
+                }
+            }
+            else
+            {
+                return identifier(lexer);
+            }
+        case 'f':
+            if (peek(lexer) == 'a')
+            {
+                return keyword(TOKEN_FALSE, "false", 5, lexer);
+            }
+            else if (peek(lexer) == 'o')
+            {
+                return keyword(TOKEN_FOR, "for", 3, lexer);
+            }
+            else
+            {
+                return keyword(TOKEN_FUNCTION, "function", 8, lexer);
+            }
+        case 'i':
+            if (match('f', lexer))
+            {
+                return keyword(TOKEN_IF, "if", 2, lexer);
+            }
+            else
+            {
+                return keyword(TOKEN_IN, "in", 2, lexer);
+            }
+        case 'l':
+            return keyword(TOKEN_LOCAL, "local", 5, lexer);
+        case 'n':
+            if (match('i', lexer))
+            {
+                return keyword(TOKEN_NIL, "nil", 3, lexer);
+            }
+            else
+            {
+                return keyword(TOKEN_NOT, "not", 3, lexer);
+            }
+        case 'o':
+            return keyword(TOKEN_OR, "or", 2, lexer);
+        case 'r':
+            if (match('e', lexer))
+            {
+                if (match('p', lexer))
+                {
+                    return keyword(TOKEN_REPEAT, "repeat", 6, lexer);
+                }
+                else
+                {
+                    return keyword(TOKEN_RETURN, "return", 6, lexer);
+                }
+            }
+            else
+            {
+                return identifier(lexer);
+            }
+        case 't':
+            if (match('h', lexer))
+            {
+                return keyword(TOKEN_THEN, "then", 4, lexer);
+            }
+            else
+            {
+                return keyword(TOKEN_TRUE, "true", 4, lexer);
+            }
+        case 'u':
+            return keyword(TOKEN_UNTIL, "until", 5, lexer);
+        case 'w':
+            return keyword(TOKEN_WHILE, "while", 5, lexer);
         case ' ':
         case '\t':
             skipWhitespace(lexer);
@@ -214,12 +349,21 @@ Token lex(Lexer* lexer)
         case '\0':
             return makeToken(TOKEN_EOF, lexer);
         default:
+            if (isAlpha(c))
+            {
+                return identifier(lexer);
+            }
+            else if (isdigit(c))
+            {
+                return number(lexer);
+            }
+
             return makeToken(TOKEN_ERROR, lexer);
     }
 }
 
 #ifdef DEBUG_PRINT_TOKEN
-string convertToken(Token* token)
+const char* convertToken(Token* token)
 {
     switch (token->type)
     {
@@ -377,7 +521,9 @@ string convertToken(Token* token)
             return "[TOKEN_EOF]";
             break;
         case TOKEN_ERROR:
-            break;
+            return "[TOKEN_ERROR]";
+        default:
+            return "";
     }
 }
 #endif

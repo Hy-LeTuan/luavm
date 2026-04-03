@@ -15,7 +15,7 @@ void initLexer(const char* source, Lexer* lexer);
 Token lex(Lexer* lexer);
 
 #ifdef DEBUG_PRINT_TOKEN
-string convertToken(Token* token);
+const char* convertToken(Token* token);
 #endif
 
 #endif

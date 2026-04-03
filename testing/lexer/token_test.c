@@ -1,8 +1,11 @@
+#include "token.h"
 #include <file_utils.h>
 #include <lexer.h>
 
 #include <assert.h>
 #include <stdio.h>
+
+#define TOKEN_TEST_SIZE 62
 
 int main(int argc, char* argv[])
 {
@@ -11,7 +14,8 @@ int main(int argc, char* argv[])
     Lexer lexer;
     initLexer(source, &lexer);
 
-    Token tokens[26] = { [0] = { .type = TOKEN_EQUAL },
+    Token tokens[TOKEN_TEST_SIZE] = {
+        [0] = { .type = TOKEN_EQUAL },
         [1] = { .type = TOKEN_PLUS },
         [2] = { .type = TOKEN_MINUS },
         [3] = { .type = TOKEN_STAR },
@@ -36,13 +40,49 @@ int main(int argc, char* argv[])
         [22] = { .type = TOKEN_GREATER_EQUAL },
         [23] = { .type = TOKEN_LESS_EQUAL },
         [24] = { .type = TOKEN_DOT_DOT },
-        [25] = { .type = TOKEN_THREE_DOTS } };
+        [25] = { .type = TOKEN_THREE_DOTS },
+        [26] = { .type = TOKEN_AND },
+        [27] = { .type = TOKEN_BREAK },
+        [28] = { .type = TOKEN_DO },
+        [29] = { .type = TOKEN_ELSE },
+        [30] = { .type = TOKEN_ELSEIF },
+        [31] = { .type = TOKEN_END },
+        [32] = { .type = TOKEN_FALSE },
+        [33] = { .type = TOKEN_FOR },
+        [34] = { .type = TOKEN_FUNCTION },
+        [35] = { .type = TOKEN_IF },
+        [36] = { .type = TOKEN_IN },
+        [37] = { .type = TOKEN_LOCAL },
+        [38] = { .type = TOKEN_NOT },
+        [39] = { .type = TOKEN_OR },
+        [40] = { .type = TOKEN_REPEAT },
+        [41] = { .type = TOKEN_RETURN },
+        [42] = { .type = TOKEN_THEN },
+        [43] = { .type = TOKEN_TRUE },
+        [44] = { .type = TOKEN_UNTIL },
+        [45] = { .type = TOKEN_WHILE },
+        [46] = { .type = TOKEN_IDENTIFIER },
+        [47] = { .type = TOKEN_IDENTIFIER },
+        [48] = { .type = TOKEN_IDENTIFIER },
+        [49] = { .type = TOKEN_IDENTIFIER },
+        [50] = { .type = TOKEN_IDENTIFIER },
+        [51] = { .type = TOKEN_IDENTIFIER },
+        [52] = { .type = TOKEN_IDENTIFIER },
+        [53] = { .type = TOKEN_IDENTIFIER },
+        [54] = { .type = TOKEN_IDENTIFIER },
+        [55] = { .type = TOKEN_IDENTIFIER },
+        [56] = { .type = TOKEN_IDENTIFIER },
+        [57] = { .type = TOKEN_IDENTIFIER },
+        [58] = { .type = TOKEN_IDENTIFIER },
+        [59] = { .type = TOKEN_IDENTIFIER },
+        [60] = { .type = TOKEN_IDENTIFIER },
+        [61] = { .type = TOKEN_IDENTIFIER },
+    };
 
     int i = 0;
-
     bool hadError = false;
 
-    for (int i = 0; i < 26; i++)
+    for (int i = 0; i < (size_t)TOKEN_TEST_SIZE; i++)
     {
         Token token = lex(&lexer);
 
