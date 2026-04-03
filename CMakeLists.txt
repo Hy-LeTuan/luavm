@@ -7,7 +7,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(luavm VERSION 1.0 LANGUAGES C)
 
-
 set(PROJECT_SRC src/main.c compiler/compiler.c vm/vm.c common/utils/file_utils.c)
 add_executable(${PROJECT_NAME} ${PROJECT_SRC})
 
