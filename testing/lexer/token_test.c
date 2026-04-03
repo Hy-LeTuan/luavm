@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define TOKEN_TEST_SIZE 62
+#define TOKEN_TEST_SIZE 71
 
 int main(int argc, char* argv[])
 {
@@ -41,6 +41,7 @@ int main(int argc, char* argv[])
         [23] = { .type = TOKEN_LESS_EQUAL },
         [24] = { .type = TOKEN_DOT_DOT },
         [25] = { .type = TOKEN_THREE_DOTS },
+        // keywords
         [26] = { .type = TOKEN_AND },
         [27] = { .type = TOKEN_BREAK },
         [28] = { .type = TOKEN_DO },
@@ -61,6 +62,7 @@ int main(int argc, char* argv[])
         [43] = { .type = TOKEN_TRUE },
         [44] = { .type = TOKEN_UNTIL },
         [45] = { .type = TOKEN_WHILE },
+        // identifiers
         [46] = { .type = TOKEN_IDENTIFIER },
         [47] = { .type = TOKEN_IDENTIFIER },
         [48] = { .type = TOKEN_IDENTIFIER },
@@ -77,6 +79,17 @@ int main(int argc, char* argv[])
         [59] = { .type = TOKEN_IDENTIFIER },
         [60] = { .type = TOKEN_IDENTIFIER },
         [61] = { .type = TOKEN_IDENTIFIER },
+        [62] = { .type = TOKEN_IDENTIFIER },
+        // string
+        [63] = { .type = TOKEN_STRING },
+        [64] = { .type = TOKEN_STRING },
+        [65] = { .type = TOKEN_STRING },
+        [66] = { .type = TOKEN_STRING },
+        // numbers
+        [67] = { .type = TOKEN_NUMBER },
+        [68] = { .type = TOKEN_NUMBER },
+        [69] = { .type = TOKEN_NUMBER },
+        [70] = { .type = TOKEN_NUMBER },
     };
 
     int i = 0;

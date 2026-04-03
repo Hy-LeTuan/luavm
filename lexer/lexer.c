@@ -22,6 +22,11 @@ static bool isAlphaNum(char c)
     return isalnum(c) || c == '_';
 }
 
+static bool isDigit(char c)
+{
+    return isdigit(c);
+}
+
 static Token makeToken(TokenType type, Lexer* lexer)
 {
     Token token;
@@ -34,10 +39,13 @@ static Token makeToken(TokenType type, Lexer* lexer)
     return token;
 }
 
-static void error(const char* message, Lexer* lexer)
+static Token error(const char* message, Lexer* lexer)
 {
-    fprintf(stderr, "Error at line %zu, character '%c'.\n", lexer->line, *lexer->current);
+    fprintf(
+      stderr, "Error when lexing at line %zu, character '%c'.\n", lexer->line, *lexer->current);
     fprintf(stderr, "Error reads: %s.", message);
+
+    return makeToken(TOKEN_ERROR, lexer);
 }
 
 bool isAtEnd(Lexer* lexer)
@@ -53,6 +61,16 @@ static char peek(Lexer* lexer)
     }
 
     return *lexer->current;
+}
+
+static char prev(Lexer* lexer)
+{
+    if (isAtEnd(lexer))
+    {
+        return '\0';
+    }
+
+    return *(lexer->current - 1);
 }
 
 static char advance(Lexer* lexer)
@@ -111,8 +129,47 @@ static Token keyword(TokenType type, const char* word, int length, Lexer* lexer)
 
 static Token number(Lexer* lexer)
 {
-    // implement this
+    while (!isAtEnd(lexer) && isDigit(peek(lexer)))
+    {
+        advance(lexer);
+    }
+
+    // parse the decimal point
+    if (peek(lexer) == '.')
+    {
+        advance(lexer);
+        const char* start = lexer->current;
+
+        while (!isAtEnd(lexer) && isDigit(peek(lexer)))
+        {
+            advance(lexer);
+        }
+
+        if (start == lexer->current)
+        {
+            return error("Error, the decimal part of a number cannot be empty.", lexer);
+        }
+    }
+
     return makeToken(TOKEN_NUMBER, lexer);
+}
+
+static Token string(char close, Lexer* lexer)
+{
+    while (!isAtEnd(lexer) && peek(lexer) != close)
+    {
+        advance(lexer);
+    }
+
+    if (isAtEnd(lexer))
+    {
+        return error("Error, string literal is not properly closed.", lexer);
+    }
+
+    // get the closing quote
+    advance(lexer);
+
+    return makeToken(TOKEN_STRING, lexer);
 }
 
 Token lex(Lexer* lexer)
@@ -143,7 +200,7 @@ Token lex(Lexer* lexer)
 
                     if (isAtEnd(lexer))
                     {
-                        error("Multiline comment is not properly closed", lexer);
+                        return error("Multiline comment is not properly closed", lexer);
                     }
 
                     // skip closing braces and newline
@@ -348,6 +405,10 @@ Token lex(Lexer* lexer)
             return lex(lexer);
         case '\0':
             return makeToken(TOKEN_EOF, lexer);
+        case '\'':
+            return string('\'', lexer);
+        case '\"':
+            return string('\"', lexer);
         default:
             if (isAlpha(c))
             {
