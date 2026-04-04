@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 
     for (int i = 0; i < chunk.count; i++)
     {
-        assert(chunk.ip[i] == opCodeControl[i]);
+        assert(chunk.code[i] == opCodeControl[i]);
     }
 
     // write opcode test

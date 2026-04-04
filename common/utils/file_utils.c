@@ -33,6 +33,7 @@ char* readSourceFile(const char* path)
 
     fseek(file, 0, SEEK_SET);
     unsigned long bytes_read = fread(buffer, sizeof(char), sizeof(char) * buffer_size, file);
+    fclose(file);
 
     if (bytes_read == 0 && buffer_size != 0)
     {
@@ -41,6 +42,5 @@ char* readSourceFile(const char* path)
     }
 
     buffer[buffer_size] = '\0';
-
     return buffer;
 }
