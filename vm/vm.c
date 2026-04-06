@@ -21,9 +21,10 @@ static void push(Value value, VM* vm)
     vm->stackTop++;
 }
 
-static void pop(VM* vm)
+static Value pop(VM* vm)
 {
     vm->stackTop--;
+    return *vm->stackTop;
 }
 
 static InterpretResult run(VM* vm)
@@ -31,14 +32,56 @@ static InterpretResult run(VM* vm)
     uint8_t* ip = vm->chunk.code;
 
 #define READ_BYTE() (*ip++)
+#define READ_CONSTANT() (vm->chunk.constants.values[READ_BYTE()])
+#define EXECUTE_BINARY(op, f, f_inv, vm)                                                           \
+    do                                                                                             \
+    {                                                                                              \
+        Value b = pop(vm);                                                                         \
+        Value a = pop(vm);                                                                         \
+        push(f_inv(f(a) op f(b)), vm);                                                             \
+    } while (false)
+
     while (true)
     {
+#ifdef DEBUG_STACK_TRACE
+        fprintf(stdout, "          STACK: ");
+        if (vm->stackTop == vm->stack)
+        {
+            printf("[EMPTY]");
+        }
+        else
+        {
+            for (Value* slot = vm->stack; slot < vm->stackTop; slot++)
+            {
+                printf("[ ");
+                printValue(slot);
+                printf(" ]");
+            }
+        }
+        printf("\n");
+        fprintf(stdout, "%-17s\n", "          -----");
+#endif
         uint8_t instruction;
         switch (instruction = READ_BYTE())
         {
+            case OP_CONSTANT:
+                Value value = READ_CONSTANT();
+                push(value, vm);
+                break;
             case OP_ADD:
-                // assumes that the value is already on the stack to begin with, since in compiling,
-                // they should be compiled first before the bytecode itself is emitted
+                EXECUTE_BINARY(+, AS_NUM, NUM_VAL, vm);
+                break;
+            case OP_MINUS:
+                EXECUTE_BINARY(-, AS_NUM, NUM_VAL, vm);
+                break;
+            case OP_MUL:
+                EXECUTE_BINARY(*, AS_NUM, NUM_VAL, vm);
+                break;
+            case OP_DIV:
+                EXECUTE_BINARY(/, AS_NUM, NUM_VAL, vm);
+                break;
+            case OP_RETURN:
+                return INTERPRET_SUCCESS;
             default:
                 return INTERPRET_ERROR;
         }
@@ -46,6 +89,7 @@ static InterpretResult run(VM* vm)
 
     return INTERPRET_SUCCESS;
 #undef READ_BYTE
+#undef READ_CONSTANT
 }
 
 InterpretResult interpret(const char* source)
