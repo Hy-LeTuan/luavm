@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
 
     for (int i = 0; i < chunk.constants.count; i++)
     {
-        assert(chunk.constants.ptr[i].type == NUMBER);
+        assert(chunk.constants.values[i].type == NUMBER);
     }
 
     freeChunk(&chunk);

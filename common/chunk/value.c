@@ -5,7 +5,7 @@
 
 void initValueArray(ValueArray* array)
 {
-    array->ptr = NULL;
+    array->values = NULL;
     array->capacity = 0;
     array->count = 0;
 }
@@ -15,11 +15,11 @@ void writeValueArray(ValueArray* array, Value value)
     if (array->count + 1 >= array->capacity)
     {
         int newCapacity = GROW_SIZE(array->capacity);
-        array->ptr = REALLOCATE(array->ptr, array->capacity, newCapacity, Value);
+        array->values = REALLOCATE(array->values, array->capacity, newCapacity, Value);
         array->capacity = newCapacity;
     }
 
-    array->ptr[array->count] = value;
+    array->values[array->count] = value;
     array->count++;
 }
 
@@ -28,9 +28,9 @@ void printValue(Value* value)
     switch (value->type)
     {
         case NUMBER:
-            fprintf(stdout, "%f", value->as.number);
+            fprintf(stdout, "%.2f", AS_NUM(*value));
         case BOOL:
-            fprintf(stdout, "%b", value->as.boolean);
+            fprintf(stdout, "%b", AS_BOOL(*value));
     }
 }
 
@@ -42,7 +42,7 @@ void printValueNewLine(Value* value)
 
 void freeValueArray(ValueArray* array)
 {
-    FREE(array->ptr, array->capacity);
+    FREE(array->values, array->capacity);
     array->capacity = 0;
     array->count = 0;
 }

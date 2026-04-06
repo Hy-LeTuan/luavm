@@ -34,7 +34,7 @@ typedef struct
     size_t capacity;
     // stores the index of the next empty position
     size_t count;
-    Value* ptr;
+    Value* values;
 } ValueArray;
 
 void initValueArray(ValueArray* array);
