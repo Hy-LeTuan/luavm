@@ -33,6 +33,11 @@ void writeChunk(Chunk* chunk, uint8_t op, size_t line)
     chunk->count++;
 }
 
+size_t getOpCodeLine(Chunk* chunk, int offset)
+{
+    return chunk->lines[offset];
+}
+
 size_t addConstant(Chunk* chunk, Value value)
 {
     writeValueArray(&chunk->constants, value);

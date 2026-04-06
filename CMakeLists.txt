@@ -10,10 +10,16 @@ project(luavm VERSION 1.0 LANGUAGES C)
 set(PROJECT_SRC src/main.c compiler/compiler.c vm/vm.c common/utils/file_utils.c)
 add_executable(${PROJECT_NAME} ${PROJECT_SRC})
 
-# stack trace option
+# options
 option(LUAVM_DEBUG_STACK_TRACE "Debug option to print stack on every instruction." OFF)
+option(LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION "Debug option to disassemble every instruction before execution." OFF)
+
 if (LUAVM_DEBUG_STACK_TRACE) 
     target_compile_definitions(${PROJECT_NAME} PUBLIC DEBUG_STACK_TRACE)
+endif()
+
+if (LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION) 
+    target_compile_definitions(${PROJECT_NAME} PUBLIC DEBUG_DISASSEMBLE_INSTRUCTION)
 endif()
 
 add_subdirectory(lexer)

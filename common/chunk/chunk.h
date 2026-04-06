@@ -29,5 +29,6 @@ void initChunk(Chunk* chunk);
 void writeChunk(Chunk* chunk, uint8_t op, size_t line);
 size_t addConstant(Chunk* chunk, Value value);
 void freeChunk(Chunk* chunk);
+size_t getOpCodeLine(Chunk* chunk, int offset);
 
 #endif

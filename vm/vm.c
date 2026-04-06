@@ -1,5 +1,6 @@
 #include <vm.h>
 #include <compiler.h>
+#include <disassemble.h>
 
 #include <stdio.h>
 
@@ -44,7 +45,7 @@ static InterpretResult run(VM* vm)
     while (true)
     {
 #ifdef DEBUG_STACK_TRACE
-        fprintf(stdout, "          STACK: ");
+        fprintf(stdout, "        STACK: ");
         if (vm->stackTop == vm->stack)
         {
             printf("[EMPTY]");
@@ -59,7 +60,10 @@ static InterpretResult run(VM* vm)
             }
         }
         printf("\n");
-        fprintf(stdout, "%-17s\n", "          -----");
+        fprintf(stdout, "%s\n", "        -----");
+#endif
+#ifdef DEBUG_DISASSEMBLE_INSTRUCTION
+        disassembleInstruction(&vm->chunk, ip - vm->chunk.code);
 #endif
         uint8_t instruction;
         switch (instruction = READ_BYTE())
