@@ -36,6 +36,27 @@ static Chunk* currentChunk(Parser* parser)
     return parser->chunk;
 }
 
+static TokenType peek(Parser* parser)
+{
+    return parser->current.type;
+}
+
+static TokenType prev(Parser* parser)
+{
+    return parser->prev.type;
+}
+
+static void consume(TokenType token, const char* message, Parser* parser)
+{
+    if (peek(parser) != token)
+    {
+        fprintf(stdout, "%s\n", message);
+        exit(EXIT_FAILURE);
+    }
+
+    advance(parser);
+}
+
 static void emitByte(uint8_t op, Parser* parser)
 {
     writeChunk(parser->chunk, op, parser->prev.line);
@@ -70,8 +91,15 @@ static void unary(Parser* parser)
             emitByte(OP_NEGATE, parser);
         default:
             fprintf(stderr, "Invalid prefix operator.\n");
-            exit(1);
+            exit(EXIT_FAILURE);
     }
+}
+
+static void grouping(Parser* parser)
+{
+    // parse expression
+    parse(PREC_ASSIGNMENT, parser);
+    consume(TOKEN_RIGHT_PAREN, "Error, expect ')' after an opened '('.", parser);
 }
 
 static void binary(Parser* parser)
@@ -106,9 +134,18 @@ static void binary(Parser* parser)
     {
         emitByte(OP_DIV, parser);
     }
-    else
+    else if (op == TOKEN_CARET)
     {
         emitByte(OP_EXPONENT, parser);
+    }
+    else if (op == TOKEN_PERCENT)
+    {
+        emitByte(OP_MODULO, parser);
+    }
+    else
+    {
+        fprintf(stderr, "Error, cannot parse binary operator.\n");
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -124,13 +161,13 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_MINUS] = { unary, binary, PREC_TERM },
     [TOKEN_STAR] = { NULL, binary, PREC_FACTOR },
     [TOKEN_SLASH] = { NULL, binary, PREC_FACTOR },
-    [TOKEN_PERCENT] = { NULL, NULL, PREC_NONE },
+    [TOKEN_PERCENT] = { NULL, binary, PREC_FACTOR },
     [TOKEN_CARET] = { NULL, binary, PREC_EXPONENT },
     [TOKEN_HASH] = { NULL, NULL, PREC_NONE },
     [TOKEN_LESS] = { NULL, NULL, PREC_NONE },
     [TOKEN_GREATER] = { NULL, NULL, PREC_NONE },
     [TOKEN_EQUAL] = { NULL, NULL, PREC_NONE },
-    [TOKEN_LEFT_PAREN] = { NULL, NULL, PREC_NONE },
+    [TOKEN_LEFT_PAREN] = { grouping, NULL, PREC_NONE },
     [TOKEN_RIGHT_PAREN] = { NULL, NULL, PREC_NONE },
     [TOKEN_LEFT_BRACE] = { NULL, NULL, PREC_NONE },
     [TOKEN_RIGHT_BRACE] = { NULL, NULL, PREC_NONE },
@@ -195,7 +232,7 @@ static void parse(Precedence prevPrec, Parser* parser)
     prefixFn(parser);
 
     Rule* infixRule;
-    while ((infixRule = getRule(parser->current.type))->prec >= prevPrec)
+    while ((infixRule = getRule(peek(parser)))->prec >= prevPrec)
     {
         // move to the next prefix starting point
         advance(parser);
@@ -220,6 +257,7 @@ void compile(const char* source, Chunk* chunk)
     Parser parser;
     initParser(&parser, source, chunk);
 
+    // first setup
     advance(&parser);
 
     expression(&parser);

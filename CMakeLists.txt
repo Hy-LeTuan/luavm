@@ -7,29 +7,22 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(luavm VERSION 1.0 LANGUAGES C)
 
-set(PROJECT_SRC src/main.c compiler/compiler.c vm/vm.c common/utils/file_utils.c)
+set(PROJECT_SRC src/main.c)
 add_executable(${PROJECT_NAME} ${PROJECT_SRC})
 
-# options
-option(LUAVM_DEBUG_STACK_TRACE "Debug option to print stack on every instruction." OFF)
-option(LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION "Debug option to disassemble every instruction before execution." OFF)
 
-if (LUAVM_DEBUG_STACK_TRACE) 
-    target_compile_definitions(${PROJECT_NAME} PUBLIC DEBUG_STACK_TRACE)
-endif()
-
-if (LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION) 
-    target_compile_definitions(${PROJECT_NAME} PUBLIC DEBUG_DISASSEMBLE_INSTRUCTION)
-endif()
+# add subdirectories
+add_subdirectory(common)
+target_link_libraries(${PROJECT_NAME} PRIVATE common)
 
 add_subdirectory(lexer)
 target_link_libraries(${PROJECT_NAME} PRIVATE lexer)
 
-add_subdirectory(common)
-target_link_libraries(${PROJECT_NAME} PRIVATE common)
+add_subdirectory(compiler)
+target_link_libraries(${PROJECT_NAME} PRIVATE compiler)
+
+add_subdirectory(vm)
+target_link_libraries(${PROJECT_NAME} PRIVATE vm)
 
 enable_testing()
 add_subdirectory(testing)
-
-target_include_directories(${PROJECT_NAME} PRIVATE compiler)
-target_include_directories(${PROJECT_NAME} PRIVATE vm)

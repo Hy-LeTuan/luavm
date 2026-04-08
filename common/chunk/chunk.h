@@ -13,6 +13,7 @@ typedef enum
     OP_MUL,
     OP_DIV,
     OP_EXPONENT,
+    OP_MODULO,
     OP_RETURN
 } OPCode;
 

@@ -2,6 +2,7 @@
 #include <compiler.h>
 #include <disassemble.h>
 
+#include <math.h>
 #include <stdio.h>
 
 void initVM(VM* vm)
@@ -42,6 +43,10 @@ static InterpretResult run(VM* vm)
         push(f_inv(f(a) op f(b)), vm);                                                             \
     } while (false)
 
+#ifdef DEBUG_DISASSEMBLE_CHUNK
+    disassembleChunk(&vm->chunk);
+#endif
+
     while (true)
     {
 #ifdef DEBUG_STACK_TRACE
@@ -69,8 +74,7 @@ static InterpretResult run(VM* vm)
         switch (instruction = READ_BYTE())
         {
             case OP_CONSTANT:
-                Value value = READ_CONSTANT();
-                push(value, vm);
+                push(READ_CONSTANT(), vm);
                 break;
             case OP_ADD:
                 EXECUTE_BINARY(+, AS_NUM, NUM_VAL, vm);
@@ -84,6 +88,19 @@ static InterpretResult run(VM* vm)
             case OP_DIV:
                 EXECUTE_BINARY(/, AS_NUM, NUM_VAL, vm);
                 break;
+            case OP_EXPONENT:
+            {
+                Value b = pop(vm);
+                Value a = pop(vm);
+                Value c = NUM_VAL(pow(AS_NUM(a), AS_NUM(b)));
+                push(c, vm);
+                break;
+            }
+            case OP_MODULO:
+            {
+                EXECUTE_BINARY(%, (int)AS_NUM, NUM_VAL, vm);
+                break;
+            }
             case OP_RETURN:
                 return INTERPRET_SUCCESS;
             default:
@@ -94,6 +111,7 @@ static InterpretResult run(VM* vm)
     return INTERPRET_SUCCESS;
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef EXECUTE_BINARY
 }
 
 InterpretResult interpret(const char* source)
