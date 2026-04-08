@@ -4,21 +4,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static void handleResult(InterpretResult result)
-{
-    if (result == INTERPRET_ERROR)
-    {
-        fprintf(stderr, "Error, cannot interpret the given code.\n");
-    }
-}
-
 static void runFile(const char* path)
 {
     const char* source = readSourceFile(path);
     InterpretResult result = interpret(source);
     free((void*)source);
 
-    handleResult(result);
+    if (result == INTERPRET_ERROR)
+    {
+        fprintf(stderr, "Error, cannot interpret the given code.\n");
+    }
 }
 
 static void repl()
@@ -36,7 +31,11 @@ static void repl()
         }
 
         InterpretResult result = interpret(buffer);
-        handleResult(result);
+
+        if (result == INTERPRET_ERROR)
+        {
+            fprintf(stderr, "Error, cannot interpret the given code.\n");
+        }
     }
 }
 

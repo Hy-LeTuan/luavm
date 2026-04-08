@@ -1,0 +1,16 @@
+#include <file_utils.h>
+#include <vm.h>
+
+#include <stdio.h>
+
+int main(int arc, char* argv[])
+{
+    const char* source = readSourceFile(argv[1]);
+    InterpretResult result = interpret(source);
+
+    if (result == INTERPRET_ERROR)
+    {
+        fprintf(stderr, "Error, cannot interpret the given code.\n");
+    }
+    return 0;
+}

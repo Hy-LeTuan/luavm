@@ -97,8 +97,12 @@ static InterpretResult run(VM* vm)
                 break;
             }
             case OP_MODULO:
-            {
                 EXECUTE_BINARY(%, (int)AS_NUM, NUM_VAL, vm);
+                break;
+            case OP_NEGATE:
+            {
+                Value a = pop(vm);
+                push(NUM_VAL(-AS_NUM(a)), vm);
                 break;
             }
             case OP_RETURN:

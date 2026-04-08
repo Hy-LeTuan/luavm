@@ -10,6 +10,18 @@ static void initParser(Parser* parser, const char* source, Chunk* chunk)
     parser->chunk = chunk;
 }
 
+static void errorAt(Token at, const char* message, Parser* parser)
+{
+    parser->hadError = true;
+    fprintf(stderr, "Compile Error on line [%zu], at %.*s.\n", at.line, (int)at.length, at.start);
+    fprintf(stderr, "Error reads: %s\n", message);
+}
+
+static void error(const char* message, Parser* parser)
+{
+    errorAt(parser->current, message, parser);
+}
+
 static void advance(Parser* parser)
 {
     parser->prev = parser->current;
@@ -21,8 +33,7 @@ static void advance(Parser* parser)
         if (token.type == TOKEN_ERROR)
         {
             parser->hadError = true;
-            fprintf(stderr, "Error at line: %zu\n", token.line);
-
+            errorAt(token, "Lexer Error, cannot parse the current word.", parser);
             return;
         }
 
@@ -80,7 +91,7 @@ Rule* getRule(TokenType op);
 
 static void unary(Parser* parser)
 {
-    TokenType op = parser->prev.type;
+    TokenType op = prev(parser);
 
     // all negate operators are right associative
     parse(PREC_UNARY, parser);
@@ -89,6 +100,7 @@ static void unary(Parser* parser)
     {
         case TOKEN_MINUS:
             emitByte(OP_NEGATE, parser);
+            break;
         default:
             fprintf(stderr, "Invalid prefix operator.\n");
             exit(EXIT_FAILURE);
@@ -219,7 +231,7 @@ static void parse(Precedence prevPrec, Parser* parser)
 {
     advance(parser);
 
-    TokenType prefixOp = parser->prev.type;
+    TokenType prefixOp = prev(parser);
     ParseFn prefixFn = getRule(prefixOp)->prefix;
 
     if (prefixFn == NULL)
@@ -265,7 +277,7 @@ void compile(const char* source, Chunk* chunk)
 
     if (parser.hadError)
     {
-        fprintf(stderr, "[TOKEN_ERROR] encountered at: %zu.\n", parser.current.line);
-        return;
+        fprintf(stderr, "Compiler error, exiting now.\n");
+        exit(EXIT_FAILURE);
     }
 }
