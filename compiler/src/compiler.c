@@ -1,5 +1,7 @@
 #include <compiler.h>
+
 #include <lexer.h>
+#include <object.h>
 
 #include <stdio.h>
 
@@ -168,6 +170,16 @@ static void number(Parser* parser)
     emitConstant(value, parser);
 }
 
+static void str(Parser* parser)
+{
+    const char* chars = parser->prev.start + 1;
+    size_t length = parser->prev.length;
+
+    ObjString* string = takeString(chars, length - 2);
+
+    emitConstant(OBJ_VAL((Object*)string), parser);
+}
+
 // pratt parsing table
 Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_MINUS] = { unary, binary, PREC_TERM },
@@ -217,7 +229,7 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_UNTIL] = { NULL, NULL, PREC_NONE },
     [TOKEN_WHILE] = { NULL, NULL, PREC_NONE },
     [TOKEN_IDENTIFIER] = { NULL, NULL, PREC_NONE },
-    [TOKEN_STRING] = { NULL, NULL, PREC_NONE },
+    [TOKEN_STRING] = { str, NULL, PREC_NONE },
     [TOKEN_NUMBER] = { number, NULL, PREC_NONE },
     [TOKEN_EOF] = { NULL, NULL, PREC_NONE },
     [TOKEN_ERROR] = { NULL, NULL, PREC_NONE } };
