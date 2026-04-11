@@ -3,6 +3,7 @@
 
 #include <chunk.h>
 #include <value.h>
+#include <object.h>
 
 #define STACK_MAX 256
 
@@ -17,10 +18,12 @@ typedef struct
     Value stack[STACK_MAX];
     Chunk chunk;
     Value* stackTop;
+    Object* objectStack;
 } VM;
 
 void initVM(VM* vm);
 InterpretResult interpret(const char* source);
+void linkObject(Object* obj, VM* vm);
 void freeVM(VM* vm);
 
 #endif

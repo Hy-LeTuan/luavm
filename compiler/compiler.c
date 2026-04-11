@@ -2,6 +2,7 @@
 
 #include <lexer.h>
 #include <object.h>
+#include <memory.h>
 
 #include <stdio.h>
 
@@ -172,11 +173,10 @@ static void number(Parser* parser)
 
 static void str(Parser* parser)
 {
-    const char* chars = parser->prev.start + 1;
-    size_t length = parser->prev.length;
+    const char* text = parser->prev.start + 1;
+    size_t length = parser->prev.length - 2;
 
-    ObjString* string = takeString(chars, length - 2);
-
+    ObjString* string = copyString(text, length);
     emitConstant(OBJ_VAL((Object*)string), parser);
 }
 

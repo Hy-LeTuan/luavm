@@ -1,14 +1,29 @@
 #include <vm.h>
 #include <compiler.h>
 #include <disassemble.h>
+#include <memory.h>
+#include <gc.h>
 
 #include <math.h>
+#include <string.h>
 #include <stdio.h>
 
 void initVM(VM* vm)
 {
     vm->stackTop = &vm->stack[0];
+    vm->objectStack = NULL;
     initChunk(&vm->chunk);
+}
+
+void linkObject(Object* obj, VM* vm)
+{
+    if (obj == NULL || obj->next != NULL)
+    {
+        return;
+    }
+
+    obj->next = vm->objectStack;
+    vm->objectStack = obj;
 }
 
 static void push(Value value, VM* vm)
@@ -23,10 +38,32 @@ static void push(Value value, VM* vm)
     vm->stackTop++;
 }
 
+static Value peek(int index, VM* vm)
+{
+    return vm->stackTop[-1 - index];
+}
+
 static Value pop(VM* vm)
 {
     vm->stackTop--;
     return *vm->stackTop;
+}
+
+static void concatenate(VM* vm)
+{
+    ObjString* b = AS_STRING(pop(vm));
+    ObjString* a = AS_STRING(pop(vm));
+
+    size_t length = a->length + b->length;
+    char* chars = ALLOCATE(char, length + 1);
+
+    memcpy(chars, a->chars, a->length);
+    memcpy(chars + a->length, b->chars, b->length);
+    chars[length] = '\0';
+
+    ObjString* result = takeString(chars, length);
+    linkObject((Object*)result, vm);
+    push(OBJ_VAL((Object*)result), vm);
 }
 
 static InterpretResult run(VM* vm)
@@ -74,19 +111,44 @@ static InterpretResult run(VM* vm)
         switch (instruction = READ_BYTE())
         {
             case OP_CONSTANT:
-                push(READ_CONSTANT(), vm);
+            {
+                Value constant = READ_CONSTANT();
+
+                if (constant.type == OBJECT)
+                {
+                    linkObject(AS_OBJ(constant), vm);
+                }
+
+                push(constant, vm);
                 break;
+            }
             case OP_ADD:
-                EXECUTE_BINARY(+, AS_NUM, NUM_VAL, vm);
+                if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
+                {
+                    EXECUTE_BINARY(+, AS_NUM, NUM_VAL, vm);
+                }
+                else if (IS_STRING(peek(0, vm)) && IS_STRING(peek(1, vm)))
+                {
+                    concatenate(vm);
+                }
                 break;
             case OP_MINUS:
-                EXECUTE_BINARY(-, AS_NUM, NUM_VAL, vm);
+                if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
+                {
+                    EXECUTE_BINARY(-, AS_NUM, NUM_VAL, vm);
+                }
                 break;
             case OP_MUL:
-                EXECUTE_BINARY(*, AS_NUM, NUM_VAL, vm);
+                if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
+                {
+                    EXECUTE_BINARY(*, AS_NUM, NUM_VAL, vm);
+                }
                 break;
             case OP_DIV:
-                EXECUTE_BINARY(/, AS_NUM, NUM_VAL, vm);
+                if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
+                {
+                    EXECUTE_BINARY(/, AS_NUM, NUM_VAL, vm);
+                }
                 break;
             case OP_EXPONENT:
             {
@@ -136,4 +198,5 @@ InterpretResult interpret(const char* source)
 void freeVM(VM* vm)
 {
     freeChunk(&vm->chunk);
+    freeObjects(vm->objectStack);
 }

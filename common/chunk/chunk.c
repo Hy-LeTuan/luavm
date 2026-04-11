@@ -46,8 +46,8 @@ size_t addConstant(Chunk* chunk, Value value)
 
 void freeChunk(Chunk* chunk)
 {
-    FREE(chunk->code, chunk->capacity);
-    FREE(chunk->lines, chunk->capacity);
+    FREE_ARRAY(chunk->code, chunk->capacity, uint8_t);
+    FREE_ARRAY(chunk->lines, chunk->capacity, size_t);
 
     chunk->capacity = 0;
     chunk->count = 0;

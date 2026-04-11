@@ -1,4 +1,4 @@
-add_library(compiler src/compiler.c)
+add_library(compiler compiler.c)
 
 target_link_libraries(compiler PRIVATE common)
 target_link_libraries(compiler PRIVATE lexer)
