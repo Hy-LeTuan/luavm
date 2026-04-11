@@ -48,7 +48,7 @@ void writeValueArray(ValueArray* array, Value value);
 void freeValueArray(ValueArray* array);
 
 bool compareValue(Value a, Value b);
-void printValue(Value* value);
-void printValueNewLine(Value* value);
+void printValue(Value value);
+void printValueNewLine(Value value);
 
 #endif

@@ -97,7 +97,7 @@ static InterpretResult run(VM* vm)
             for (Value* slot = vm->stack; slot < vm->stackTop; slot++)
             {
                 printf("[ ");
-                printValue(slot);
+                printValue(*slot);
                 printf(" ]");
             }
         }

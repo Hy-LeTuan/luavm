@@ -25,26 +25,26 @@ void writeValueArray(ValueArray* array, Value value)
     array->count++;
 }
 
-void printValue(Value* value)
+void printValue(Value value)
 {
-    switch (value->type)
+    switch (value.type)
     {
         case NUMBER:
-            fprintf(stdout, "%.2f", AS_NUM(*value));
+            fprintf(stdout, "%.2f", AS_NUM(value));
             break;
         case BOOL:
-            fprintf(stdout, "%b", AS_BOOL(*value));
+            fprintf(stdout, "%b", AS_BOOL(value));
             break;
         case NIL:
             fprintf(stdout, "nil");
             break;
         case OBJECT:
-            printObject(AS_OBJ(*value));
+            printObject(AS_OBJ(value));
             break;
     }
 }
 
-void printValueNewLine(Value* value)
+void printValueNewLine(Value value)
 {
     printValue(value);
     fprintf(stdout, "\n");
