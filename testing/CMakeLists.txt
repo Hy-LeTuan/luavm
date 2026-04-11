@@ -22,3 +22,9 @@ add_executable(HashTest function/hash_test.c)
 add_test(NAME HashTest COMMAND HashTest)
 target_link_libraries(HashTest PRIVATE common)
 target_link_libraries(HashTest PRIVATE vm)
+
+# test table
+add_executable(TableTest function/table_test.c)
+add_test(NAME TableTest COMMAND TableTest)
+target_link_libraries(TableTest PRIVATE common)
+target_link_libraries(TableTest PRIVATE vm)
