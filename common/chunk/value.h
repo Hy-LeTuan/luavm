@@ -1,6 +1,7 @@
 #ifndef common_chunk_value_h
 #define common_chunk_value_h
 
+#include <object.h>
 #include <stddef.h>
 
 #define IS_BOOL(value) ((value).type == BOOL)
@@ -15,7 +16,8 @@
 typedef enum
 {
     NUMBER,
-    BOOL
+    BOOL,
+    OBJECT
 } ValueType;
 
 typedef struct
@@ -25,6 +27,7 @@ typedef struct
     {
         double number;
         bool boolean;
+        Object* object;
     } as;
 } Value;
 
@@ -40,6 +43,8 @@ typedef struct
 void initValueArray(ValueArray* array);
 void writeValueArray(ValueArray* array, Value value);
 void freeValueArray(ValueArray* array);
+
+bool compareValue(Value a, Value b);
 void printValue(Value* value);
 void printValueNewLine(Value* value);
 

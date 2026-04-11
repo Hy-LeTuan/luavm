@@ -1,7 +1,9 @@
 #include <value.h>
 #include <memory.h>
+#include <object.h>
 
 #include <stdio.h>
+#include <string.h>
 
 void initValueArray(ValueArray* array)
 {
@@ -29,20 +31,47 @@ void printValue(Value* value)
     {
         case NUMBER:
             fprintf(stdout, "%.2f", AS_NUM(*value));
+            break;
         case BOOL:
             fprintf(stdout, "%b", AS_BOOL(*value));
+            break;
+        case OBJECT:
+            printObject(AS_OBJ(*value));
+            break;
     }
 }
 
 void printValueNewLine(Value* value)
 {
     printValue(value);
-    printf("\n");
+    fprintf(stdout, "\n");
+}
+
+bool compareValue(Value a, Value b)
+{
+    if (IS_BOOL(a) && IS_BOOL(b))
+    {
+        return AS_BOOL(a) == AS_BOOL(b);
+    }
+    else if (IS_NUM(a) && IS_NUM(b))
+    {
+        return AS_NUM(a) == AS_NUM(b);
+    }
+    else if (IS_STRING(a) == IS_STRING(b))
+    {
+        ObjString* a_str = AS_STRING(a);
+        ObjString* b_str = AS_STRING(b);
+
+        return a_str->length == b_str->length &&
+          memcmp(a_str->chars, b_str->chars, a_str->length) == 0;
+    }
+
+    return true;
 }
 
 void freeValueArray(ValueArray* array)
 {
-    FREE(array->values, array->capacity);
+    FREE_ARRAY(array->values, array->capacity, Value);
     array->capacity = 0;
     array->count = 0;
 }
