@@ -6,17 +6,20 @@
 
 #define IS_BOOL(value) ((value).type == BOOL)
 #define IS_NUM(value) ((value).type == NUMBER)
+#define IS_NIL(value) ((value).type == NIL)
 
 #define AS_BOOL(value) ((value).as.boolean)
 #define AS_NUM(value) ((value).as.number)
 
-#define BOOL_VALUE(b) ((Value){ BOOL, { .boolean = b } })
+#define BOOL_VAL(b) ((Value){ BOOL, { .boolean = b } })
 #define NUM_VAL(n) ((Value){ NUMBER, { .number = n } })
+#define NIL_VAL() ((Value){ NIL })
 
 typedef enum
 {
     NUMBER,
     BOOL,
+    NIL,
     OBJECT
 } ValueType;
 

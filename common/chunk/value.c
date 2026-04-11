@@ -35,6 +35,9 @@ void printValue(Value* value)
         case BOOL:
             fprintf(stdout, "%b", AS_BOOL(*value));
             break;
+        case NIL:
+            fprintf(stdout, "nil");
+            break;
         case OBJECT:
             printObject(AS_OBJ(*value));
             break;
@@ -57,6 +60,10 @@ bool compareValue(Value a, Value b)
     {
         return AS_NUM(a) == AS_NUM(b);
     }
+    else if (IS_NIL(a) && IS_NIL(b))
+    {
+        return true;
+    }
     else if (IS_STRING(a) == IS_STRING(b))
     {
         ObjString* a_str = AS_STRING(a);
@@ -66,7 +73,7 @@ bool compareValue(Value a, Value b)
           memcmp(a_str->chars, b_str->chars, a_str->length) == 0;
     }
 
-    return true;
+    return false;
 }
 
 void freeValueArray(ValueArray* array)
