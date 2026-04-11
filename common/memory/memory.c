@@ -5,19 +5,14 @@
 
 void* reallocate(void* ptr, size_t oldSize, size_t newSize)
 {
-    if (newSize == 0)
-    {
-        free(ptr);
-        return NULL;
-    }
-    else if (newSize == oldSize)
+    if (newSize == oldSize)
     {
         return ptr;
     }
 
     void* newPtr = realloc(ptr, newSize);
 
-    if (newPtr == NULL)
+    if (newSize != 0 && newPtr == NULL)
     {
         fprintf(stderr, "Error in allocating memory for luavm.\n");
         exit(EXIT_FAILURE);
