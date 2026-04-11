@@ -12,7 +12,13 @@ add_test(NAME ChunkOpsTest COMMAND ChunkOpsTest)
 target_link_libraries(ChunkOpsTest PRIVATE common)
 
 # test calculations 
-add_executable(CalcTest function/calculation.c)
+add_executable(CalcTest function/calculation_test.c)
 add_test(NAME CalcTest COMMAND CalcTest ${CMAKE_SOURCE_DIR}/testing/data/calculations.lua)
 target_link_libraries(CalcTest PRIVATE common)
 target_link_libraries(CalcTest PRIVATE vm)
+
+# test hashing
+add_executable(HashTest function/hash_test.c)
+add_test(NAME HashTest COMMAND HashTest)
+target_link_libraries(HashTest PRIVATE common)
+target_link_libraries(HashTest PRIVATE vm)
