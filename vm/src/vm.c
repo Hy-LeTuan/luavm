@@ -1,3 +1,4 @@
+#include "table.h"
 #include <vm.h>
 
 #include <compiler.h>
@@ -174,7 +175,12 @@ static InterpretResult run(VM* vm)
                 break;
             }
             case OP_SET_GLOBAL:
+            {
+                Value key = READ_CONSTANT();
+                Value value = peek(0, vm);
+                tableInsertOrSet(key, value, &vm->globals);
                 break;
+            }
             case OP_POP:
                 pop(vm);
                 break;
@@ -209,6 +215,7 @@ InterpretResult interpret(const char* source)
 void freeVM(VM* vm)
 {
     freeTable(&vm->strings);
+    freeTable(&vm->globals);
     freeChunk(&vm->chunk);
     freeObjects(vm->objectStack);
 }
