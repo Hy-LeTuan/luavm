@@ -57,15 +57,8 @@ static void concatenate(VM* vm)
 {
     ObjString* b = AS_STRING(pop(vm));
     ObjString* a = AS_STRING(pop(vm));
+    ObjString* result = concatenateString(a, b, &vm->strings);
 
-    size_t length = a->length + b->length;
-    char* chars = ALLOCATE(char, length + 1);
-
-    memcpy(chars, a->chars, a->length);
-    memcpy(chars + a->length, b->chars, b->length);
-    chars[length] = '\0';
-
-    ObjString* result = takeString(chars, length, &vm->strings);
     linkObject((Object*)result, vm);
     push(OBJ_VAL((Object*)result), vm);
 }

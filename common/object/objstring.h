@@ -14,7 +14,9 @@ typedef struct
     char* chars;
 } ObjString;
 
-// string functions
 ObjString* copyString(const char* const_chars, int length, Table* strings);
 ObjString* takeString(char* chars, int length, Table* strings);
+
+ObjString* concatenateString(ObjString* a, ObjString* b, Table* strings);
+
 #endif

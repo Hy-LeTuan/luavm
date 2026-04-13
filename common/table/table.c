@@ -33,11 +33,7 @@ static bool compareKey(Value a, Value b)
     }
     else if (IS_STRING(a) == IS_STRING(b))
     {
-        ObjString* a_str = AS_STRING(a);
-        ObjString* b_str = AS_STRING(b);
-
-        return a_str->length == b_str->length &&
-          memcmp(a_str->chars, b_str->chars, a_str->length) == 0;
+        return AS_STRING(a) == AS_STRING(b);
     }
 
     return false;
@@ -46,7 +42,8 @@ static bool compareKey(Value a, Value b)
 static Entry* findEntry(Entry* entries, size_t capacity, Value key)
 {
     int len = 0;
-    uint32_t hash = fnv1a_32(valueToByte(key, &len), len);
+    void* bytes = valueToByte(key, &len);
+    uint32_t hash = fnv1a_32(bytes, len);
     int index = hash % capacity;
 
     int iteration = 0;
@@ -84,8 +81,8 @@ static int growTable(Table* table, size_t newCapacity)
     for (int i = 0; i < newCapacity; i++)
     {
         Entry* entry = &newEntries[i];
-        entry->key = NIL_VAL();
-        entry->value = NIL_VAL();
+        entry->key = NIL_CONSTANT;
+        entry->value = NIL_CONSTANT;
         entry->type = ENTRY_EMPTY;
     }
 
@@ -131,6 +128,7 @@ void tableInsert(Value key, Value value, Table* table)
         entry->type = ENTRY_OCCUPIED;
         entry->key = key;
         entry->value = value;
+        table->count++;
     }
 }
 
@@ -143,7 +141,7 @@ Value tableGet(Value key, Table* table)
         return entry->value;
     }
 
-    return NIL_VAL();
+    return NIL_CONSTANT;
 }
 
 bool tableErase(Value key, Table* table)
@@ -170,25 +168,22 @@ Value tableFindString(const char* chars, int length, Table* table)
 {
     if (table->count == 0)
     {
-        return NIL_VAL();
+        return NIL_CONSTANT;
     }
 
-    uint32_t hash = fnv1a_32((void*)chars, length);
-    printf("hash is computed\n");
+    uint32_t hash = fnv1a_32(chars, length);
     int index = hash % table->capacity;
-
     int iteration = 0;
-    Entry* tombstone = NULL;
 
     while (1)
     {
         Entry* entry = &table->entries[index];
 
-        if (entry->type != ENTRY_OCCUPIED)
+        if (entry->type == ENTRY_EMPTY)
         {
-            return NIL_VAL();
+            return NIL_CONSTANT;
         }
-        else if (IS_STRING(entry->key))
+        else if (entry->type == ENTRY_OCCUPIED && IS_STRING(entry->key))
         {
             ObjString* key = AS_STRING(entry->key);
             if (key->length == length && memcmp(chars, key->chars, length) == 0)
@@ -202,7 +197,7 @@ Value tableFindString(const char* chars, int length, Table* table)
         iteration++;
     }
 
-    return NIL_VAL();
+    return NIL_CONSTANT;
 }
 
 void freeTable(Table* table)
