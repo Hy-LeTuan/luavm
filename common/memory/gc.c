@@ -1,6 +1,7 @@
 #include <gc.h>
 
 #include <memory.h>
+#include <objstring.h>
 
 #include <stdio.h>
 

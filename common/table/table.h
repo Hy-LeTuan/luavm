@@ -2,6 +2,7 @@
 #define common_table_table_h
 
 #include <value.h>
+#include <object.h>
 #include <stdint.h>
 
 typedef enum
@@ -25,12 +26,12 @@ typedef struct
     Entry* entries;
 } Table;
 
-void* valueToByte(Value value, int* byte_length);
-
 void initTable(Table* table);
-void insert(Value key, Value value, Table* table);
-Value get(Value key, Table* table);
-bool erase(Value key, Table* table);
+void tableInsert(Value key, Value value, Table* table);
+Value tableGet(Value key, Table* table);
+bool tableErase(Value key, Table* table);
 void freeTable(Table* table);
+
+Value tableFindString(const char* chars, int length, Table* table);
 
 #endif

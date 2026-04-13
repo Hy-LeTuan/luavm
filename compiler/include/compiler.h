@@ -4,8 +4,9 @@
 #include <lexer.h>
 #include <token.h>
 #include <chunk.h>
+#include <table.h>
 
-void compile(const char* source, Chunk* chunk);
+void compile(const char* source, Chunk* chunk, Table* strings);
 
 typedef struct
 {
@@ -14,6 +15,7 @@ typedef struct
     Token current;
     bool hadError;
     Chunk* chunk;
+    Table* strings;
 } Parser;
 
 typedef enum

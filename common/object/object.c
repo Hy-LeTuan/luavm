@@ -1,4 +1,6 @@
 #include <object.h>
+
+#include <objstring.h>
 #include <memory.h>
 
 #include <stdio.h>
@@ -12,35 +14,6 @@ Object* allocateObj(ObjType type, size_t size)
     obj->next = NULL;
 
     return obj;
-}
-
-ObjString* newString(char* chars, size_t length)
-{
-    ObjString* string = ALLOCATE_OBJ(OBJ_STRING, ObjString);
-    string->length = length;
-    string->chars = chars;
-
-    return string;
-}
-
-ObjString* takeString(char* chars, int length)
-{
-    if (length <= 0 || chars == NULL)
-    {
-        return newString(NULL, 0);
-    }
-
-    // something something intern string here
-    return newString(chars, length);
-}
-
-ObjString* copyString(const char* const_chars, int length)
-{
-    char* chars = ALLOCATE(char, length + 1);
-    memcpy(chars, const_chars, length);
-    chars[length] = '\0';
-
-    return takeString(chars, length);
 }
 
 void printObject(Object* obj)

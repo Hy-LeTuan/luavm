@@ -3,6 +3,10 @@
 #include <hash.h>
 #include <memory.h>
 #include <string.h>
+#include <object.h>
+#include <objstring.h>
+
+#include <stdio.h>
 
 #define TABLE_MAX_LOAD 0.75
 
@@ -11,47 +15,6 @@ void initTable(Table* table)
     table->capacity = 0;
     table->count = 0;
     table->entries = NULL;
-}
-
-void* valueToByte(Value value, int* byte_length)
-{
-    void* bytes = NULL;
-
-    switch (value.type)
-    {
-        case NUMBER:
-            bytes = (void*)(&value.as.number);
-            *byte_length = sizeof(value.as.number);
-            break;
-        case BOOL:
-            bytes = (void*)(&value.as.boolean);
-            *byte_length = sizeof(value.as.boolean);
-            break;
-        case OBJECT:
-        {
-            Object* obj = value.as.object;
-            switch (obj->type)
-            {
-                case OBJ_STRING:
-                {
-                    ObjString* string = AS_STRING(value);
-                    bytes = (void*)string->chars;
-                    *byte_length = string->length;
-                    break;
-                }
-                case OBJ_TABLE:
-                case OBJ_FUNCTION:
-                    *byte_length = 0;
-                    break;
-            }
-            break;
-        }
-        case NIL:
-            *byte_length = 0;
-            break;
-    }
-
-    return bytes;
 }
 
 static bool compareKey(Value a, Value b)
@@ -86,7 +49,7 @@ static Entry* findEntry(Entry* entries, size_t capacity, Value key)
     uint32_t hash = fnv1a_32(valueToByte(key, &len), len);
     int index = hash % capacity;
 
-    uint32_t iteration = 0;
+    int iteration = 0;
     Entry* tombstone = NULL;
 
     while (1)
@@ -153,7 +116,7 @@ static int growTable(Table* table, size_t newCapacity)
     return 0;
 }
 
-void insert(Value key, Value value, Table* table)
+void tableInsert(Value key, Value value, Table* table)
 {
     if (table->count + 1 > table->capacity * TABLE_MAX_LOAD)
     {
@@ -171,7 +134,7 @@ void insert(Value key, Value value, Table* table)
     }
 }
 
-Value get(Value key, Table* table)
+Value tableGet(Value key, Table* table)
 {
     Entry* entry = findEntry(table->entries, table->capacity, key);
 
@@ -183,7 +146,7 @@ Value get(Value key, Table* table)
     return NIL_VAL();
 }
 
-bool erase(Value key, Table* table)
+bool tableErase(Value key, Table* table)
 {
     if (IS_NIL(key))
     {
@@ -201,6 +164,45 @@ bool erase(Value key, Table* table)
     entry->type = ENTRY_TOMBSTONE;
 
     return true;
+}
+
+Value tableFindString(const char* chars, int length, Table* table)
+{
+    if (table->count == 0)
+    {
+        return NIL_VAL();
+    }
+
+    uint32_t hash = fnv1a_32((void*)chars, length);
+    printf("hash is computed\n");
+    int index = hash % table->capacity;
+
+    int iteration = 0;
+    Entry* tombstone = NULL;
+
+    while (1)
+    {
+        Entry* entry = &table->entries[index];
+
+        if (entry->type != ENTRY_OCCUPIED)
+        {
+            return NIL_VAL();
+        }
+        else if (IS_STRING(entry->key))
+        {
+            ObjString* key = AS_STRING(entry->key);
+            if (key->length == length && memcmp(chars, key->chars, length) == 0)
+            {
+                return entry->key;
+            }
+        }
+
+        // mid square probing
+        index = (index + iteration * iteration) % table->capacity;
+        iteration++;
+    }
+
+    return NIL_VAL();
 }
 
 void freeTable(Table* table)

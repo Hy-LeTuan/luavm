@@ -50,32 +50,6 @@ void printValueNewLine(Value value)
     fprintf(stdout, "\n");
 }
 
-bool compareValue(Value a, Value b)
-{
-    if (IS_BOOL(a) && IS_BOOL(b))
-    {
-        return AS_BOOL(a) == AS_BOOL(b);
-    }
-    else if (IS_NUM(a) && IS_NUM(b))
-    {
-        return AS_NUM(a) == AS_NUM(b);
-    }
-    else if (IS_NIL(a) && IS_NIL(b))
-    {
-        return true;
-    }
-    else if (IS_STRING(a) == IS_STRING(b))
-    {
-        ObjString* a_str = AS_STRING(a);
-        ObjString* b_str = AS_STRING(b);
-
-        return a_str->length == b_str->length &&
-          memcmp(a_str->chars, b_str->chars, a_str->length) == 0;
-    }
-
-    return false;
-}
-
 void freeValueArray(ValueArray* array)
 {
     FREE_ARRAY(array->values, array->capacity, Value);

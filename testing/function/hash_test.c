@@ -1,15 +1,17 @@
 #include <table.h>
 #include <hash.h>
 #include <value.h>
+#include <objstring.h>
 
 #include <stdio.h>
 #include <assert.h>
 
 #define COMPARE(expr) (compare((expr), (expr)))
 
+Table strings;
+
 static void compare(Value a, Value b)
 {
-
     int a_hash_length;
     int b_hash_length;
 
@@ -27,6 +29,8 @@ static void compare(Value a, Value b)
 
 int main(int argc, char* argv[])
 {
+    initTable(&strings);
+
     // numbers
     COMPARE(NUM_VAL(1.0));
     COMPARE(NUM_VAL(2.0));
@@ -43,10 +47,12 @@ int main(int argc, char* argv[])
     fprintf(stdout, "Test for booleans passed.\n");
 
     // strings
-    COMPARE(OBJ_VAL((Object*)copyString("hello", 5)));
-    COMPARE(OBJ_VAL((Object*)copyString("this is a very long string for a key", 36)));
+    COMPARE(OBJ_VAL((Object*)copyString("hello", 5, &strings)));
+    COMPARE(OBJ_VAL((Object*)copyString("this is a very long string for a key", 36, &strings)));
 
     fprintf(stdout, "Test for strings passed.\n");
+
+    freeTable(&strings);
 
     return 0;
 }
