@@ -28,3 +28,9 @@ add_executable(TableTest function/table_test.c)
 add_test(NAME TableTest COMMAND TableTest)
 target_link_libraries(TableTest PRIVATE common)
 target_link_libraries(TableTest PRIVATE vm)
+
+# test string
+add_executable(StringTest function/string_test.c)
+add_test(NAME StringTest COMMAND StringTest)
+target_link_libraries(StringTest PRIVATE common)
+target_link_libraries(StringTest PRIVATE vm)
