@@ -132,6 +132,20 @@ void tableInsert(Value key, Value value, Table* table)
     }
 }
 
+void tableInsertOrSet(Value key, Value value, Table* table)
+{
+    Entry* entry = findEntry(table->entries, table->capacity, key);
+
+    if (entry != NULL && entry->type == ENTRY_OCCUPIED)
+    {
+        entry->value = value;
+    }
+    else
+    {
+        tableInsert(key, value, table);
+    }
+}
+
 Value tableGet(Value key, Table* table)
 {
     Entry* entry = findEntry(table->entries, table->capacity, key);
