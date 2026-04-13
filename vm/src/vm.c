@@ -1,4 +1,3 @@
-#include "table.h"
 #include <vm.h>
 
 #include <compiler.h>
@@ -7,17 +6,38 @@
 #include <gc.h>
 #include <objstring.h>
 
+#include <stdarg.h>
 #include <math.h>
 #include <stdio.h>
 
+static void resetStack(VM* vm)
+{
+    vm->stackTop = vm->stack;
+}
+
 void initVM(VM* vm)
 {
-    vm->stackTop = &vm->stack[0];
     vm->objectStack = NULL;
 
+    resetStack(vm);
     initTable(&vm->strings);
     initTable(&vm->globals);
     initChunk(&vm->chunk);
+}
+
+static void runtimeError(uint8_t* ip, VM* vm, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputs("\n", stderr);
+
+    size_t instruction = ip - vm->chunk.code - 1;
+    int line = vm->chunk.lines[instruction];
+
+    fprintf(stderr, "[line %d] in ", line);
+    resetStack(vm);
 }
 
 void linkObject(Object* obj, VM* vm)
@@ -129,34 +149,66 @@ static InterpretResult run(VM* vm)
                 {
                     concatenate(vm);
                 }
+                else
+                {
+                    runtimeError(
+                      ip, vm, "RuntimeError: Cannot add values that are not numbers or strings.");
+                }
                 break;
             case OP_MINUS:
-                if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
+                if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
                 {
-                    EXECUTE_BINARY(-, AS_NUM, NUM_VAL, vm);
+                    runtimeError(ip, vm,
+                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '-');
+                    break;
                 }
+
+                EXECUTE_BINARY(-, AS_NUM, NUM_VAL, vm);
                 break;
             case OP_MUL:
-                if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
+                if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
                 {
-                    EXECUTE_BINARY(*, AS_NUM, NUM_VAL, vm);
+                    runtimeError(ip, vm,
+                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '*');
+                    break;
                 }
+
+                EXECUTE_BINARY(*, AS_NUM, NUM_VAL, vm);
                 break;
             case OP_DIV:
-                if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
+                if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
                 {
-                    EXECUTE_BINARY(/, AS_NUM, NUM_VAL, vm);
+                    runtimeError(ip, vm,
+                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '/');
+                    break;
                 }
+
+                EXECUTE_BINARY(/, AS_NUM, NUM_VAL, vm);
                 break;
             case OP_EXPONENT:
             {
                 Value b = pop(vm);
                 Value a = pop(vm);
+
+                if (!IS_NUM(a) || !IS_NUM(b))
+                {
+                    runtimeError(ip, vm,
+                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '^');
+                    break;
+                }
+
                 Value c = NUM_VAL(pow(AS_NUM(a), AS_NUM(b)));
                 push(c, vm);
                 break;
             }
             case OP_MODULO:
+                if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
+                {
+                    runtimeError(ip, vm,
+                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '%');
+                    break;
+                }
+
                 EXECUTE_BINARY(%, (int)AS_NUM, NUM_VAL, vm);
                 break;
             case OP_NEGATE:
