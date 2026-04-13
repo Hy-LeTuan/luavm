@@ -1,8 +1,10 @@
 #include <vm.h>
+
 #include <compiler.h>
 #include <disassemble.h>
 #include <memory.h>
 #include <gc.h>
+#include <objstring.h>
 
 #include <math.h>
 #include <string.h>
@@ -12,6 +14,8 @@ void initVM(VM* vm)
 {
     vm->stackTop = &vm->stack[0];
     vm->objectStack = NULL;
+
+    initTable(&vm->strings);
     initChunk(&vm->chunk);
 }
 
@@ -61,7 +65,7 @@ static void concatenate(VM* vm)
     memcpy(chars + a->length, b->chars, b->length);
     chars[length] = '\0';
 
-    ObjString* result = takeString(chars, length);
+    ObjString* result = takeString(chars, length, &vm->strings);
     linkObject((Object*)result, vm);
     push(OBJ_VAL((Object*)result), vm);
 }
@@ -185,7 +189,7 @@ InterpretResult interpret(const char* source)
     VM vm;
 
     initVM(&vm);
-    compile(source, &vm.chunk);
+    compile(source, &vm.chunk, &vm.strings);
 
     // the main run loop
     InterpretResult result = run(&vm);
@@ -197,6 +201,7 @@ InterpretResult interpret(const char* source)
 
 void freeVM(VM* vm)
 {
+    freeTable(&vm->strings);
     freeChunk(&vm->chunk);
     freeObjects(vm->objectStack);
 }

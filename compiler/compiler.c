@@ -2,15 +2,17 @@
 
 #include <lexer.h>
 #include <object.h>
+#include <objstring.h>
 #include <memory.h>
 
 #include <stdio.h>
 
-static void initParser(Parser* parser, const char* source, Chunk* chunk)
+static void initParser(Parser* parser, const char* source, Chunk* chunk, Table* internedString)
 {
     initLexer(source, &parser->lexer);
     parser->hadError = false;
     parser->chunk = chunk;
+    parser->strings = internedString;
 }
 
 static void errorAt(Token at, const char* message, Parser* parser)
@@ -176,7 +178,7 @@ static void str(Parser* parser)
     const char* text = parser->prev.start + 1;
     size_t length = parser->prev.length - 2;
 
-    ObjString* string = copyString(text, length);
+    ObjString* string = copyString(text, length, parser->strings);
     emitConstant(OBJ_VAL((Object*)string), parser);
 }
 
@@ -276,10 +278,10 @@ static void expression(Parser* parser)
     parse(PREC_ASSIGNMENT, parser);
 }
 
-void compile(const char* source, Chunk* chunk)
+void compile(const char* source, Chunk* chunk, Table* strings)
 {
     Parser parser;
-    initParser(&parser, source, chunk);
+    initParser(&parser, source, chunk, strings);
 
     // first setup
     advance(&parser);
