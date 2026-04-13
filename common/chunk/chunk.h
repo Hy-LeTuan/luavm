@@ -14,6 +14,9 @@ typedef enum
     OP_DIV,
     OP_EXPONENT,
     OP_MODULO,
+    OP_GET_GLOBAL,
+    OP_SET_GLOBAL,
+    OP_POP,
     OP_RETURN
 } OPCode;
 

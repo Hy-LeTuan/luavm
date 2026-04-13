@@ -18,9 +18,9 @@ static int simpleInstruction(const char* code, int offset)
     return offset + 1;
 }
 
-static int constantInstruction(Chunk* chunk, int offset)
+static int constantInstruction(const char* message, Chunk* chunk, int offset)
 {
-    fprintf(stdout, "%s", "'OP_CONSTANT'");
+    fprintf(stdout, "'%s'", message);
     fprintf(stdout, "%-8s", "");
     fprintf(stdout, "%04d\n", chunk->code[offset + 1]);
     return offset + 2;
@@ -28,7 +28,7 @@ static int constantInstruction(Chunk* chunk, int offset)
 
 int disassembleInstruction(Chunk* chunk, int offset)
 {
-    // [LINE | OFFSET | NAME | RELEVANT INFORMATION]
+    // [LINE | OFFSET | NAME | OPERANDS]
 
     fprintf(stdout, "%-8s[%04zu]", "", getOpCodeLine(chunk, offset));
     fprintf(stdout, "%-8s", "");
@@ -38,7 +38,7 @@ int disassembleInstruction(Chunk* chunk, int offset)
     switch (chunk->code[offset])
     {
         case OP_CONSTANT:
-            return constantInstruction(chunk, offset);
+            return constantInstruction("OP_CONSTANT", chunk, offset);
         case OP_NEGATE:
             return simpleInstruction("OP_NEGATE", offset);
         case OP_ADD:
@@ -53,6 +53,12 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return simpleInstruction("OP_EXPONENT", offset);
         case OP_MODULO:
             return simpleInstruction("OP_MODULO", offset);
+        case OP_GET_GLOBAL:
+            return constantInstruction("OP_GET_GLOBAL", chunk, offset);
+        case OP_SET_GLOBAL:
+            return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+        case OP_POP:
+            return simpleInstruction("OP_POP", offset);
         case OP_RETURN:
             return simpleInstruction("OP_RETURN", offset);
         default:
