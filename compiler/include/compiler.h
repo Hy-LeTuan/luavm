@@ -6,17 +6,7 @@
 #include <chunk.h>
 #include <table.h>
 
-void compile(const char* source, Chunk* chunk, Table* strings);
-
-typedef struct
-{
-    Lexer lexer;
-    Token prev;
-    Token current;
-    bool hadError;
-    Chunk* chunk;
-    Table* strings;
-} Parser;
+void compile(const char* source, Chunk* chunk, Table* strings, Table* globals);
 
 typedef enum
 {
@@ -31,6 +21,18 @@ typedef enum
     PREC_UNARY,
     PREC_EXPONENT
 } Precedence;
+
+typedef struct
+{
+    Lexer lexer;
+    Token prev;
+    Token current;
+    Precedence currentPrec;
+    bool hadError;
+    Chunk* chunk;
+    Table* strings;
+    Table* globals;
+} Parser;
 
 typedef void (*ParseFn)(Parser*);
 typedef struct

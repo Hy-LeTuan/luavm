@@ -7,7 +7,6 @@
 #include <objstring.h>
 
 #include <math.h>
-#include <string.h>
 #include <stdio.h>
 
 void initVM(VM* vm)
@@ -16,6 +15,7 @@ void initVM(VM* vm)
     vm->objectStack = NULL;
 
     initTable(&vm->strings);
+    initTable(&vm->globals);
     initChunk(&vm->chunk);
 }
 
@@ -164,6 +164,20 @@ static InterpretResult run(VM* vm)
                 push(NUM_VAL(-AS_NUM(a)), vm);
                 break;
             }
+            case OP_GET_GLOBAL:
+            {
+                Value key = READ_CONSTANT();
+                Value v = tableGet(key, &vm->globals);
+
+                // accept a global variable with nil
+                push(v, vm);
+                break;
+            }
+            case OP_SET_GLOBAL:
+                break;
+            case OP_POP:
+                pop(vm);
+                break;
             case OP_RETURN:
                 return INTERPRET_SUCCESS;
             default:
@@ -182,7 +196,7 @@ InterpretResult interpret(const char* source)
     VM vm;
 
     initVM(&vm);
-    compile(source, &vm.chunk, &vm.strings);
+    compile(source, &vm.chunk, &vm.strings, &vm.globals);
 
     // the main run loop
     InterpretResult result = run(&vm);

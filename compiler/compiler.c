@@ -7,12 +7,15 @@
 
 #include <stdio.h>
 
-static void initParser(Parser* parser, const char* source, Chunk* chunk, Table* internedString)
+static void initParser(
+  Parser* parser, const char* source, Chunk* chunk, Table* strings, Table* globals)
 {
     initLexer(source, &parser->lexer);
+    parser->currentPrec = PREC_NONE;
     parser->hadError = false;
     parser->chunk = chunk;
-    parser->strings = internedString;
+    parser->strings = strings;
+    parser->globals = globals;
 }
 
 static void errorAt(Token at, const char* message, Parser* parser)
@@ -45,6 +48,22 @@ static void advance(Parser* parser)
         parser->current = token;
         break;
     }
+}
+
+static bool check(TokenType type, Parser* parser)
+{
+    return parser->current.type == type;
+}
+
+static bool match(TokenType type, Parser* parser)
+{
+    if (!check(type, parser))
+    {
+        return false;
+    }
+
+    advance(parser);
+    return true;
 }
 
 static Chunk* currentChunk(Parser* parser)
@@ -90,9 +109,35 @@ static void emitConstant(Value value, Parser* parser)
     emitBytes(OP_CONSTANT, pos, parser);
 }
 
+static size_t identifierConstant(Parser* parser)
+{
+    Value name =
+      OBJ_VAL((Object*)copyString(parser->prev.start, parser->prev.length, parser->globals));
+
+    size_t pos = addConstant(parser->chunk, name);
+    return pos;
+}
+
 // common declaration
 static void parse(Precedence prevPrec, Parser* parser);
+static void expression(Parser* parser);
 Rule* getRule(TokenType op);
+
+static void namedVariable(Parser* parser)
+{
+    uint8_t var_constant = identifierConstant(parser);
+
+    if (parser->currentPrec <= PREC_ASSIGNMENT && match(TOKEN_EQUAL, parser))
+    {
+        // consume the expression
+        expression(parser);
+        emitBytes(OP_SET_GLOBAL, var_constant, parser);
+    }
+    else
+    {
+        emitBytes(OP_GET_GLOBAL, var_constant, parser);
+    }
+}
 
 static void unary(Parser* parser)
 {
@@ -230,7 +275,7 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_TRUE] = { NULL, NULL, PREC_NONE },
     [TOKEN_UNTIL] = { NULL, NULL, PREC_NONE },
     [TOKEN_WHILE] = { NULL, NULL, PREC_NONE },
-    [TOKEN_IDENTIFIER] = { NULL, NULL, PREC_NONE },
+    [TOKEN_IDENTIFIER] = { namedVariable, NULL, PREC_NONE },
     [TOKEN_STRING] = { str, NULL, PREC_NONE },
     [TOKEN_NUMBER] = { number, NULL, PREC_NONE },
     [TOKEN_EOF] = { NULL, NULL, PREC_NONE },
@@ -244,6 +289,7 @@ Rule* getRule(TokenType op)
 static void parse(Precedence prevPrec, Parser* parser)
 {
     advance(parser);
+    parser->currentPrec = prevPrec;
 
     TokenType prefixOp = prev(parser);
     ParseFn prefixFn = getRule(prefixOp)->prefix;
@@ -262,6 +308,8 @@ static void parse(Precedence prevPrec, Parser* parser)
     {
         // move to the next prefix starting point
         advance(parser);
+        parser->currentPrec = infixRule->prec;
+
         ParseFn infixFn = infixRule->infix;
 
         if (infixFn == NULL)
@@ -271,6 +319,8 @@ static void parse(Precedence prevPrec, Parser* parser)
 
         infixFn(parser);
     }
+
+    parser->currentPrec = prevPrec;
 }
 
 static void expression(Parser* parser)
@@ -278,15 +328,49 @@ static void expression(Parser* parser)
     parse(PREC_ASSIGNMENT, parser);
 }
 
-void compile(const char* source, Chunk* chunk, Table* strings)
+static void expressionStatement(Parser* parser)
+{
+    expression(parser);
+    emitByte(OP_POP, parser);
+}
+
+static void statements(Parser* parser)
+{
+    expressionStatement(parser);
+}
+
+static void declaration(Parser* parser)
+{
+    if (match(TOKEN_LOCAL, parser))
+    {
+        // local function
+        if (match(TOKEN_FUNCTION, parser))
+        {
+        }
+        // local variable
+        else
+        {
+        }
+    }
+    else
+    {
+        statements(parser);
+    }
+}
+
+void compile(const char* source, Chunk* chunk, Table* strings, Table* globals)
 {
     Parser parser;
-    initParser(&parser, source, chunk, strings);
+    initParser(&parser, source, chunk, strings, globals);
 
     // first setup
     advance(&parser);
 
-    expression(&parser);
+    while (!match(TOKEN_EOF, &parser))
+    {
+        declaration(&parser);
+    }
+
     emitByte(OP_RETURN, &parser);
 
     if (parser.hadError)

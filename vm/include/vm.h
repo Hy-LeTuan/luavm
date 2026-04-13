@@ -21,6 +21,7 @@ typedef struct
     Value* stackTop;
     Object* objectStack;
     Table strings;
+    Table globals;
 } VM;
 
 void initVM(VM* vm);
