@@ -44,6 +44,8 @@ typedef struct
     Value* values;
 } ValueArray;
 
+extern const Value NIL_CONSTANT;
+
 void initValueArray(ValueArray* array);
 void writeValueArray(ValueArray* array, Value value);
 void freeValueArray(ValueArray* array);

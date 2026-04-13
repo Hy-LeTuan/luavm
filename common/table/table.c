@@ -84,8 +84,8 @@ static int growTable(Table* table, size_t newCapacity)
     for (int i = 0; i < newCapacity; i++)
     {
         Entry* entry = &newEntries[i];
-        entry->key = NIL_VAL();
-        entry->value = NIL_VAL();
+        entry->key = NIL_CONSTANT;
+        entry->value = NIL_CONSTANT;
         entry->type = ENTRY_EMPTY;
     }
 
@@ -170,7 +170,7 @@ Value tableFindString(const char* chars, int length, Table* table)
 {
     if (table->count == 0)
     {
-        return NIL_VAL();
+        return NIL_CONSTANT;
     }
 
     uint32_t hash = fnv1a_32((void*)chars, length);
@@ -186,7 +186,7 @@ Value tableFindString(const char* chars, int length, Table* table)
 
         if (entry->type != ENTRY_OCCUPIED)
         {
-            return NIL_VAL();
+            return NIL_CONSTANT;
         }
         else if (IS_STRING(entry->key))
         {
@@ -202,7 +202,7 @@ Value tableFindString(const char* chars, int length, Table* table)
         iteration++;
     }
 
-    return NIL_VAL();
+    return NIL_CONSTANT;
 }
 
 void freeTable(Table* table)

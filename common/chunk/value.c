@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
+const Value NIL_CONSTANT = ((Value){ NIL });
+
 void initValueArray(ValueArray* array)
 {
     array->values = NULL;
