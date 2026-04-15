@@ -5,25 +5,21 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <limits.h>
 
-#define COMPARE(expr) (compare((expr), (expr)))
+#define COMPARE(expr, func) (compare((expr), (expr), func))
 
 Table strings;
 
-static void compare(Value a, Value b)
+static void compare(Value a, Value b, HashFn hashFunc)
 {
-    int a_hash_length;
-    int b_hash_length;
+    int64_t a_hash = generateHash(a, hashFunc);
+    int64_t b_hash = generateHash(b, hashFunc);
 
-    void* a_bytes = valueToByte(a, &a_hash_length);
-    void* b_bytes = valueToByte(b, &b_hash_length);
+    fprintf(stdout, "a hash is: %ld, and b hash is: %ld\n", a_hash, b_hash);
 
-    uint32_t a_hash = fnv1a_32(a_bytes, a_hash_length);
-    uint32_t b_hash = fnv1a_32(b_bytes, b_hash_length);
-
-    fprintf(stdout, "a_hash: %u\n", a_hash);
-    fprintf(stdout, "b_hash: %u\n", a_hash);
-
+    assert(a_hash >= 0);
+    assert(b_hash >= 0);
     assert(a_hash == b_hash);
 }
 
@@ -32,23 +28,29 @@ int main(int argc, char* argv[])
     initTable(&strings);
 
     // numbers
-    COMPARE(NUM_VAL(1.0));
-    COMPARE(NUM_VAL(2.0));
-    COMPARE(NUM_VAL(3.0));
-    COMPARE(NUM_VAL(12888888.0));
-    COMPARE(NUM_VAL(12888888.5));
+    COMPARE(NUM_VAL(1.0), fnv1a_32);
+    COMPARE(NUM_VAL(2.0), fnv1a_32);
+    COMPARE(NUM_VAL(INT_MAX), fnv1a_32);
+    COMPARE(NUM_VAL(12888888.0), fnv1a_32);
+    COMPARE(NUM_VAL(12888888.5), fnv1a_32);
+
+    COMPARE(NUM_VAL(-1.0), fnv1a_32);
+    COMPARE(NUM_VAL(INT_MIN), fnv1a_32);
+    COMPARE(NUM_VAL(-12888888.0), fnv1a_32);
+    COMPARE(NUM_VAL(-12888888.5), fnv1a_32);
 
     fprintf(stdout, "Test for numbers passed.\n");
 
     // booleans
-    COMPARE(BOOL_VAL(true));
-    COMPARE(BOOL_VAL(false));
+    COMPARE(BOOL_VAL(true), fnv1a_32);
+    COMPARE(BOOL_VAL(false), fnv1a_32);
 
     fprintf(stdout, "Test for booleans passed.\n");
 
     // strings
-    COMPARE(OBJ_VAL((Object*)copyString("hello", 5, &strings)));
-    COMPARE(OBJ_VAL((Object*)copyString("this is a very long string for a key", 36, &strings)));
+    COMPARE(OBJ_VAL((Object*)copyString("hello", 5, &strings)), fnv1a_32);
+    COMPARE(
+      OBJ_VAL((Object*)copyString("this is a very long string for a key", 36, &strings)), fnv1a_32);
 
     fprintf(stdout, "Test for strings passed.\n");
 

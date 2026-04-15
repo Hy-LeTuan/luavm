@@ -20,7 +20,7 @@ uint32_t fnv1a_32(const void* bytes, int length)
     return hash;
 }
 
-void* valueToByte(Value value, int* byte_length)
+void* valueToByte(const Value value, int* byte_length)
 {
     void* bytes = NULL;
 
@@ -59,4 +59,13 @@ void* valueToByte(Value value, int* byte_length)
     }
 
     return bytes;
+}
+
+uint32_t generateHash(const Value value, HashFn hashFunc)
+{
+    int value_length;
+    void* value_bytes = valueToByte(value, &value_length);
+    uint32_t hash = hashFunc(value_bytes, value_length);
+
+    return hash;
 }
