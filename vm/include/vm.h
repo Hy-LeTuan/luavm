@@ -26,6 +26,7 @@ typedef struct
 
 void initVM(VM* vm);
 InterpretResult interpret(const char* source);
+InterpretResult run(VM* vm);
 void linkObject(Object* obj, VM* vm);
 void freeVM(VM* vm);
 

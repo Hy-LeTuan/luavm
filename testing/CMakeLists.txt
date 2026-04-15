@@ -15,6 +15,8 @@ target_link_libraries(ChunkOpsTest PRIVATE common)
 add_executable(CalcTest function/calculation_test.c)
 add_test(NAME CalcTest COMMAND CalcTest ${CMAKE_SOURCE_DIR}/testing/data/calculations.lua)
 target_link_libraries(CalcTest PRIVATE common)
+target_link_libraries(CalcTest PRIVATE lexer)
+target_link_libraries(CalcTest PRIVATE compiler)
 target_link_libraries(CalcTest PRIVATE vm)
 
 # test hashing

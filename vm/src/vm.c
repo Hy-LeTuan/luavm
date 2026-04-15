@@ -84,7 +84,7 @@ static void concatenate(VM* vm)
     push(OBJ_VAL((Object*)result), vm);
 }
 
-static InterpretResult run(VM* vm)
+InterpretResult run(VM* vm)
 {
     uint8_t* ip = vm->chunk.code;
 
