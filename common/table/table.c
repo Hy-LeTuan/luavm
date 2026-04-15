@@ -6,8 +6,6 @@
 #include <object.h>
 #include <objstring.h>
 
-#include <stdio.h>
-
 #define TABLE_MAX_LOAD 0.75
 
 void initTable(Table* table)
@@ -23,15 +21,19 @@ static bool compareKey(Value a, Value b)
     {
         return false;
     }
-    if (IS_BOOL(a) && IS_BOOL(b))
+    else if (IS_NIL(a))
+    {
+        return false;
+    }
+    else if (IS_BOOL(a))
     {
         return AS_BOOL(a) == AS_BOOL(b);
     }
-    else if (IS_NUM(a) && IS_NUM(b))
+    else if (IS_NUM(a))
     {
         return AS_NUM(a) == AS_NUM(b);
     }
-    else if (IS_STRING(a) == IS_STRING(b))
+    else if (IS_STRING(a))
     {
         return AS_STRING(a) == AS_STRING(b);
     }
@@ -41,9 +43,7 @@ static bool compareKey(Value a, Value b)
 
 static Entry* findEntry(Entry* entries, size_t capacity, Value key)
 {
-    int len = 0;
-    void* bytes = valueToByte(key, &len);
-    uint32_t hash = fnv1a_32(bytes, len);
+    uint32_t hash = generateHash(key, fnv1a_32);
     int index = hash % capacity;
 
     int iteration = 0;
@@ -74,7 +74,7 @@ static Entry* findEntry(Entry* entries, size_t capacity, Value key)
     return NULL;
 }
 
-static int growTable(Table* table, size_t newCapacity)
+static int tableGrow(Table* table, size_t newCapacity)
 {
     Entry* newEntries = ALLOCATE(Entry, sizeof(Entry) * newCapacity);
 
@@ -102,6 +102,7 @@ static int growTable(Table* table, size_t newCapacity)
         {
             to->key = entry->key;
             to->value = entry->value;
+            to->type = ENTRY_OCCUPIED;
             table->count++;
         }
     }
@@ -118,7 +119,7 @@ void tableInsert(Value key, Value value, Table* table)
     if (table->count + 1 > table->capacity * TABLE_MAX_LOAD)
     {
         size_t newCapacity = GROW_SIZE(table->capacity);
-        growTable(table, newCapacity);
+        tableGrow(table, newCapacity);
     }
 
     Entry* entry = findEntry(table->entries, table->capacity, key);
