@@ -1,3 +1,4 @@
+#include "value.h"
 #include <chunk.h>
 #include <memory.h>
 
@@ -11,6 +12,7 @@ void initChunk(Chunk* chunk)
     chunk->lines = NULL;
 
     initValueArray(&chunk->constants);
+    initTable(&chunk->lookup);
 }
 
 void writeChunk(Chunk* chunk, uint8_t op, size_t line)
@@ -40,8 +42,16 @@ size_t getOpCodeLine(Chunk* chunk, int offset)
 
 size_t addConstant(Chunk* chunk, Value value)
 {
-    writeValueArray(&chunk->constants, value);
-    return chunk->constants.count - 1;
+    Value index = tableGet(value, &chunk->lookup);
+
+    if (IS_NIL(index))
+    {
+        writeValueArray(&chunk->constants, value);
+        tableInsertOrSet(value, NUM_VAL((double)chunk->constants.count - 1), &chunk->lookup);
+        return chunk->constants.count - 1;
+    }
+
+    return (size_t)AS_NUM(index);
 }
 
 void freeChunk(Chunk* chunk)
@@ -53,4 +63,5 @@ void freeChunk(Chunk* chunk)
     chunk->count = 0;
 
     freeValueArray(&chunk->constants);
+    freeTable(&chunk->lookup);
 }

@@ -2,7 +2,9 @@
 #include <assert.h>
 #include <memory.h>
 
-uint8_t opCodeControl[4] = { OP_ADD, OP_MINUS, OP_MUL, OP_DIV };
+#include <stdio.h>
+
+uint8_t opCodeControl[4] = { [0] = OP_ADD, [1] = OP_MINUS, [2] = OP_MUL, [3] = OP_DIV };
 
 int main(int argc, char* argv[])
 {
@@ -20,14 +22,27 @@ int main(int argc, char* argv[])
         assert(chunk.code[i] == opCodeControl[i]);
     }
 
-    // write opcode test
+    fprintf(stdout, "Direct write chunk test passed successfully.\n");
+
+    // add num
     addConstant(&chunk, NUM_VAL(1));
+    addConstant(&chunk, NUM_VAL(1));
+
     addConstant(&chunk, NUM_VAL(2));
+    addConstant(&chunk, NUM_VAL(2));
+
+    addConstant(&chunk, NUM_VAL(3));
+    addConstant(&chunk, NUM_VAL(3));
+
+    addConstant(&chunk, NUM_VAL(4));
+    addConstant(&chunk, NUM_VAL(4));
 
     for (int i = 0; i < chunk.constants.count; i++)
     {
         assert(chunk.constants.values[i].type == NUMBER);
     }
+
+    fprintf(stdout, "Adding constant test passed successfully.\n");
 
     freeChunk(&chunk);
 

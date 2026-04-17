@@ -41,8 +41,17 @@ static bool compareKey(Value a, Value b)
     return false;
 }
 
+/*
+ * Find either the occupied entry or the closest empty entry based on the provided key.
+ * Returns: NULL when capacity is 0, an Entry otherwise.
+ * */
 static Entry* findEntry(Entry* entries, size_t capacity, Value key)
 {
+    if (capacity == 0)
+    {
+        return NULL;
+    }
+
     uint32_t hash = generateHash(key, fnv1a_32);
     int index = hash % capacity;
 

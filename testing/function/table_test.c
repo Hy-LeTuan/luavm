@@ -21,7 +21,6 @@ int main(int argc, char* argv[])
     tableInsert(CREATE_STRING("normal", 6, strings), NUM_VAL(3), &test_table);
     tableInsert(CREATE_STRING("a very long key", 15, strings), NUM_VAL(122.2), &test_table);
 
-
     assert(AS_NUM(tableGet(CREATE_STRING("hello", 5, strings), &test_table)) == 1.0);
     assert(AS_NUM(tableGet(CREATE_STRING("key", 3, strings), &test_table)) == 2.0);
     assert(AS_NUM(tableGet(CREATE_STRING("normal", 6, strings), &test_table)) == 3.0);

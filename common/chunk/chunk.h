@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <value.h>
+#include <table.h>
 
 typedef enum
 {
@@ -27,6 +28,7 @@ typedef struct
     uint8_t* code;
     size_t* lines;
     ValueArray constants;
+    Table lookup;
 } Chunk;
 
 void initChunk(Chunk* chunk);
