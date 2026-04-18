@@ -36,3 +36,11 @@ add_executable(StringTest function/string_test.c)
 add_test(NAME StringTest COMMAND StringTest)
 target_link_libraries(StringTest PRIVATE common)
 target_link_libraries(StringTest PRIVATE vm)
+
+# test local variable
+add_executable(LocalVarTest function/local_var_test.c)
+add_test(NAME LocalVarTest COMMAND LocalVarTest ${CMAKE_SOURCE_DIR}/testing/data/local_var.lua)
+target_link_libraries(LocalVarTest PRIVATE common)
+target_link_libraries(LocalVarTest PRIVATE lexer)
+target_link_libraries(LocalVarTest PRIVATE compiler)
+target_link_libraries(LocalVarTest PRIVATE vm)
