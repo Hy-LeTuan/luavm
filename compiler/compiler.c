@@ -5,17 +5,25 @@
 #include <objstring.h>
 #include <memory.h>
 
+#include <string.h>
 #include <stdio.h>
 
 static void initParser(
   Parser* parser, const char* source, Chunk* chunk, Table* strings, Table* globals)
 {
     initLexer(source, &parser->lexer);
+    parser->currentScope = 0;
     parser->currentPrec = PREC_NONE;
     parser->hadError = false;
     parser->chunk = chunk;
     parser->strings = strings;
     parser->globals = globals;
+    parser->localCount = 0;
+}
+
+static bool isAtEnd(Parser* parser)
+{
+    return parser->current.type == TOKEN_EOF;
 }
 
 static void errorAt(Token at, const char* message, Parser* parser)
@@ -118,25 +126,120 @@ static size_t identifierConstant(Parser* parser)
     return pos;
 }
 
+static void beginScope(Parser* parser)
+{
+    parser->currentScope++;
+}
+
+static void endScope(Parser* parser)
+{
+    parser->currentScope--;
+
+    while (
+      parser->localCount > 0 && parser->locals[parser->localCount - 1].scope > parser->currentScope)
+    {
+        emitByte(OP_POP, parser);
+        parser->localCount--;
+    }
+}
+
 // common declaration
 static void parse(Precedence prevPrec, Parser* parser);
+static void statements(Parser* parser);
 static void expression(Parser* parser);
 Rule* getRule(TokenType op);
 
+static int lookupLocal(Token* name, Parser* parser)
+{
+    for (int i = parser->localCount - 1; i >= 0; i--)
+    {
+        Local* local = &parser->locals[i];
+
+        if (local->scope == -1 || local->scope > parser->currentScope)
+        {
+            continue;
+        }
+
+        if (local->length == name->length && memcmp(local->start, name->start, name->length) == 0)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+static void markInitialized(uint8_t localIndex, Parser* parser)
+{
+    parser->locals[localIndex].scope = parser->currentScope;
+}
+
 static void namedVariable(Parser* parser)
 {
+    Token* name = &parser->prev;
     uint8_t var_constant = identifierConstant(parser);
+
+    uint8_t opGet;
+    uint8_t opSet;
+    int index = lookupLocal(name, parser);
+
+    printf("index is: %d.\n", index);
+
+    if (index != -1)
+    {
+        opGet = OP_GET_LOCAL;
+        opSet = OP_SET_LOCAL;
+    }
+    else
+    {
+        opGet = OP_GET_GLOBAL;
+        opSet = OP_SET_GLOBAL;
+        index = var_constant;
+    }
 
     if (parser->currentPrec <= PREC_ASSIGNMENT && match(TOKEN_EQUAL, parser))
     {
         // consume the expression
         expression(parser);
-        emitBytes(OP_SET_GLOBAL, var_constant, parser);
+        emitBytes(opSet, (uint8_t)index, parser);
     }
     else
     {
-        emitBytes(OP_GET_GLOBAL, var_constant, parser);
+        emitBytes(opGet, (uint8_t)index, parser);
     }
+}
+
+static uint8_t addLocal(Token* name, Parser* parser)
+{
+    Local* local = &parser->locals[parser->localCount];
+    local->start = name->start;
+    local->length = name->length;
+    local->scope = -1;
+
+    parser->localCount++;
+    return parser->localCount - 1;
+}
+
+static void defineVariable(Parser* parser)
+{
+    consume(TOKEN_IDENTIFIER, "Error, an identifier is required after 'local' keyword.", parser);
+    Token* name = &parser->prev;
+    uint8_t constantIndex = identifierConstant(parser);
+
+    uint8_t localIndex = addLocal(name, parser);
+
+    printf("finish adding local.\n");
+
+    if (match(TOKEN_EQUAL, parser))
+    {
+        expression(parser);
+    }
+    else
+    {
+        emitConstant(NIL_CONSTANT, parser);
+    }
+
+    markInitialized(localIndex, parser);
 }
 
 static void unary(Parser* parser)
@@ -225,6 +328,16 @@ static void str(Parser* parser)
 
     ObjString* string = copyString(text, length, parser->strings);
     emitConstant(OBJ_VAL((Object*)string), parser);
+}
+
+static void block(Parser* parser)
+{
+    while (peek(parser) != TOKEN_END && !isAtEnd(parser))
+    {
+        statements(parser);
+    }
+
+    consume(TOKEN_END, "Error, missing token 'end' to close block.", parser);
 }
 
 // pratt parsing table
@@ -336,11 +449,7 @@ static void expressionStatement(Parser* parser)
 
 static void statements(Parser* parser)
 {
-    expressionStatement(parser);
-}
-
-static void declaration(Parser* parser)
-{
+    bool hasExpression = false;
     if (match(TOKEN_LOCAL, parser))
     {
         // local function
@@ -350,11 +459,37 @@ static void declaration(Parser* parser)
         // local variable
         else
         {
+            defineVariable(parser);
         }
+
+        hasExpression = true;
+    }
+    else if (match(TOKEN_FUNCTION, parser))
+    {
+        hasExpression = true;
+    }
+    else if (match(TOKEN_DO, parser))
+    {
+        beginScope(parser);
+        block(parser);
+        endScope(parser);
+        hasExpression = true;
     }
     else
     {
-        statements(parser);
+        expressionStatement(parser);
+        hasExpression = true;
+    }
+
+    // consume an optinal semicolon
+    if (peek(parser) == TOKEN_SEMICOLON)
+    {
+        advance(parser);
+    }
+
+    if (!hasExpression)
+    {
+        error("Erorr, cannot have an empty statement.", parser);
     }
 }
 
@@ -366,9 +501,10 @@ void compile(const char* source, Chunk* chunk, Table* strings, Table* globals)
     // first setup
     advance(&parser);
 
+    // continously parse the list of statements into a chunk
     while (!match(TOKEN_EOF, &parser))
     {
-        declaration(&parser);
+        statements(&parser);
     }
 
     emitByte(OP_RETURN, &parser);

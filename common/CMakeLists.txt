@@ -12,9 +12,12 @@ add_library(common
     object/object.c;
     object/objstring.c;
 
-    #table
+    # table
     table/table.c;
     table/hash.c
+
+    # var
+    var/locals.c
 )
 
 target_include_directories(common PUBLIC utils)
@@ -22,3 +25,4 @@ target_include_directories(common PUBLIC chunk)
 target_include_directories(common PUBLIC memory)
 target_include_directories(common PUBLIC object)
 target_include_directories(common PUBLIC table)
+target_include_directories(common PUBLIC var)

@@ -35,7 +35,7 @@ int disassembleInstruction(Chunk* chunk, int offset)
     fprintf(stdout, "%04d", offset);
     fprintf(stdout, "%-8s", "");
 
-    switch (chunk->code[offset])
+    switch ((OPCode)chunk->code[offset])
     {
         case OP_CONSTANT:
             return constantInstruction("OP_CONSTANT", chunk, offset);
@@ -61,7 +61,11 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return simpleInstruction("OP_POP", offset);
         case OP_RETURN:
             return simpleInstruction("OP_RETURN", offset);
-        default:
-            return offset;
+        case OP_GET_LOCAL:
+            return constantInstruction("OP_GET_LOCAL", chunk, offset);
+        case OP_SET_LOCAL:
+            return constantInstruction("OP_SET_LOCAL", chunk, offset);
     }
+
+    return offset;
 }

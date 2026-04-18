@@ -5,6 +5,7 @@
 #include <token.h>
 #include <chunk.h>
 #include <table.h>
+#include <locals.h>
 
 void compile(const char* source, Chunk* chunk, Table* strings, Table* globals);
 
@@ -32,6 +33,9 @@ typedef struct
     Chunk* chunk;
     Table* strings;
     Table* globals;
+    int currentScope;
+    Local locals[UINT8_MAX + 1];
+    size_t localCount;
 } Parser;
 
 typedef void (*ParseFn)(Parser*);
