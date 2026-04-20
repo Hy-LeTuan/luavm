@@ -211,10 +211,76 @@ InterpretResult run(VM* vm)
 
                 EXECUTE_BINARY(%, (int)AS_NUM, NUM_VAL, vm);
                 break;
+            case OP_LESS:
+            {
+                Value b = peek(0, vm);
+                Value a = peek(1, vm);
+
+                if (a.type != b.type)
+                {
+                    runtimeError(ip, vm,
+                      "RuntimeError: Cannot compare a value of type %d with type %d.", a.type,
+                      b.type);
+                }
+                else
+                {
+                    EXECUTE_BINARY(<, AS_NUM, BOOL_VAL, vm);
+                }
+                break;
+            }
+            case OP_GREATER:
+            {
+                Value b = peek(0, vm);
+                Value a = peek(1, vm);
+
+                if (a.type != b.type)
+                {
+                    runtimeError(ip, vm,
+                      "RuntimeError: Cannot compare a value of type %d with type %d.", a.type,
+                      b.type);
+                }
+                else
+                {
+                    EXECUTE_BINARY(>, AS_NUM, BOOL_VAL, vm);
+                }
+                break;
+            }
+            case OP_EQUAL:
+            {
+                Value b = pop(vm);
+                Value a = pop(vm);
+                push(BOOL_VAL(compareValue(a, b)), vm);
+                break;
+            }
             case OP_NEGATE:
             {
                 Value a = pop(vm);
-                push(NUM_VAL(-AS_NUM(a)), vm);
+
+                if (IS_NUM(a))
+                {
+                    push(NUM_VAL(-AS_NUM(a)), vm);
+                }
+                else
+                {
+                    runtimeError(ip, vm,
+                      "Runtime Error: Cannot negate a value that is not a number or a boolean.");
+                }
+                break;
+            }
+            case OP_NOT:
+            {
+                Value a = pop(vm);
+
+                if (IS_BOOL(a))
+                {
+                    push(BOOL_VAL(!AS_BOOL(a)), vm);
+                }
+                else
+                {
+                    runtimeError(ip, vm,
+                      "Runtime Error: Cannot use the 'not' operator on a value that is not a "
+                      "boolean.");
+                }
                 break;
             }
             case OP_GET_GLOBAL:

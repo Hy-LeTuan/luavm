@@ -183,8 +183,6 @@ static void namedVariable(Parser* parser)
     uint8_t opSet;
     int index = lookupLocal(name, parser);
 
-    printf("index is: %d.\n", index);
-
     if (index != -1)
     {
         opGet = OP_GET_LOCAL;
@@ -228,8 +226,6 @@ static void defineVariable(Parser* parser)
 
     uint8_t localIndex = addLocal(name, parser);
 
-    printf("finish adding local.\n");
-
     if (match(TOKEN_EQUAL, parser))
     {
         expression(parser);
@@ -253,6 +249,9 @@ static void unary(Parser* parser)
     {
         case TOKEN_MINUS:
             emitByte(OP_NEGATE, parser);
+            break;
+        case TOKEN_NOT:
+            emitByte(OP_NOT, parser);
             break;
         default:
             fprintf(stderr, "Invalid prefix operator.\n");
@@ -321,6 +320,18 @@ static void number(Parser* parser)
     emitConstant(value, parser);
 }
 
+static void boolean(Parser* parser)
+{
+    if (prev(parser) == TOKEN_TRUE)
+    {
+        emitConstant(BOOL_VAL(true), parser);
+    }
+    else
+    {
+        emitConstant(BOOL_VAL(false), parser);
+    }
+}
+
 static void str(Parser* parser)
 {
     const char* text = parser->prev.start + 1;
@@ -340,6 +351,40 @@ static void block(Parser* parser)
     consume(TOKEN_END, "Error, missing token 'end' to close block.", parser);
 }
 
+static void relational(Parser* parser)
+{
+    TokenType op = prev(parser);
+    parse(PREC_RELATIONAL + 1, parser);
+
+    if (op == TOKEN_LESS)
+    {
+        emitByte(OP_LESS, parser);
+    }
+    else if (op == TOKEN_LESS_EQUAL)
+    {
+        emitByte(OP_GREATER, parser);
+        emitByte(OP_NOT, parser);
+    }
+    else if (op == TOKEN_GREATER)
+    {
+        emitByte(OP_GREATER, parser);
+    }
+    else if (op == TOKEN_GREATER_EQUAL)
+    {
+        emitByte(OP_LESS, parser);
+        emitByte(OP_NOT, parser);
+    }
+    else if (op == TOKEN_EQUAL_EQUAL)
+    {
+        emitByte(OP_EQUAL, parser);
+    }
+    else
+    {
+        emitByte(OP_EQUAL, parser);
+        emitByte(OP_NOT, parser);
+    }
+}
+
 // pratt parsing table
 Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_MINUS] = { unary, binary, PREC_TERM },
@@ -348,8 +393,8 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_PERCENT] = { NULL, binary, PREC_FACTOR },
     [TOKEN_CARET] = { NULL, binary, PREC_EXPONENT },
     [TOKEN_HASH] = { NULL, NULL, PREC_NONE },
-    [TOKEN_LESS] = { NULL, NULL, PREC_NONE },
-    [TOKEN_GREATER] = { NULL, NULL, PREC_NONE },
+    [TOKEN_LESS] = { NULL, relational, PREC_RELATIONAL },
+    [TOKEN_GREATER] = { NULL, relational, PREC_RELATIONAL },
     [TOKEN_EQUAL] = { NULL, NULL, PREC_NONE },
     [TOKEN_LEFT_PAREN] = { grouping, NULL, PREC_NONE },
     [TOKEN_RIGHT_PAREN] = { NULL, NULL, PREC_NONE },
@@ -361,10 +406,10 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_COLON] = { NULL, NULL, PREC_NONE },
     [TOKEN_COMMA] = { NULL, NULL, PREC_NONE },
     [TOKEN_DOT] = { NULL, NULL, PREC_NONE },
-    [TOKEN_EQUAL_EQUAL] = { NULL, NULL, PREC_NONE },
-    [TOKEN_TILDE_EQUAL] = { NULL, NULL, PREC_NONE },
-    [TOKEN_LESS_EQUAL] = { NULL, NULL, PREC_NONE },
-    [TOKEN_GREATER_EQUAL] = { NULL, NULL, PREC_NONE },
+    [TOKEN_EQUAL_EQUAL] = { NULL, relational, PREC_RELATIONAL },
+    [TOKEN_TILDE_EQUAL] = { NULL, relational, PREC_RELATIONAL },
+    [TOKEN_LESS_EQUAL] = { NULL, relational, PREC_RELATIONAL },
+    [TOKEN_GREATER_EQUAL] = { NULL, relational, PREC_RELATIONAL },
     [TOKEN_DOT_DOT] = { NULL, NULL, PREC_NONE },
     [TOKEN_THREE_DOTS] = { NULL, NULL, PREC_NONE },
     [TOKEN_AND] = { NULL, NULL, PREC_NONE },
@@ -373,19 +418,19 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_ELSE] = { NULL, NULL, PREC_NONE },
     [TOKEN_ELSEIF] = { NULL, NULL, PREC_NONE },
     [TOKEN_END] = { NULL, NULL, PREC_NONE },
-    [TOKEN_FALSE] = { NULL, NULL, PREC_NONE },
+    [TOKEN_FALSE] = { boolean, NULL, PREC_NONE },
     [TOKEN_FOR] = { NULL, NULL, PREC_NONE },
     [TOKEN_FUNCTION] = { NULL, NULL, PREC_NONE },
     [TOKEN_IF] = { NULL, NULL, PREC_NONE },
     [TOKEN_IN] = { NULL, NULL, PREC_NONE },
     [TOKEN_LOCAL] = { NULL, NULL, PREC_NONE },
     [TOKEN_NIL] = { NULL, NULL, PREC_NONE },
-    [TOKEN_NOT] = { NULL, NULL, PREC_NONE },
+    [TOKEN_NOT] = { unary, NULL, PREC_NONE },
     [TOKEN_OR] = { NULL, NULL, PREC_NONE },
     [TOKEN_REPEAT] = { NULL, NULL, PREC_NONE },
     [TOKEN_RETURN] = { NULL, NULL, PREC_NONE },
     [TOKEN_THEN] = { NULL, NULL, PREC_NONE },
-    [TOKEN_TRUE] = { NULL, NULL, PREC_NONE },
+    [TOKEN_TRUE] = { boolean, NULL, PREC_NONE },
     [TOKEN_UNTIL] = { NULL, NULL, PREC_NONE },
     [TOKEN_WHILE] = { NULL, NULL, PREC_NONE },
     [TOKEN_IDENTIFIER] = { namedVariable, NULL, PREC_NONE },

@@ -1,6 +1,7 @@
 #include <value.h>
 #include <memory.h>
 #include <object.h>
+#include <objstring.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -35,7 +36,7 @@ void printValue(Value value)
             fprintf(stdout, "%.2f", AS_NUM(value));
             break;
         case BOOL:
-            fprintf(stdout, "%b", AS_BOOL(value));
+            fprintf(stdout, "%s", AS_BOOL(value) ? "true" : "false");
             break;
         case NIL:
             fprintf(stdout, "nil");
@@ -50,6 +51,35 @@ void printValueNewLine(Value value)
 {
     printValue(value);
     fprintf(stdout, "\n");
+}
+
+bool compareValue(Value a, Value b)
+{
+    if (a.type != b.type)
+    {
+        return false;
+    }
+    else
+    {
+        if (IS_NIL(a))
+        {
+            return true;
+        }
+        else if (IS_NUM(a))
+        {
+            return AS_NUM(a) == AS_NUM(b);
+        }
+        else if (IS_STRING(a))
+        {
+            return AS_STRING(a) == AS_STRING(b);
+        }
+        else if (IS_BOOL(a))
+        {
+            return AS_BOOL(a) == AS_BOOL(b);
+        }
+    }
+
+    return false;
 }
 
 void freeValueArray(ValueArray* array)

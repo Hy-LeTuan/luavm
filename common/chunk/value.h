@@ -52,5 +52,6 @@ void freeValueArray(ValueArray* array);
 
 void printValue(Value value);
 void printValueNewLine(Value value);
+bool compareValue(Value a, Value b);
 
 #endif

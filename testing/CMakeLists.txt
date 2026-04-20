@@ -44,3 +44,11 @@ target_link_libraries(LocalVarTest PRIVATE common)
 target_link_libraries(LocalVarTest PRIVATE lexer)
 target_link_libraries(LocalVarTest PRIVATE compiler)
 target_link_libraries(LocalVarTest PRIVATE vm)
+
+# test boolean
+add_executable(BooleanTest function/boolean_test.c)
+add_test(NAME BooleanTest COMMAND BooleanTest ${CMAKE_SOURCE_DIR}/testing/data/boolean_input.lua)
+target_link_libraries(BooleanTest PRIVATE common)
+target_link_libraries(BooleanTest PRIVATE lexer)
+target_link_libraries(BooleanTest PRIVATE compiler)
+target_link_libraries(BooleanTest PRIVATE vm)

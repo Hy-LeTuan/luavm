@@ -15,7 +15,7 @@ typedef enum
     PREC_ASSIGNMENT,
     PREC_OR,
     PREC_AND,
-    PREC_EQUALITY,
+    PREC_RELATIONAL,
     PREC_JOIN,
     PREC_TERM,
     PREC_FACTOR,
