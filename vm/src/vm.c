@@ -315,7 +315,7 @@ InterpretResult run(VM* vm)
             case OP_JUMP_IF_FALSE:
             {
                 int offset = READ_SHORT();
-                if (isFalsey(pop(vm)))
+                if (isFalsey(peek(0, vm)))
                 {
                     ip += offset;
                 }

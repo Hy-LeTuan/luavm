@@ -379,6 +379,35 @@ static void relational(Parser* parser)
     }
 }
 
+/*
+ * `or` operator leaves the first truthful value evaluated on the stack
+ * */
+static void logical_or(Parser* parser)
+{
+    size_t nextBranchJump = emitJump(OP_JUMP_IF_FALSE, parser);
+    size_t endJump = emitJump(OP_JUMP, parser);
+
+    patchJump(nextBranchJump, parser);
+    emitByte(OP_POP, parser);
+
+    parse(PREC_OR, parser);
+
+    patchJump(endJump, parser);
+}
+
+/*
+ * `and` operator leaves the last value evaluated on the stack
+ * */
+static void logical_and(Parser* parser)
+{
+    size_t endJump = emitJump(OP_JUMP_IF_FALSE, parser);
+
+    emitByte(OP_POP, parser);
+    parse(PREC_AND, parser);
+
+    patchJump(endJump, parser);
+}
+
 // pratt parsing table
 Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_MINUS] = { unary, binary, PREC_TERM },
@@ -406,7 +435,7 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_GREATER_EQUAL] = { NULL, relational, PREC_RELATIONAL },
     [TOKEN_DOT_DOT] = { NULL, NULL, PREC_NONE },
     [TOKEN_THREE_DOTS] = { NULL, NULL, PREC_NONE },
-    [TOKEN_AND] = { NULL, NULL, PREC_NONE },
+    [TOKEN_AND] = { NULL, logical_and, PREC_AND },
     [TOKEN_BREAK] = { NULL, NULL, PREC_NONE },
     [TOKEN_DO] = { NULL, NULL, PREC_NONE },
     [TOKEN_ELSE] = { NULL, NULL, PREC_NONE },
@@ -420,7 +449,7 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_LOCAL] = { NULL, NULL, PREC_NONE },
     [TOKEN_NIL] = { NULL, NULL, PREC_NONE },
     [TOKEN_NOT] = { unary, NULL, PREC_NONE },
-    [TOKEN_OR] = { NULL, NULL, PREC_NONE },
+    [TOKEN_OR] = { NULL, logical_or, PREC_OR },
     [TOKEN_REPEAT] = { NULL, NULL, PREC_NONE },
     [TOKEN_RETURN] = { NULL, NULL, PREC_NONE },
     [TOKEN_THEN] = { NULL, NULL, PREC_NONE },
@@ -448,7 +477,7 @@ static void parse(Precedence prevPrec, Parser* parser)
 
     if (prefixFn == NULL)
     {
-        fprintf(stderr, "Error, missing prefix rule.\n");
+        errorAt(parser->prev, "Error, missing prefix rule.", parser);
         exit(EXIT_FAILURE);
     }
 
@@ -524,10 +553,12 @@ static void ifStatement(Parser* parser)
     consume(TOKEN_THEN, "Error, expect 'then' to follow after condition expression.", parser);
 
     size_t nextBranchJump = emitJump(OP_JUMP_IF_FALSE, parser);
+    emitByte(OP_POP, parser);
 
     // body statements
     beginScope(parser);
-    while (!isAtEnd(parser) && peek(parser) != TOKEN_ELSE && peek(parser) != TOKEN_ELSEIF)
+    while (!isAtEnd(parser) && peek(parser) != TOKEN_ELSE && peek(parser) != TOKEN_ELSEIF &&
+      peek(parser) != TOKEN_END)
     {
         statements(parser);
     }
@@ -535,6 +566,7 @@ static void ifStatement(Parser* parser)
     size_t endJump = emitJump(OP_JUMP, parser);
 
     patchJump(nextBranchJump, parser);
+    emitByte(OP_POP, parser);
 
     // possible parralel branches
     if (match(TOKEN_ELSEIF, parser))
