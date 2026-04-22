@@ -19,6 +19,8 @@ static void initParser(
     parser->strings = strings;
     parser->globals = globals;
     parser->localCount = 0;
+    parser->currentLoopScope = 0;
+    parser->breakCount = 0;
 }
 
 static bool isAtEnd(Parser* parser)
@@ -129,7 +131,7 @@ static void patchJump(size_t offset, Parser* parser)
 
     if (jump > UINT16_MAX)
     {
-        error("Too much code to jump over.", parser);
+        error("Error, too much code to jump over.", parser);
     }
 
     currentChunk(parser)->code[offset] = (jump >> 8) & 0xff;
@@ -151,6 +153,26 @@ static size_t identifierConstant(Parser* parser)
     return pos;
 }
 
+static void emitLoop(size_t start, Parser* parser)
+{
+    emitByte(OP_LOOP, parser);
+
+    int jump = currentChunk(parser)->count - start + 2;
+
+    if (jump > UINT16_MAX)
+    {
+        error("Error, loop body too large.", parser);
+    }
+
+    emitByte((jump >> 8) & 0xff, parser);
+    emitByte(jump & 0xff, parser);
+}
+
+static size_t getLoopStart(Parser* parser)
+{
+    return currentChunk(parser)->count;
+}
+
 static void beginScope(Parser* parser)
 {
     parser->currentScope++;
@@ -165,6 +187,24 @@ static void endScope(Parser* parser)
     {
         emitByte(OP_POP, parser);
         parser->localCount--;
+    }
+}
+
+static void beginLoop(Parser* parser)
+{
+    parser->currentLoopScope++;
+}
+
+static void endLoop(Parser* parser)
+{
+    parser->currentLoopScope--;
+
+    while (
+      parser->breakCount > 0 && parser->breaks[parser->breakCount - 1].depth > parser->currentScope)
+    {
+        Break* br = &parser->breaks[parser->breakCount - 1];
+        patchJump(br->pos, parser);
+        parser->breakCount--;
     }
 }
 
@@ -588,6 +628,67 @@ static void ifStatement(Parser* parser)
     patchJump(endJump, parser);
 }
 
+static void whileStatement(Parser* parser)
+{
+    beginLoop(parser);
+    size_t loopStart = getLoopStart(parser);
+
+    expression(parser);
+    size_t endJump = emitJump(OP_JUMP_IF_FALSE, parser);
+    emitByte(OP_POP, parser);
+
+    consume(TOKEN_DO, "Error, expect token 'do' after while statement.", parser);
+    beginScope(parser);
+    block("Error, missing token 'end' to close while statement", parser);
+    endScope(parser);
+
+    emitLoop(loopStart, parser);
+
+    patchJump(endJump, parser);
+    emitByte(OP_POP, parser);
+    endLoop(parser);
+}
+
+static void repeatStatement(Parser* parser)
+{
+    beginLoop(parser);
+    size_t loopStart = getLoopStart(parser);
+
+    beginScope(parser);
+    while (!isAtEnd(parser) && peek(parser) != TOKEN_UNTIL)
+    {
+        statements(parser);
+    }
+    consume(TOKEN_UNTIL, "Error, expect until before condition of repeat statement.", parser);
+    expression(parser);
+    // flip condition to loop while exit condition is false
+    emitByte(OP_NOT, parser);
+    endScope(parser);
+
+    size_t endJump = emitJump(OP_JUMP_IF_FALSE, parser);
+
+    emitByte(OP_POP, parser);
+    emitLoop(loopStart, parser);
+
+    patchJump(endJump, parser);
+    emitByte(OP_POP, parser);
+    endLoop(parser);
+}
+
+static void breakStatement(Parser* parser)
+{
+    if (parser->currentLoopScope == 0)
+    {
+        errorAt(parser->prev, "Error, a break statement cannot appear outside of a loop.", parser);
+    }
+
+    size_t breakJump = emitJump(OP_JUMP, parser);
+    Break* br = &parser->breaks[parser->breakCount];
+    br->pos = breakJump;
+    br->depth = parser->currentLoopScope;
+    parser->breakCount++;
+}
+
 static void statements(Parser* parser)
 {
     bool hasExpression = false;
@@ -619,6 +720,21 @@ static void statements(Parser* parser)
     else if (match(TOKEN_IF, parser))
     {
         ifStatement(parser);
+        hasExpression = true;
+    }
+    else if (match(TOKEN_WHILE, parser))
+    {
+        whileStatement(parser);
+        hasExpression = true;
+    }
+    else if (match(TOKEN_REPEAT, parser))
+    {
+        repeatStatement(parser);
+        hasExpression = true;
+    }
+    else if (match(TOKEN_BREAK, parser))
+    {
+        breakStatement(parser);
         hasExpression = true;
     }
     else

@@ -25,6 +25,12 @@ typedef enum
 
 typedef struct
 {
+    int depth;
+    size_t pos;
+} Break;
+
+typedef struct
+{
     Lexer lexer;
     Token prev;
     Token current;
@@ -34,8 +40,11 @@ typedef struct
     Table* strings;
     Table* globals;
     int currentScope;
+    int currentLoopScope;
     Local locals[UINT8_MAX + 1];
     size_t localCount;
+    Break breaks[UINT16_MAX + 1];
+    size_t breakCount;
 } Parser;
 
 typedef void (*ParseFn)(Parser*);

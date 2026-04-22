@@ -327,6 +327,12 @@ InterpretResult run(VM* vm)
                 ip += offset;
                 break;
             }
+            case OP_LOOP:
+            {
+                int offset = READ_SHORT();
+                ip -= offset;
+                break;
+            }
             case OP_POP:
                 pop(vm);
                 break;
