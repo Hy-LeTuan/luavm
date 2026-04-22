@@ -102,7 +102,7 @@ static void consume(TokenType token, const char* message, Parser* parser)
 
 static void emitByte(uint8_t op, Parser* parser)
 {
-    writeChunk(parser->chunk, op, parser->prev.line);
+    writeChunk(currentChunk(parser), op, parser->prev.line);
 }
 
 static void emitBytes(uint8_t op1, uint8_t op2, Parser* parser)
@@ -111,9 +111,34 @@ static void emitBytes(uint8_t op1, uint8_t op2, Parser* parser)
     emitByte(op2, parser);
 }
 
+static size_t emitJump(OPCode jumpCode, Parser* parser)
+{
+    emitByte(jumpCode, parser);
+    emitByte(0, parser);
+    emitByte(0, parser);
+
+    return currentChunk(parser)->count - 2;
+}
+
+/*
+ * Patch the operands of a jump statement to jump to the current bytecode
+ * */
+static void patchJump(size_t offset, Parser* parser)
+{
+    int jump = currentChunk(parser)->count - offset - 2;
+
+    if (jump > UINT16_MAX)
+    {
+        error("Too much code to jump over.", parser);
+    }
+
+    currentChunk(parser)->code[offset] = (jump >> 8) & 0xff;
+    currentChunk(parser)->code[offset + 1] = jump & 0xff;
+}
+
 static void emitConstant(Value value, Parser* parser)
 {
-    size_t pos = addConstant(parser->chunk, value);
+    size_t pos = addConstant(currentChunk(parser), value);
     emitBytes(OP_CONSTANT, pos, parser);
 }
 
@@ -122,7 +147,7 @@ static size_t identifierConstant(Parser* parser)
     Value name =
       OBJ_VAL((Object*)copyString(parser->prev.start, parser->prev.length, parser->globals));
 
-    size_t pos = addConstant(parser->chunk, name);
+    size_t pos = addConstant(currentChunk(parser), name);
     return pos;
 }
 
@@ -205,37 +230,6 @@ static void namedVariable(Parser* parser)
     {
         emitBytes(opGet, (uint8_t)index, parser);
     }
-}
-
-static uint8_t addLocal(Token* name, Parser* parser)
-{
-    Local* local = &parser->locals[parser->localCount];
-    local->start = name->start;
-    local->length = name->length;
-    local->scope = -1;
-
-    parser->localCount++;
-    return parser->localCount - 1;
-}
-
-static void defineVariable(Parser* parser)
-{
-    consume(TOKEN_IDENTIFIER, "Error, an identifier is required after 'local' keyword.", parser);
-    Token* name = &parser->prev;
-    uint8_t constantIndex = identifierConstant(parser);
-
-    uint8_t localIndex = addLocal(name, parser);
-
-    if (match(TOKEN_EQUAL, parser))
-    {
-        expression(parser);
-    }
-    else
-    {
-        emitConstant(NIL_CONSTANT, parser);
-    }
-
-    markInitialized(localIndex, parser);
 }
 
 static void unary(Parser* parser)
@@ -341,14 +335,14 @@ static void str(Parser* parser)
     emitConstant(OBJ_VAL((Object*)string), parser);
 }
 
-static void block(Parser* parser)
+static void block(const char* message, Parser* parser)
 {
     while (peek(parser) != TOKEN_END && !isAtEnd(parser))
     {
         statements(parser);
     }
 
-    consume(TOKEN_END, "Error, missing token 'end' to close block.", parser);
+    consume(TOKEN_END, message, parser);
 }
 
 static void relational(Parser* parser)
@@ -492,6 +486,76 @@ static void expressionStatement(Parser* parser)
     emitByte(OP_POP, parser);
 }
 
+static uint8_t addLocal(Token* name, Parser* parser)
+{
+    Local* local = &parser->locals[parser->localCount];
+    local->start = name->start;
+    local->length = name->length;
+    local->scope = -1;
+
+    parser->localCount++;
+    return parser->localCount - 1;
+}
+
+static void defineVariable(Parser* parser)
+{
+    consume(TOKEN_IDENTIFIER, "Error, an identifier is required after 'local' keyword.", parser);
+    Token* name = &parser->prev;
+    uint8_t constantIndex = identifierConstant(parser);
+
+    uint8_t localIndex = addLocal(name, parser);
+
+    if (match(TOKEN_EQUAL, parser))
+    {
+        expression(parser);
+    }
+    else
+    {
+        emitConstant(NIL_CONSTANT, parser);
+    }
+
+    markInitialized(localIndex, parser);
+}
+
+static void ifStatement(Parser* parser)
+{
+    // start of a single if branch
+    expression(parser);
+    consume(TOKEN_THEN, "Error, expect 'then' to follow after condition expression.", parser);
+
+    size_t nextBranchJump = emitJump(OP_JUMP_IF_FALSE, parser);
+
+    // body statements
+    beginScope(parser);
+    while (!isAtEnd(parser) && peek(parser) != TOKEN_ELSE && peek(parser) != TOKEN_ELSEIF)
+    {
+        statements(parser);
+    }
+    endScope(parser);
+    size_t endJump = emitJump(OP_JUMP, parser);
+
+    patchJump(nextBranchJump, parser);
+
+    // possible parralel branches
+    if (match(TOKEN_ELSEIF, parser))
+    {
+        ifStatement(parser);
+    }
+    else if (match(TOKEN_ELSE, parser))
+    {
+        beginScope(parser);
+        block("Error, missing token 'end' to close if statement.", parser);
+        endScope(parser);
+    }
+    else
+    {
+        consume(TOKEN_END, "Error, missing token 'end' to close if statement.", parser);
+    }
+
+    // jump to end of if-statement
+    patchJump(endJump, parser);
+}
+
 static void statements(Parser* parser)
 {
     bool hasExpression = false;
@@ -516,8 +580,13 @@ static void statements(Parser* parser)
     else if (match(TOKEN_DO, parser))
     {
         beginScope(parser);
-        block(parser);
+        block("Error, missing token 'end' to close block.", parser);
         endScope(parser);
+        hasExpression = true;
+    }
+    else if (match(TOKEN_IF, parser))
+    {
+        ifStatement(parser);
         hasExpression = true;
     }
     else

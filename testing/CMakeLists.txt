@@ -52,3 +52,11 @@ target_link_libraries(BooleanTest PRIVATE common)
 target_link_libraries(BooleanTest PRIVATE lexer)
 target_link_libraries(BooleanTest PRIVATE compiler)
 target_link_libraries(BooleanTest PRIVATE vm)
+
+# test jump
+add_executable(JumpTest function/boolean_test.c)
+add_test(NAME JumpTest COMMAND JumpTest ${CMAKE_SOURCE_DIR}/testing/data/jump_input.lua)
+target_link_libraries(JumpTest PRIVATE common)
+target_link_libraries(JumpTest PRIVATE lexer)
+target_link_libraries(JumpTest PRIVATE compiler)
+target_link_libraries(JumpTest PRIVATE vm)

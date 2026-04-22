@@ -90,6 +90,7 @@ InterpretResult run(VM* vm)
 
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (vm->chunk.constants.values[READ_BYTE()])
+#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 #define EXECUTE_BINARY(op, f, f_inv, vm)                                                           \
     do                                                                                             \
     {                                                                                              \
@@ -311,6 +312,21 @@ InterpretResult run(VM* vm)
                 vm->stack[index] = peek(0, vm);
                 break;
             }
+            case OP_JUMP_IF_FALSE:
+            {
+                int offset = READ_SHORT();
+                if (isFalsey(pop(vm)))
+                {
+                    ip += offset;
+                }
+                break;
+            }
+            case OP_JUMP:
+            {
+                int offset = READ_SHORT();
+                ip += offset;
+                break;
+            }
             case OP_POP:
                 pop(vm);
                 break;
@@ -324,6 +340,7 @@ InterpretResult run(VM* vm)
     return INTERPRET_SUCCESS;
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_SHORT
 #undef EXECUTE_BINARY
 }
 

@@ -12,18 +12,36 @@ void disassembleChunk(Chunk* chunk)
     }
 }
 
+static void message(const char* message)
+{
+    fprintf(stdout, "%-16s", message);
+    return;
+}
+
 static int simpleInstruction(const char* code, int offset)
 {
-    fprintf(stdout, "'%s'\n", code);
+    message(code);
+    fprintf(stdout, "\n");
     return offset + 1;
 }
 
-static int constantInstruction(const char* message, Chunk* chunk, int offset)
+static int constantInstruction(const char* code, Chunk* chunk, int offset)
 {
-    fprintf(stdout, "'%s'", message);
+    message(code);
     fprintf(stdout, "%-8s", "");
     fprintf(stdout, "%04d\n", chunk->code[offset + 1]);
     return offset + 2;
+}
+
+static int jumpInstruction(const char* code, Chunk* chunk, int offset)
+{
+    uint16_t jump = (uint16_t)(chunk->code[offset + 1] << 8);
+    jump |= chunk->code[offset + 2];
+
+    message(code);
+    fprintf(stdout, "%-8s", "");
+    fprintf(stdout, "%04d\n", jump);
+    return offset + 3;
 }
 
 int disassembleInstruction(Chunk* chunk, int offset)
@@ -69,6 +87,10 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return constantInstruction("OP_GET_LOCAL", chunk, offset);
         case OP_SET_LOCAL:
             return constantInstruction("OP_SET_LOCAL", chunk, offset);
+        case OP_JUMP:
+            return jumpInstruction("OP_JUMP", chunk, offset);
+        case OP_JUMP_IF_FALSE:
+            return jumpInstruction("OP_JUMP_IF_ELSE", chunk, offset);
         case OP_POP:
             return simpleInstruction("OP_POP", offset);
         case OP_RETURN:
