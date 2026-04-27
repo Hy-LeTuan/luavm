@@ -4,6 +4,7 @@
 #include <object.h>
 #include <objstring.h>
 #include <memory.h>
+#include <reserved_var.h>
 
 #include <string.h>
 #include <stdio.h>
@@ -144,12 +145,11 @@ static void emitConstant(Value value, Parser* parser)
     emitBytes(OP_CONSTANT, pos, parser);
 }
 
-static size_t identifierConstant(Parser* parser)
+static size_t identifierConstant(Token* name, Parser* parser)
 {
-    Value name =
-      OBJ_VAL((Object*)copyString(parser->prev.start, parser->prev.length, parser->globals));
+    Value name_obj = OBJ_VAL((Object*)copyString(name->start, name->length, parser->strings));
 
-    size_t pos = addConstant(currentChunk(parser), name);
+    size_t pos = addConstant(currentChunk(parser), name_obj);
     return pos;
 }
 
@@ -190,22 +190,48 @@ static void endScope(Parser* parser)
     }
 }
 
+static void endScopeUntil(int targetScope, Parser* parser)
+{
+    int i = parser->localCount;
+
+    while (i > 0 && parser->locals[i - 1].scope > targetScope)
+    {
+        emitByte(OP_POP, parser);
+        i--;
+    }
+}
+
 static void beginLoop(Parser* parser)
 {
     parser->currentLoopScope++;
+    int* loopContext = &parser->loopContexts[parser->currentLoopScope];
+    *loopContext = parser->currentScope;
 }
 
 static void endLoop(Parser* parser)
 {
     parser->currentLoopScope--;
 
-    while (
-      parser->breakCount > 0 && parser->breaks[parser->breakCount - 1].depth > parser->currentScope)
+    while (parser->breakCount > 0 &&
+      parser->breaks[parser->breakCount - 1].depth > parser->currentLoopScope)
     {
         Break* br = &parser->breaks[parser->breakCount - 1];
         patchJump(br->pos, parser);
         parser->breakCount--;
     }
+}
+
+static Token genReservedVarToken(ReservedVarType type)
+{
+    ReservedVar* reserved = &ReservedVarTable[type];
+    Token token = {
+        .type = TOKEN_IDENTIFIER,
+        .length = reserved->length,
+        .line = -1,
+        .start = reserved->name,
+    };
+
+    return token;
 }
 
 // common declaration
@@ -241,12 +267,12 @@ static void markInitialized(uint8_t localIndex, Parser* parser)
 
 static void namedVariable(Parser* parser)
 {
-    Token* name = &parser->prev;
-    uint8_t var_constant = identifierConstant(parser);
+    Token name = parser->prev;
+    uint8_t var_constant = identifierConstant(&name, parser);
 
     uint8_t opGet;
     uint8_t opSet;
-    int index = lookupLocal(name, parser);
+    int index = lookupLocal(&name, parser);
 
     if (index != -1)
     {
@@ -302,7 +328,7 @@ static void grouping(Parser* parser)
 
 static void binary(Parser* parser)
 {
-    TokenType op = parser->prev.type;
+    TokenType op = prev(parser);
     Rule* rule = getRule(op);
 
     // right associative
@@ -566,13 +592,19 @@ static uint8_t addLocal(Token* name, Parser* parser)
     return parser->localCount - 1;
 }
 
-static void defineVariable(Parser* parser)
+static uint8_t defineLocalVar(Token* name, Parser* parser)
+{
+    uint8_t constantIndex = identifierConstant(name, parser);
+    uint8_t localIndex = addLocal(name, parser);
+
+    return localIndex;
+}
+
+static void localVarStatement(Parser* parser)
 {
     consume(TOKEN_IDENTIFIER, "Error, an identifier is required after 'local' keyword.", parser);
-    Token* name = &parser->prev;
-    uint8_t constantIndex = identifierConstant(parser);
-
-    uint8_t localIndex = addLocal(name, parser);
+    Token name = parser->prev;
+    uint8_t localIndex = defineLocalVar(&name, parser);
 
     if (match(TOKEN_EQUAL, parser))
     {
@@ -672,7 +704,154 @@ static void repeatStatement(Parser* parser)
 
     patchJump(endJump, parser);
     emitByte(OP_POP, parser);
+
     endLoop(parser);
+}
+
+static void numericalFor(Token* loop_var, Parser* parser)
+{
+    beginScope(parser);
+
+    // initializer
+    expression(parser);
+    consume(
+      TOKEN_COMMA, "Error, no comma to separate between iniitializer, limit and step.", parser);
+
+    // limit
+    expression(parser);
+
+    // step
+    if (match(TOKEN_COMMA, parser))
+    {
+        expression(parser);
+    }
+    else
+    {
+        emitConstant(NUM_VAL(1), parser);
+    }
+
+    // define custom variables by the compiler
+    Token var = genReservedVarToken(RESERVED_VAR);
+    size_t var_index = defineLocalVar(&var, parser);
+    markInitialized(var_index, parser);
+
+    Token limit = genReservedVarToken(RESERVED_LIMIT);
+    size_t limit_index = defineLocalVar(&limit, parser);
+    markInitialized(limit_index, parser);
+
+    Token step = genReservedVarToken(RESERVED_STEP);
+    size_t step_index = defineLocalVar(&step, parser);
+    markInitialized(step_index, parser);
+
+    size_t zero_constant = addConstant(currentChunk(parser), NUM_VAL(0));
+
+    /* begin loop */
+    beginLoop(parser);
+    size_t loopStart = getLoopStart(parser);
+    int outerLoopScope = parser->currentScope;
+
+    /* start condition */
+
+    // step > 0
+    emitBytes(OP_GET_LOCAL, step_index, parser);
+    emitBytes(OP_CONSTANT, (uint8_t)zero_constant, parser);
+    emitByte(OP_GREATER, parser);
+
+    // and
+    size_t andJump1 = emitJump(OP_JUMP_IF_FALSE, parser);
+    emitByte(OP_POP, parser);
+
+    // var <= limit
+    emitBytes(OP_GET_LOCAL, var_index, parser);
+    emitBytes(OP_GET_LOCAL, limit_index, parser);
+    emitBytes(OP_GREATER, OP_NOT, parser);
+
+    // patch andJump
+    patchJump(andJump1, parser);
+
+    size_t orNextJump = emitJump(OP_JUMP_IF_FALSE, parser);
+    size_t orEndJump = emitJump(OP_JUMP, parser);
+
+    patchJump(orNextJump, parser);
+    emitByte(OP_POP, parser);
+
+    // step <= 0
+    emitBytes(OP_GET_LOCAL, step_index, parser);
+    emitBytes(OP_CONSTANT, (uint8_t)zero_constant, parser);
+    emitBytes(OP_GREATER, OP_NOT, parser);
+
+    // and
+    size_t andJump2 = emitJump(OP_JUMP_IF_FALSE, parser);
+    emitByte(OP_POP, parser);
+
+    // var >= limit
+    emitBytes(OP_GET_LOCAL, var_index, parser);
+    emitBytes(OP_GET_LOCAL, limit_index, parser);
+    emitBytes(OP_NOT, OP_LESS, parser);
+
+    // patch andJump
+    patchJump(andJump2, parser);
+
+    // patch or jump
+    patchJump(orEndJump, parser);
+
+    /* end condition */
+
+    /* start body */
+
+    size_t endLoopJump = emitJump(OP_JUMP_IF_FALSE, parser);
+    emitByte(OP_POP, parser);
+
+    consume(TOKEN_DO, "Error, expect token 'do' after for initializations.", parser);
+    beginScope(parser);
+
+    // load loop_var
+    emitBytes(OP_GET_LOCAL, var_index, parser);
+    size_t loop_var_index = defineLocalVar(loop_var, parser);
+    emitBytes(OP_SET_LOCAL, loop_var_index, parser);
+    markInitialized(loop_var_index, parser);
+
+    block("Error, missing token 'end' to close for statement.", parser);
+
+    // increment var via assignment expression
+    emitBytes(OP_GET_LOCAL, var_index, parser);
+    emitBytes(OP_GET_LOCAL, step_index, parser);
+    emitByte(OP_ADD, parser);
+    emitBytes(OP_SET_LOCAL, var_index, parser);
+    emitByte(OP_POP, parser);
+
+    endScope(parser);
+
+    /* end body */
+
+    emitLoop(loopStart, parser);
+
+    patchJump(endLoopJump, parser);
+    emitByte(OP_POP, parser);
+    endLoop(parser);
+
+    /* end loop*/
+
+    endScope(parser);
+}
+
+static void forStatement(Parser* parser)
+{
+    consume(TOKEN_IDENTIFIER, "Error, identifier needs to follow 'for' statement.", parser);
+    Token loop_var = parser->prev;
+
+    if (match(TOKEN_EQUAL, parser))
+    {
+        numericalFor(&loop_var, parser);
+    }
+    else if (match(TOKEN_IN, parser))
+    {
+        // TODO: implement generic for
+    }
+    else
+    {
+        error("Error, unknown keyword found after 'for'.", parser);
+    }
 }
 
 static void breakStatement(Parser* parser)
@@ -681,6 +860,11 @@ static void breakStatement(Parser* parser)
     {
         errorAt(parser->prev, "Error, a break statement cannot appear outside of a loop.", parser);
     }
+
+    // clean up until we meet the outer scope of the loop
+    int loopScope = parser->loopContexts[parser->currentLoopScope];
+
+    endScopeUntil(loopScope, parser);
 
     size_t breakJump = emitJump(OP_JUMP, parser);
     Break* br = &parser->breaks[parser->breakCount];
@@ -701,7 +885,7 @@ static void statements(Parser* parser)
         // local variable
         else
         {
-            defineVariable(parser);
+            localVarStatement(parser);
         }
 
         hasExpression = true;
@@ -735,6 +919,11 @@ static void statements(Parser* parser)
     else if (match(TOKEN_BREAK, parser))
     {
         breakStatement(parser);
+        hasExpression = true;
+    }
+    else if (match(TOKEN_FOR, parser))
+    {
+        forStatement(parser);
         hasExpression = true;
     }
     else
