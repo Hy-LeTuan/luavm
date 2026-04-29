@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define TOKEN_TEST_SIZE 71
+#define TOKEN_TEST_SIZE 75
 
 Token tokensControl[TOKEN_TEST_SIZE] = {
     [0] = { .type = TOKEN_EQUAL },
@@ -83,6 +83,11 @@ Token tokensControl[TOKEN_TEST_SIZE] = {
     [68] = { .type = TOKEN_NUMBER },
     [69] = { .type = TOKEN_NUMBER },
     [70] = { .type = TOKEN_NUMBER },
+    // identifiers with underscore
+    [71] = { .type = TOKEN_IDENTIFIER },
+    [72] = { .type = TOKEN_IDENTIFIER },
+    [73] = { .type = TOKEN_IDENTIFIER },
+    [74] = { .type = TOKEN_IDENTIFIER },
 };
 
 int main(int argc, char* argv[])

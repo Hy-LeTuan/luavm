@@ -2,7 +2,7 @@ include(CTest)
 
 # test token production from lexer
 add_executable(TokenLexTest lexer/token_test.c)
-add_test(NAME TokenLexTest COMMAND TokenLexTest ${CMAKE_SOURCE_DIR}/testing/data/tokens.lua)
+add_test(NAME TokenLexTest COMMAND TokenLexTest ${CMAKE_SOURCE_DIR}/testing/data/token_input.lua)
 target_link_libraries(TokenLexTest PRIVATE lexer)
 target_link_libraries(TokenLexTest PRIVATE common)
 
@@ -52,3 +52,19 @@ target_link_libraries(BooleanTest PRIVATE common)
 target_link_libraries(BooleanTest PRIVATE lexer)
 target_link_libraries(BooleanTest PRIVATE compiler)
 target_link_libraries(BooleanTest PRIVATE vm)
+
+# test jump
+add_executable(JumpTest function/jump_test.c)
+add_test(NAME JumpTest COMMAND JumpTest ${CMAKE_SOURCE_DIR}/testing/data/jump_input.lua)
+target_link_libraries(JumpTest PRIVATE common)
+target_link_libraries(JumpTest PRIVATE lexer)
+target_link_libraries(JumpTest PRIVATE compiler)
+target_link_libraries(JumpTest PRIVATE vm)
+
+# test function definitions and calls
+add_executable(CallTest function/call_test.c)
+add_test(NAME CallTest COMMAND CallTest ${CMAKE_SOURCE_DIR}/testing/data/call_input.lua)
+target_link_libraries(CallTest PRIVATE common)
+target_link_libraries(CallTest PRIVATE lexer)
+target_link_libraries(CallTest PRIVATE compiler)
+target_link_libraries(CallTest PRIVATE vm)

@@ -117,7 +117,7 @@ static Token keyword(TokenType type, const char* word, int length, Lexer* lexer)
     if (strncmp(lexer->start, word, length) == 0)
     {
         // if the keyword actually ends and not a part of a bigger identifer
-        if (!isalpha(*(lexer->start + length)))
+        if (!isAlpha(*(lexer->start + length)))
         {
             lexer->current = lexer->start + length;
             return makeToken(type, lexer);
@@ -198,15 +198,15 @@ Token lex(Lexer* lexer)
                         }
                     }
 
-                    if (isAtEnd(lexer))
+                    // skip the 2 double braces
+                    for (int i = 0; i < 2; i++)
                     {
-                        return error("Multiline comment is not properly closed", lexer);
+                        if (peek(lexer) != ']')
+                        {
+                            return error("Multiline comment is not properly closed", lexer);
+                        }
+                        advance(lexer);
                     }
-
-                    // skip closing braces and newline
-                    advance(lexer);
-                    advance(lexer);
-                    advance(lexer);
                 }
                 else
                 {
@@ -214,9 +214,6 @@ Token lex(Lexer* lexer)
                     {
                         advance(lexer);
                     }
-
-                    // skip newline
-                    advance(lexer);
                 }
 
                 return lex(lexer);

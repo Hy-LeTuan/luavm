@@ -82,6 +82,23 @@ bool compareValue(Value a, Value b)
     return false;
 }
 
+/*
+ * Only `nil` and the boolean `false` are evaulated as false
+ * */
+bool isFalsey(Value value)
+{
+    if (IS_NIL(value))
+    {
+        return true;
+    }
+    else if (IS_BOOL(value))
+    {
+        return AS_BOOL(value) ? false : true;
+    }
+
+    return false;
+}
+
 void freeValueArray(ValueArray* array)
 {
     FREE_ARRAY(array->values, array->capacity, Value);

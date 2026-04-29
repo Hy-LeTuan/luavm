@@ -11,6 +11,7 @@ add_library(common
     # objects
     object/object.c;
     object/objstring.c;
+    object/objfunction.c
 
     # table
     table/table.c;
@@ -18,6 +19,7 @@ add_library(common
 
     # var
     var/locals.c
+    var/reserved_var.c
 )
 
 target_include_directories(common PUBLIC utils)

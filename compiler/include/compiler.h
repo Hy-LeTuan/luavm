@@ -6,8 +6,9 @@
 #include <chunk.h>
 #include <table.h>
 #include <locals.h>
+#include <objfunction.h>
 
-void compile(const char* source, Chunk* chunk, Table* strings, Table* globals);
+ObjFunction* compile(const char* source, Table* strings);
 
 typedef enum
 {
@@ -25,17 +26,34 @@ typedef enum
 
 typedef struct
 {
+    int depth;
+    size_t pos;
+} Break;
+
+typedef struct Compiler
+{
+    struct Compiler* enclosing;
+    ObjFunction* function;
+
+    // semantic analysis
+    int currentScope;
+    int currentLoopScope;
+    size_t localCount;
+    size_t breakCount;
+    int loopContexts[UINT8_MAX + 1];
+    Local locals[UINT8_MAX + 1];
+    Break breaks[UINT16_MAX + 1];
+} Compiler;
+
+typedef struct
+{
     Lexer lexer;
     Token prev;
     Token current;
     Precedence currentPrec;
     bool hadError;
-    Chunk* chunk;
     Table* strings;
-    Table* globals;
-    int currentScope;
-    Local locals[UINT8_MAX + 1];
-    size_t localCount;
+    Compiler* compiler;
 } Parser;
 
 typedef void (*ParseFn)(Parser*);

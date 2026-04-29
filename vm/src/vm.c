@@ -18,14 +18,14 @@ static void resetStack(VM* vm)
 void initVM(VM* vm)
 {
     vm->objectStack = NULL;
+    vm->frameCount = 0;
 
     resetStack(vm);
     initTable(&vm->strings);
     initTable(&vm->globals);
-    initChunk(&vm->chunk);
 }
 
-static void runtimeError(uint8_t* ip, VM* vm, const char* format, ...)
+static void runtimeError(VM* vm, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -33,8 +33,9 @@ static void runtimeError(uint8_t* ip, VM* vm, const char* format, ...)
     va_end(args);
     fputs("\n", stderr);
 
-    size_t instruction = ip - vm->chunk.code - 1;
-    int line = vm->chunk.lines[instruction];
+    size_t instruction =
+      vm->frames[vm->frameCount - 1].ip - vm->frames[vm->frameCount - 1].function->chunk.code - 1;
+    int line = vm->frames[vm->frameCount - 1].function->chunk.lines[instruction];
 
     fprintf(stderr, "[line %d] in ", line);
     resetStack(vm);
@@ -84,12 +85,41 @@ static void concatenate(VM* vm)
     push(OBJ_VAL((Object*)result), vm);
 }
 
+static bool call(uint8_t callArity, VM* vm)
+{
+    Value caller = peek(callArity, vm);
+
+    if (!IS_FUNCTION(caller))
+    {
+        runtimeError(vm, "Error, cannot call a value that is not a function.");
+        return false;
+    }
+    else if (vm->frameCount > STACK_MAX)
+    {
+        runtimeError(vm, "Error, stack overflow.");
+        return false;
+    }
+
+    // load a new frame
+    ObjFunction* function = AS_FUNCTION(caller);
+    CallFrame* newFrame = &vm->frames[vm->frameCount];
+    vm->frameCount++;
+
+    newFrame->function = function;
+    newFrame->ip = function->chunk.code;
+    newFrame->slots = vm->stackTop - callArity;
+
+    printf("frame->slots assigned to stack position: %lu\n", newFrame->slots - vm->stack);
+    return true;
+}
+
 InterpretResult run(VM* vm)
 {
-    uint8_t* ip = vm->chunk.code;
+    CallFrame* frame = &vm->frames[vm->frameCount - 1];
 
-#define READ_BYTE() (*ip++)
-#define READ_CONSTANT() (vm->chunk.constants.values[READ_BYTE()])
+#define READ_BYTE() (*frame->ip++)
+#define READ_CONSTANT() (frame->function->chunk.constants.values[READ_BYTE()])
+#define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 #define EXECUTE_BINARY(op, f, f_inv, vm)                                                           \
     do                                                                                             \
     {                                                                                              \
@@ -99,7 +129,7 @@ InterpretResult run(VM* vm)
     } while (false)
 
 #ifdef DEBUG_DISASSEMBLE_CHUNK
-    disassembleChunk(&vm->chunk);
+    disassembleChunk(&vm->frames[vm->frameCount - 1].function->chunk);
 #endif
 
     while (true)
@@ -123,7 +153,8 @@ InterpretResult run(VM* vm)
         fprintf(stdout, "%s\n", "        -----");
 #endif
 #ifdef DEBUG_DISASSEMBLE_INSTRUCTION
-        disassembleInstruction(&vm->chunk, ip - vm->chunk.code);
+        disassembleInstruction(&vm->frames[vm->frameCount - 1].function->chunk,
+          vm->frames[vm->frameCount - 1].ip - vm->frames[vm->frameCount - 1].function->chunk.code);
 #endif
         uint8_t instruction;
         switch (instruction = READ_BYTE())
@@ -152,14 +183,14 @@ InterpretResult run(VM* vm)
                 else
                 {
                     runtimeError(
-                      ip, vm, "RuntimeError: Cannot add values that are not numbers or strings.");
+                      vm, "RuntimeError: Cannot add values that are not numbers or strings.");
                 }
                 break;
             case OP_MINUS:
                 if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
                 {
-                    runtimeError(ip, vm,
-                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '-');
+                    runtimeError(
+                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '-');
                     break;
                 }
 
@@ -168,8 +199,8 @@ InterpretResult run(VM* vm)
             case OP_MUL:
                 if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
                 {
-                    runtimeError(ip, vm,
-                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '*');
+                    runtimeError(
+                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '*');
                     break;
                 }
 
@@ -178,8 +209,8 @@ InterpretResult run(VM* vm)
             case OP_DIV:
                 if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
                 {
-                    runtimeError(ip, vm,
-                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '/');
+                    runtimeError(
+                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '/');
                     break;
                 }
 
@@ -192,8 +223,8 @@ InterpretResult run(VM* vm)
 
                 if (!IS_NUM(a) || !IS_NUM(b))
                 {
-                    runtimeError(ip, vm,
-                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '^');
+                    runtimeError(
+                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '^');
                     break;
                 }
 
@@ -204,8 +235,8 @@ InterpretResult run(VM* vm)
             case OP_MODULO:
                 if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
                 {
-                    runtimeError(ip, vm,
-                      "RuntimeError: Operation '%c' only permitted between 2 numbers.", '%');
+                    runtimeError(
+                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '%');
                     break;
                 }
 
@@ -218,7 +249,7 @@ InterpretResult run(VM* vm)
 
                 if (a.type != b.type)
                 {
-                    runtimeError(ip, vm,
+                    runtimeError(vm,
                       "RuntimeError: Cannot compare a value of type %d with type %d.", a.type,
                       b.type);
                 }
@@ -235,7 +266,7 @@ InterpretResult run(VM* vm)
 
                 if (a.type != b.type)
                 {
-                    runtimeError(ip, vm,
+                    runtimeError(vm,
                       "RuntimeError: Cannot compare a value of type %d with type %d.", a.type,
                       b.type);
                 }
@@ -262,7 +293,7 @@ InterpretResult run(VM* vm)
                 }
                 else
                 {
-                    runtimeError(ip, vm,
+                    runtimeError(vm,
                       "Runtime Error: Cannot negate a value that is not a number or a boolean.");
                 }
                 break;
@@ -277,7 +308,7 @@ InterpretResult run(VM* vm)
                 }
                 else
                 {
-                    runtimeError(ip, vm,
+                    runtimeError(vm,
                       "Runtime Error: Cannot use the 'not' operator on a value that is not a "
                       "boolean.");
                 }
@@ -302,20 +333,76 @@ InterpretResult run(VM* vm)
             case OP_GET_LOCAL:
             {
                 uint8_t index = READ_BYTE();
-                push(vm->stack[index], vm);
+                push(frame->slots[index], vm);
                 break;
             }
             case OP_SET_LOCAL:
             {
                 uint8_t index = READ_BYTE();
-                vm->stack[index] = peek(0, vm);
+                frame->slots[index] = peek(0, vm);
+                break;
+            }
+            case OP_JUMP_IF_FALSE:
+            {
+                int offset = READ_SHORT();
+                if (isFalsey(peek(0, vm)))
+                {
+                    frame->ip += offset;
+                }
+                break;
+            }
+            case OP_JUMP:
+            {
+                int offset = READ_SHORT();
+                frame->ip += offset;
+                break;
+            }
+            case OP_LOOP:
+            {
+                int offset = READ_SHORT();
+                frame->ip -= offset;
+                break;
+            }
+            case OP_FUNCTION:
+            {
+                Value constant = READ_CONSTANT();
+                linkObject(AS_OBJ(constant), vm);
+                push(constant, vm);
+                break;
+            }
+            case OP_CALL:
+            {
+                uint8_t callArity = READ_BYTE();
+                if (!call(callArity, vm))
+                {
+                    return INTERPRET_ERROR;
+                }
+
+                frame = &vm->frames[vm->frameCount - 1];
                 break;
             }
             case OP_POP:
                 pop(vm);
                 break;
             case OP_RETURN:
-                return INTERPRET_SUCCESS;
+            {
+                Value result = pop(vm);
+                vm->frameCount--;
+
+                if (vm->frameCount == 0)
+                {
+                    return INTERPRET_SUCCESS;
+                }
+
+                // since slots starts at the first argument,
+                // we move 1 step back to reach the caller
+                vm->stackTop = frame->slots - 1;
+                push(result, vm);
+
+                frame = &vm->frames[vm->frameCount - 1];
+
+                break;
+            }
             default:
                 return INTERPRET_ERROR;
         }
@@ -324,6 +411,7 @@ InterpretResult run(VM* vm)
     return INTERPRET_SUCCESS;
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_SHORT
 #undef EXECUTE_BINARY
 }
 
@@ -332,7 +420,10 @@ InterpretResult interpret(const char* source)
     VM vm;
 
     initVM(&vm);
-    compile(source, &vm.chunk, &vm.strings, &vm.globals);
+
+    ObjFunction* function = compile(source, &vm.strings);
+    push(OBJ_VAL((Object*)function), &vm);
+    call(0, &vm);
 
     // the main run loop
     InterpretResult result = run(&vm);
@@ -347,6 +438,5 @@ void freeVM(VM* vm)
     resetStack(vm);
     freeTable(&vm->strings);
     freeTable(&vm->globals);
-    freeChunk(&vm->chunk);
     freeObjects(vm->objectStack);
 }
