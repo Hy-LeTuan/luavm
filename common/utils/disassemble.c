@@ -93,6 +93,10 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return jumpInstruction("OP_JUMP_IF_ELSE", chunk, offset);
         case OP_LOOP:
             return jumpInstruction("OP_LOOP", chunk, offset);
+        case OP_FUNCTION:
+            return constantInstruction("OP_FUNCTION", chunk, offset);
+        case OP_CALL:
+            return constantInstruction("OP_CALL", chunk, offset);
         case OP_POP:
             return simpleInstruction("OP_POP", offset);
         case OP_RETURN:

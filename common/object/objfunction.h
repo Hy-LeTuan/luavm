@@ -17,6 +17,6 @@ typedef struct
     Chunk chunk;
 } ObjFunction;
 
-ObjFunction* newFunction(int arity);
+ObjFunction* newFunction();
 
 #endif

@@ -5,6 +5,7 @@
 #include <value.h>
 #include <object.h>
 #include <table.h>
+#include <objfunction.h>
 
 #define STACK_MAX 256
 
@@ -16,8 +17,16 @@ typedef enum
 
 typedef struct
 {
+    ObjFunction* function;
+    uint8_t* ip;
+    Value* slots;
+} CallFrame;
+
+typedef struct
+{
     Value stack[STACK_MAX];
-    Chunk chunk;
+    CallFrame frames[STACK_MAX];
+    int frameCount;
     Value* stackTop;
     Object* objectStack;
     Table strings;

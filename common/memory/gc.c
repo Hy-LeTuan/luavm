@@ -2,6 +2,7 @@
 
 #include <memory.h>
 #include <objstring.h>
+#include <objfunction.h>
 
 #include <stdio.h>
 
@@ -14,11 +15,17 @@ static void freeObject(Object* obj)
             ObjString* string = (ObjString*)obj;
             FREE_ARRAY(string->chars, string->length + 1, char);
             FREE(string, ObjString);
+            break;
         }
         case OBJ_TABLE:
             break;
         case OBJ_FUNCTION:
+        {
+            ObjFunction* function = (ObjFunction*)obj;
+            freeChunk(&function->chunk);
+            FREE(function, ObjFunction);
             break;
+        }
     }
 }
 

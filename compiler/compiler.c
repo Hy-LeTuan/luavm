@@ -9,19 +9,30 @@
 #include <string.h>
 #include <stdio.h>
 
-static void initParser(
-  Parser* parser, const char* source, Chunk* chunk, Table* strings, Table* globals)
+static void initCompiler(Compiler* compiler, Compiler* prev)
+{
+    compiler->enclosing = prev;
+    compiler->function = NULL;
+
+    compiler->currentScope = 0;
+    compiler->currentLoopScope = 0;
+    compiler->localCount = 0;
+    compiler->breakCount = 0;
+
+    ObjFunction* function = newFunction();
+    compiler->function = function;
+}
+
+static void initParser(Parser* parser, const char* source, Table* strings, Compiler* compiler)
 {
     initLexer(source, &parser->lexer);
-    parser->currentScope = 0;
+
+    initCompiler(compiler, NULL);
+
+    parser->compiler = compiler;
     parser->currentPrec = PREC_NONE;
     parser->hadError = false;
-    parser->chunk = chunk;
     parser->strings = strings;
-    parser->globals = globals;
-    parser->localCount = 0;
-    parser->currentLoopScope = 0;
-    parser->breakCount = 0;
 }
 
 static bool isAtEnd(Parser* parser)
@@ -79,7 +90,7 @@ static bool match(TokenType type, Parser* parser)
 
 static Chunk* currentChunk(Parser* parser)
 {
-    return parser->chunk;
+    return &parser->compiler->function->chunk;
 }
 
 static TokenType peek(Parser* parser)
@@ -168,6 +179,12 @@ static void emitLoop(size_t start, Parser* parser)
     emitByte(jump & 0xff, parser);
 }
 
+static void emitReturn(Parser* parser)
+{
+    emitConstant(NIL_CONSTANT, parser);
+    emitByte(OP_RETURN, parser);
+}
+
 static size_t getLoopStart(Parser* parser)
 {
     return currentChunk(parser)->count;
@@ -175,26 +192,27 @@ static size_t getLoopStart(Parser* parser)
 
 static void beginScope(Parser* parser)
 {
-    parser->currentScope++;
+    parser->compiler->currentScope++;
 }
 
 static void endScope(Parser* parser)
 {
-    parser->currentScope--;
+    parser->compiler->currentScope--;
 
-    while (
-      parser->localCount > 0 && parser->locals[parser->localCount - 1].scope > parser->currentScope)
+    while (parser->compiler->localCount > 0 &&
+      parser->compiler->locals[parser->compiler->localCount - 1].scope >
+        parser->compiler->currentScope)
     {
         emitByte(OP_POP, parser);
-        parser->localCount--;
+        parser->compiler->localCount--;
     }
 }
 
 static void endScopeUntil(int targetScope, Parser* parser)
 {
-    int i = parser->localCount;
+    size_t i = parser->compiler->localCount;
 
-    while (i > 0 && parser->locals[i - 1].scope > targetScope)
+    while (i > 0 && parser->compiler->locals[i - 1].scope > targetScope)
     {
         emitByte(OP_POP, parser);
         i--;
@@ -203,21 +221,22 @@ static void endScopeUntil(int targetScope, Parser* parser)
 
 static void beginLoop(Parser* parser)
 {
-    parser->currentLoopScope++;
-    int* loopContext = &parser->loopContexts[parser->currentLoopScope];
-    *loopContext = parser->currentScope;
+    parser->compiler->currentLoopScope++;
+    int* loopContext = &parser->compiler->loopContexts[parser->compiler->currentLoopScope];
+    *loopContext = parser->compiler->currentScope;
 }
 
 static void endLoop(Parser* parser)
 {
-    parser->currentLoopScope--;
+    parser->compiler->currentLoopScope--;
 
-    while (parser->breakCount > 0 &&
-      parser->breaks[parser->breakCount - 1].depth > parser->currentLoopScope)
+    while (parser->compiler->breakCount > 0 &&
+      parser->compiler->breaks[parser->compiler->breakCount - 1].depth >
+        parser->compiler->currentLoopScope)
     {
-        Break* br = &parser->breaks[parser->breakCount - 1];
+        Break* br = &parser->compiler->breaks[parser->compiler->breakCount - 1];
         patchJump(br->pos, parser);
-        parser->breakCount--;
+        parser->compiler->breakCount--;
     }
 }
 
@@ -234,19 +253,33 @@ static Token genReservedVarToken(ReservedVarType type)
     return token;
 }
 
+/*
+Resets parser to previous function and return function held by popped compiler.
+*/
+static ObjFunction* endCompiler(Parser* parser)
+{
+    emitReturn(parser);
+
+    ObjFunction* function = parser->compiler->function;
+    parser->compiler = parser->compiler->enclosing;
+
+    return function;
+}
+
 // common declaration
 static void parse(Precedence prevPrec, Parser* parser);
 static void statements(Parser* parser);
+static void functionStatement(Parser* parser, bool local, bool anonymous);
 static void expression(Parser* parser);
 Rule* getRule(TokenType op);
 
 static int lookupLocal(Token* name, Parser* parser)
 {
-    for (int i = parser->localCount - 1; i >= 0; i--)
+    for (int i = parser->compiler->localCount - 1; i >= 0; i--)
     {
-        Local* local = &parser->locals[i];
+        Local* local = &parser->compiler->locals[i];
 
-        if (local->scope == -1 || local->scope > parser->currentScope)
+        if (local->scope == -1 || local->scope > parser->compiler->currentScope)
         {
             continue;
         }
@@ -262,7 +295,7 @@ static int lookupLocal(Token* name, Parser* parser)
 
 static void markInitialized(uint8_t localIndex, Parser* parser)
 {
-    parser->locals[localIndex].scope = parser->currentScope;
+    parser->compiler->locals[localIndex].scope = parser->compiler->currentScope;
 }
 
 static void namedVariable(Parser* parser)
@@ -288,8 +321,15 @@ static void namedVariable(Parser* parser)
 
     if (parser->currentPrec <= PREC_ASSIGNMENT && match(TOKEN_EQUAL, parser))
     {
-        // consume the expression
-        expression(parser);
+        if (match(TOKEN_FUNCTION, parser))
+        {
+            functionStatement(parser, false, true);
+        }
+        else
+        {
+            // consume the expression
+            expression(parser);
+        }
         emitBytes(opSet, (uint8_t)index, parser);
     }
     else
@@ -474,6 +514,35 @@ static void logical_and(Parser* parser)
     patchJump(endJump, parser);
 }
 
+static uint8_t argumentList(Parser* parser)
+{
+    uint8_t arity = 0;
+
+    if (!check(TOKEN_RIGHT_PAREN, parser))
+    {
+        do
+        {
+            expression(parser);
+
+            if (arity > 255)
+            {
+                error("Can't have more than 255 arguments.", parser);
+            }
+            arity++;
+        } while (match(TOKEN_COMMA, parser));
+    }
+
+    consume(TOKEN_RIGHT_PAREN, "Error, missing ')' to close function call.", parser);
+
+    return arity;
+}
+
+static void call(Parser* parser)
+{
+    uint8_t arity = argumentList(parser);
+    emitBytes(OP_CALL, arity, parser);
+}
+
 // pratt parsing table
 Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_MINUS] = { unary, binary, PREC_TERM },
@@ -485,7 +554,7 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_LESS] = { NULL, relational, PREC_RELATIONAL },
     [TOKEN_GREATER] = { NULL, relational, PREC_RELATIONAL },
     [TOKEN_EQUAL] = { NULL, NULL, PREC_NONE },
-    [TOKEN_LEFT_PAREN] = { grouping, NULL, PREC_NONE },
+    [TOKEN_LEFT_PAREN] = { grouping, call, PREC_ASSIGNMENT },
     [TOKEN_RIGHT_PAREN] = { NULL, NULL, PREC_NONE },
     [TOKEN_LEFT_BRACE] = { NULL, NULL, PREC_NONE },
     [TOKEN_RIGHT_BRACE] = { NULL, NULL, PREC_NONE },
@@ -583,13 +652,13 @@ static void expressionStatement(Parser* parser)
 
 static uint8_t addLocal(Token* name, Parser* parser)
 {
-    Local* local = &parser->locals[parser->localCount];
+    Local* local = &parser->compiler->locals[parser->compiler->localCount];
     local->start = name->start;
     local->length = name->length;
     local->scope = -1;
 
-    parser->localCount++;
-    return parser->localCount - 1;
+    parser->compiler->localCount++;
+    return parser->compiler->localCount - 1;
 }
 
 static uint8_t defineLocalVar(Token* name, Parser* parser)
@@ -600,6 +669,87 @@ static uint8_t defineLocalVar(Token* name, Parser* parser)
     return localIndex;
 }
 
+/*
+Generate a `ObjFunction` object that represents the function currently defined.
+
+When called in anonymous mode (with `anonymous = true`), the function generates the object only and
+let the assignment to a variable be handled by the assignment statement. Otherwise, it simulates the
+assignemnt process by defining the variable (globally or locally with `local`) based on the provided
+function name.
+
+Parameters:
+- `local`: The option to denote whether this function is defined locally or not
+- `anonymous`: The option to denote whether this function is anonymous or not
+*/
+static void functionStatement(Parser* parser, bool local, bool anonymous)
+{
+    printf("functionStatement called with local: %b and anonymous: %b.\n", local, anonymous);
+
+    uint8_t var_constant = 0;
+    if (!anonymous)
+    {
+        consume(TOKEN_IDENTIFIER,
+          "Error, expect function name after 'function' and before arguments.", parser);
+
+        Token name = parser->prev;
+
+        if (local)
+        {
+            uint8_t local = defineLocalVar(&name, parser);
+            markInitialized(local, parser);
+        }
+        else
+        {
+            var_constant = identifierConstant(&name, parser);
+        }
+    }
+
+    consume(TOKEN_LEFT_PAREN, "Error, expect '(' after.", parser);
+
+    Compiler compiler;
+    initCompiler(&compiler, parser->compiler);
+
+    beginScope(parser);
+
+    /* start parsing current function */
+    parser->compiler = &compiler;
+
+    if (!check(TOKEN_RIGHT_PAREN, parser))
+    {
+        do
+        {
+            parser->compiler->function->arity++;
+            if (parser->compiler->function->arity > 255)
+            {
+                error("Can't have more than 255 parameters.", parser);
+            }
+
+            consume(TOKEN_IDENTIFIER, "Error, expect parameter name.", parser);
+            Token name = parser->prev;
+            uint8_t constant = defineLocalVar(&name, parser);
+            markInitialized(constant, parser);
+        } while (match(TOKEN_COMMA, parser));
+    }
+
+    consume(TOKEN_RIGHT_PAREN, "Error, expect ')' after argument list.", parser);
+
+    block("Error, expect 'end' after function definition.", parser);
+
+    // endCompiler emits a return that would already reset the stack, no need for endScope
+    ObjFunction* function = endCompiler(parser);
+
+    /* finish parsing current function */
+
+    size_t constant = addConstant(currentChunk(parser), OBJ_VAL((Object*)function));
+    emitBytes(OP_FUNCTION, constant, parser);
+
+    if (!anonymous && !local)
+    {
+        emitBytes(OP_SET_GLOBAL, var_constant, parser);
+        emitByte(OP_POP, parser);
+    }
+}
+
 static void localVarStatement(Parser* parser)
 {
     consume(TOKEN_IDENTIFIER, "Error, an identifier is required after 'local' keyword.", parser);
@@ -608,7 +758,14 @@ static void localVarStatement(Parser* parser)
 
     if (match(TOKEN_EQUAL, parser))
     {
-        expression(parser);
+        if (match(TOKEN_FUNCTION, parser))
+        {
+            functionStatement(parser, true, true);
+        }
+        else
+        {
+            expression(parser);
+        }
     }
     else
     {
@@ -748,7 +905,7 @@ static void numericalFor(Token* loop_var, Parser* parser)
     /* begin loop */
     beginLoop(parser);
     size_t loopStart = getLoopStart(parser);
-    int outerLoopScope = parser->currentScope;
+    int outerLoopScope = parser->compiler->currentScope;
 
     /* start condition */
 
@@ -856,21 +1013,35 @@ static void forStatement(Parser* parser)
 
 static void breakStatement(Parser* parser)
 {
-    if (parser->currentLoopScope == 0)
+    if (parser->compiler->currentLoopScope == 0)
     {
         errorAt(parser->prev, "Error, a break statement cannot appear outside of a loop.", parser);
     }
 
     // clean up until we meet the outer scope of the loop
-    int loopScope = parser->loopContexts[parser->currentLoopScope];
+    int loopScope = parser->compiler->loopContexts[parser->compiler->currentLoopScope];
 
     endScopeUntil(loopScope, parser);
 
     size_t breakJump = emitJump(OP_JUMP, parser);
-    Break* br = &parser->breaks[parser->breakCount];
+    Break* br = &parser->compiler->breaks[parser->compiler->breakCount];
     br->pos = breakJump;
-    br->depth = parser->currentLoopScope;
-    parser->breakCount++;
+    br->depth = parser->compiler->currentLoopScope;
+    parser->compiler->breakCount++;
+}
+
+static void returnStatement(Parser* parser)
+{
+    if (getRule(peek(parser))->prefix != NULL)
+    {
+        expression(parser);
+        emitByte(OP_RETURN, parser);
+    }
+    else
+    {
+        emitConstant(NIL_CONSTANT, parser);
+        emitByte(OP_RETURN, parser);
+    }
 }
 
 static void statements(Parser* parser)
@@ -878,11 +1049,10 @@ static void statements(Parser* parser)
     bool hasExpression = false;
     if (match(TOKEN_LOCAL, parser))
     {
-        // local function
         if (match(TOKEN_FUNCTION, parser))
         {
+            functionStatement(parser, true, false);
         }
-        // local variable
         else
         {
             localVarStatement(parser);
@@ -892,6 +1062,7 @@ static void statements(Parser* parser)
     }
     else if (match(TOKEN_FUNCTION, parser))
     {
+        functionStatement(parser, false, false);
         hasExpression = true;
     }
     else if (match(TOKEN_DO, parser))
@@ -926,6 +1097,11 @@ static void statements(Parser* parser)
         forStatement(parser);
         hasExpression = true;
     }
+    else if (match(TOKEN_RETURN, parser))
+    {
+        returnStatement(parser);
+        hasExpression = true;
+    }
     else
     {
         expressionStatement(parser);
@@ -944,10 +1120,12 @@ static void statements(Parser* parser)
     }
 }
 
-void compile(const char* source, Chunk* chunk, Table* strings, Table* globals)
+ObjFunction* compile(const char* source, Table* strings)
 {
     Parser parser;
-    initParser(&parser, source, chunk, strings, globals);
+    Compiler compiler;
+
+    initParser(&parser, source, strings, &compiler);
 
     // first setup
     advance(&parser);
@@ -958,11 +1136,12 @@ void compile(const char* source, Chunk* chunk, Table* strings, Table* globals)
         statements(&parser);
     }
 
-    emitByte(OP_RETURN, &parser);
-
     if (parser.hadError)
     {
         fprintf(stderr, "Compiler error, exiting now.\n");
         exit(EXIT_FAILURE);
     }
+
+    ObjFunction* function = endCompiler(&parser);
+    return function;
 }
