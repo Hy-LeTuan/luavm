@@ -7,14 +7,7 @@
 int main(int arc, char* argv[])
 {
     const char* source = readSourceFile(argv[1]);
-    VM vm;
-
-    initVM(&vm);
-    compile(source, &vm.chunk, &vm.strings, &vm.globals);
-
-    InterpretResult result = run(&vm);
-
-    freeVM(&vm);
+    InterpretResult result = interpret(source);
 
     if (result == INTERPRET_ERROR)
     {
