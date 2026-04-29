@@ -251,6 +251,19 @@ InterpretResult run(VM* vm)
 
                 EXECUTE_BINARY(%, (int)AS_NUM, NUM_VAL, vm);
                 break;
+            case OP_JOIN:
+            {
+                if (IS_STRING(peek(0, vm)) && IS_STRING(peek(1, vm)))
+                {
+                    concatenate(vm);
+                }
+                else
+                {
+                    runtimeError(
+                      vm, "RuntimeError: Join operation only permitted between 2 strings.");
+                }
+                break;
+            }
             case OP_LESS:
             {
                 Value b = peek(0, vm);

@@ -71,6 +71,8 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return simpleInstruction("OP_EXPONENT", offset);
         case OP_MODULO:
             return simpleInstruction("OP_MODULO", offset);
+        case OP_JOIN:
+            return simpleInstruction("OP_CONCAT", offset);
         case OP_LESS:
             return simpleInstruction("OP_LESS", offset);
         case OP_GREATER:

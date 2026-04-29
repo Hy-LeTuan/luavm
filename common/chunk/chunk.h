@@ -15,6 +15,7 @@ typedef enum
     OP_DIV,
     OP_EXPONENT,
     OP_MODULO,
+    OP_JOIN,
     OP_LESS,
     OP_GREATER,
     OP_NOT,

@@ -406,6 +406,10 @@ static void binary(Parser* parser)
     {
         emitByte(OP_MODULO, parser);
     }
+    else if (op == TOKEN_DOT_DOT)
+    {
+        emitByte(OP_JOIN, parser);
+    }
     else
     {
         fprintf(stderr, "Error, cannot parse binary operator.\n");
@@ -568,7 +572,7 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_TILDE_EQUAL] = { NULL, relational, PREC_RELATIONAL },
     [TOKEN_LESS_EQUAL] = { NULL, relational, PREC_RELATIONAL },
     [TOKEN_GREATER_EQUAL] = { NULL, relational, PREC_RELATIONAL },
-    [TOKEN_DOT_DOT] = { NULL, NULL, PREC_NONE },
+    [TOKEN_DOT_DOT] = { NULL, binary, PREC_JOIN },
     [TOKEN_THREE_DOTS] = { NULL, NULL, PREC_NONE },
     [TOKEN_AND] = { NULL, logical_and, PREC_AND },
     [TOKEN_BREAK] = { NULL, NULL, PREC_NONE },
