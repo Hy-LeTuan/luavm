@@ -169,6 +169,15 @@ InterpretResult run(VM* vm)
                 }
 
                 push(constant, vm);
+
+                // For strings, it could be a part of the call syntax if predecessed by a
+                // function. Greedily assume it's part of the call syntax without evaluating the
+                // expression
+                if (vm->stackTop - vm->stack > 2 && IS_FUNCTION(peek(1, vm)))
+                {
+                    call(1, vm);
+                }
+
                 break;
             }
             case OP_ADD:
