@@ -2,6 +2,9 @@
 
 #include <object.h>
 #include <objstring.h>
+#include <objfunction.h>
+#include <objclosure.h>
+#include <objnativefunction.h>
 
 const uint32_t FnvDefaultPrime = 0x01000193U;
 const uint32_t FnvDefaultOffsetBasis = 0x811C9DC5U;
@@ -46,11 +49,29 @@ void* valueToByte(const Value value, int* byte_length)
                     *byte_length = string->length;
                     break;
                 }
-                case OBJ_TABLE:
                 case OBJ_FUNCTION:
+                {
+                    ObjFunction* function = (ObjFunction*)obj;
+                    bytes = (void*)function;
+                    *byte_length = (int)sizeof(ObjFunction*);
+                    break;
+                }
                 case OBJ_CLOSURE:
-                case OBJ_UPVALUE:
+                {
+                    ObjClosure* closure = (ObjClosure*)obj;
+                    bytes = (void*)closure;
+                    *byte_length = (int)sizeof(ObjClosure*);
+                    break;
+                }
                 case OBJ_NATIVE:
+                {
+                    ObjNativeFunction* native = (ObjNativeFunction*)obj;
+                    bytes = (void*)native;
+                    *byte_length = (int)sizeof(ObjNativeFunction*);
+                    break;
+                }
+                case OBJ_TABLE:
+                case OBJ_UPVALUE:
                     *byte_length = 0;
                     break;
             }

@@ -19,6 +19,7 @@ static void initCompiler(Compiler* compiler, Compiler* prev)
     compiler->currentLoopScope = 0;
     compiler->localCount = 0;
     compiler->breakCount = 0;
+    compiler->upvalueCount = 0;
 
     ObjFunction* function = newFunction();
     compiler->function = function;

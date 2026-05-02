@@ -2,6 +2,8 @@
 #include <hash.h>
 #include <value.h>
 #include <objstring.h>
+#include <objfunction.h>
+#include <objclosure.h>
 
 #include <stdio.h>
 #include <assert.h>
@@ -53,6 +55,14 @@ int main(int argc, char* argv[])
       OBJ_VAL((Object*)copyString("this is a very long string for a key", 36, &strings)), fnv1a_32);
 
     fprintf(stdout, "Test for strings passed.\n");
+
+    // functions
+    COMPARE(OBJ_VAL((Object*)newFunction()), fnv1a_32);
+
+    ObjFunction* function = newFunction();
+    COMPARE(OBJ_VAL((Object*)newClosure(function)), fnv1a_32);
+
+    fprintf(stdout, "Test for functions and closures passed.\n");
 
     freeTable(&strings);
 

@@ -5,6 +5,9 @@
 #include <string.h>
 #include <object.h>
 #include <objstring.h>
+#include <objfunction.h>
+#include <objclosure.h>
+#include <objnativefunction.h>
 
 #define TABLE_MAX_LOAD 0.75
 
@@ -36,6 +39,18 @@ static bool compareKey(Value a, Value b)
     else if (IS_STRING(a))
     {
         return AS_STRING(a) == AS_STRING(b);
+    }
+    else if (IS_FUNCTION(a))
+    {
+        return AS_FUNCTION(a) == AS_FUNCTION(b);
+    }
+    else if (IS_CLOSURE(a))
+    {
+        return AS_CLOSURE(a) == AS_CLOSURE(b);
+    }
+    else if (IS_NATIVE(a))
+    {
+        return AS_NATIVE(a) == AS_NATIVE(b);
     }
 
     return false;
