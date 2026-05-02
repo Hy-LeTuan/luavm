@@ -8,6 +8,7 @@ typedef struct
     const char* start;
     int length;
     int scope;
+    bool isCaptured;
 } Local;
 
 typedef struct

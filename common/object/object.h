@@ -13,7 +13,9 @@ typedef enum
 {
     OBJ_STRING,
     OBJ_TABLE,
-    OBJ_FUNCTION
+    OBJ_FUNCTION,
+    OBJ_CLOSURE,
+    OBJ_UPVALUE
 } ObjType;
 
 typedef struct Object

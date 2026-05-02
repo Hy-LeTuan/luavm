@@ -5,7 +5,7 @@
 #include <value.h>
 #include <object.h>
 #include <table.h>
-#include <objfunction.h>
+#include <objclosure.h>
 
 #define STACK_MAX 256
 
@@ -17,7 +17,7 @@ typedef enum
 
 typedef struct
 {
-    ObjFunction* function;
+    ObjClosure* closure;
     uint8_t* ip;
     Value* slots;
 } CallFrame;
@@ -31,6 +31,7 @@ typedef struct
     Object* objectStack;
     Table strings;
     Table globals;
+    ObjUpvalue* openUpvalues;
 } VM;
 
 void initVM(VM* vm);

@@ -3,6 +3,7 @@
 #include <lexer.h>
 #include <object.h>
 #include <objstring.h>
+#include <objclosure.h>
 #include <memory.h>
 #include <reserved_var.h>
 
@@ -203,7 +204,9 @@ static void endScope(Parser* parser)
       parser->compiler->locals[parser->compiler->localCount - 1].scope >
         parser->compiler->currentScope)
     {
-        emitByte(OP_POP, parser);
+        parser->compiler->locals[parser->compiler->localCount - 1].isCaptured
+          ? emitByte(OP_CLOSE_UPVALUE, parser)
+          : emitByte(OP_POP, parser);
         parser->compiler->localCount--;
     }
 }
@@ -214,7 +217,8 @@ static void endScopeUntil(int targetScope, Parser* parser)
 
     while (i > 0 && parser->compiler->locals[i - 1].scope > targetScope)
     {
-        emitByte(OP_POP, parser);
+        parser->compiler->locals[i - 1].isCaptured ? emitByte(OP_CLOSE_UPVALUE, parser)
+                                                   : emitByte(OP_POP, parser);
         i--;
     }
 }
@@ -273,13 +277,13 @@ static void functionStatement(Parser* parser, bool local, bool anonymous);
 static void expression(Parser* parser);
 Rule* getRule(TokenType op);
 
-static int lookupLocal(Token* name, Parser* parser)
+static int lookupLocal(Token* name, Compiler* compiler)
 {
-    for (int i = parser->compiler->localCount - 1; i >= 0; i--)
+    for (int i = compiler->localCount - 1; i >= 0; i--)
     {
-        Local* local = &parser->compiler->locals[i];
+        Local* local = &compiler->locals[i];
 
-        if (local->scope == -1 || local->scope > parser->compiler->currentScope)
+        if (local->scope == -1 || local->scope > compiler->currentScope)
         {
             continue;
         }
@@ -298,6 +302,62 @@ static void markInitialized(uint8_t localIndex, Parser* parser)
     parser->compiler->locals[localIndex].scope = parser->compiler->currentScope;
 }
 
+static int addUpvalue(uint8_t index, bool immediate, Compiler* compiler)
+{
+    int upvalueCount = compiler->upvalueCount;
+
+    for (int i = 0; i < upvalueCount; i++)
+    {
+        Upvalue* upvalue = &compiler->upvalues[i];
+
+        // upvalue already exists
+        if (upvalue->index == index && upvalue->immediate == immediate)
+        {
+            return i;
+        }
+    }
+
+    if (upvalueCount >= INT8_MAX)
+    {
+        return -1;
+    }
+
+    Upvalue* upvalue = &compiler->upvalues[upvalueCount];
+    upvalue->index = index;
+    upvalue->immediate = immediate;
+
+    compiler->upvalueCount++;
+
+    return upvalueCount;
+}
+
+static int lookupUpvalue(Token* name, Compiler* compiler)
+{
+    if (compiler->enclosing == NULL)
+    {
+        return -1;
+    }
+
+    int index = lookupLocal(name, compiler->enclosing);
+
+    if (index != -1)
+    {
+        // add upvalue to the closure that actual needs the upvalue, not where it is found
+        compiler->enclosing->locals[index].isCaptured = true;
+        addUpvalue((uint8_t)index, true, compiler);
+        return index;
+    }
+
+    index = lookupUpvalue(name, compiler->enclosing);
+    if (index != -1)
+    {
+        addUpvalue((uint8_t)index, false, compiler);
+        return index;
+    }
+
+    return -1;
+}
+
 static void namedVariable(Parser* parser)
 {
     Token name = parser->prev;
@@ -305,12 +365,17 @@ static void namedVariable(Parser* parser)
 
     uint8_t opGet;
     uint8_t opSet;
-    int index = lookupLocal(&name, parser);
+    int index = lookupLocal(&name, parser->compiler);
 
     if (index != -1)
     {
         opGet = OP_GET_LOCAL;
         opSet = OP_SET_LOCAL;
+    }
+    else if ((index = lookupUpvalue(&name, parser->compiler)) != -1)
+    {
+        opGet = OP_GET_UPVALUE;
+        opSet = OP_SET_UPVALUE;
     }
     else
     {
@@ -660,6 +725,7 @@ static uint8_t addLocal(Token* name, Parser* parser)
     local->start = name->start;
     local->length = name->length;
     local->scope = -1;
+    local->isCaptured = false;
 
     parser->compiler->localCount++;
     return parser->compiler->localCount - 1;
@@ -687,8 +753,6 @@ Parameters:
 */
 static void functionStatement(Parser* parser, bool local, bool anonymous)
 {
-    printf("functionStatement called with local: %b and anonymous: %b.\n", local, anonymous);
-
     uint8_t var_constant = 0;
     if (!anonymous)
     {
@@ -741,12 +805,26 @@ static void functionStatement(Parser* parser, bool local, bool anonymous)
 
     // endCompiler emits a return that would already reset the stack, no need for endScope
     ObjFunction* function = endCompiler(parser);
+    function->upvalueCount = compiler.upvalueCount;
 
     /* finish parsing current function */
 
-    size_t constant = addConstant(currentChunk(parser), OBJ_VAL((Object*)function));
-    emitBytes(OP_FUNCTION, constant, parser);
+    ObjClosure* closure = newClosure(function);
 
+    size_t constant = addConstant(currentChunk(parser), OBJ_VAL((Object*)function));
+
+    emitBytes(OP_CLOSURE, constant, parser);
+
+    // add upvalues
+    for (int i = 0; i < function->upvalueCount; i++)
+    {
+        Upvalue* upvalue = &compiler.upvalues[i];
+
+        emitByte(upvalue->immediate ? 1 : 0, parser);
+        emitByte((uint8_t)upvalue->index, parser);
+    }
+
+    // set function as a global variable
     if (!anonymous && !local)
     {
         emitBytes(OP_SET_GLOBAL, var_constant, parser);

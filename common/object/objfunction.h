@@ -15,6 +15,7 @@ typedef struct
     size_t arity;
     uint8_t* ip;
     Chunk chunk;
+    int upvalueCount;
 } ObjFunction;
 
 ObjFunction* newFunction();

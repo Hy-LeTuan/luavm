@@ -6,6 +6,7 @@
 #include <chunk.h>
 #include <table.h>
 #include <locals.h>
+#include <upvalues.h>
 #include <objfunction.h>
 
 ObjFunction* compile(const char* source, Table* strings);
@@ -40,8 +41,10 @@ typedef struct Compiler
     int currentLoopScope;
     size_t localCount;
     size_t breakCount;
+    size_t upvalueCount;
     int loopContexts[UINT8_MAX + 1];
     Local locals[UINT8_MAX + 1];
+    Upvalue upvalues[UINT8_MAX + 1];
     Break breaks[UINT16_MAX + 1];
 } Compiler;
 

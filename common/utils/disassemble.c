@@ -1,6 +1,7 @@
 #include <disassemble.h>
 
 #include <stdio.h>
+#include <objclosure.h>
 
 void disassembleChunk(Chunk* chunk)
 {
@@ -42,6 +43,29 @@ static int jumpInstruction(const char* code, Chunk* chunk, int offset)
     fprintf(stdout, "%-8s", "");
     fprintf(stdout, "%04d\n", jump);
     return offset + 3;
+}
+
+static int closureInstruction(const char* code, Chunk* chunk, int offset)
+{
+
+    offset++;
+    uint8_t constant = chunk->code[offset++];
+    message(code);
+    fprintf(stdout, "%-8s", "");
+    fprintf(stdout, "%04d\n", constant);
+
+    ObjFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
+    for (int j = 0; j < function->upvalueCount; j++)
+    {
+        offset++;
+        // int isLocal = chunk->code[offset++];
+        // int index = chunk->code[offset++];
+        // printf("%04d    |                     %s %d\n", offset - 2, isLocal ? "local" :
+        // "upvalue",
+        //   index);
+    }
+
+    return offset;
 }
 
 int disassembleInstruction(Chunk* chunk, int offset)
@@ -89,6 +113,10 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return constantInstruction("OP_GET_LOCAL", chunk, offset);
         case OP_SET_LOCAL:
             return constantInstruction("OP_SET_LOCAL", chunk, offset);
+        case OP_GET_UPVALUE:
+            return constantInstruction("OP_GET_UPVALUE", chunk, offset);
+        case OP_SET_UPVALUE:
+            return constantInstruction("OP_SET_UPVALUE", chunk, offset);
         case OP_JUMP:
             return jumpInstruction("OP_JUMP", chunk, offset);
         case OP_JUMP_IF_FALSE:
@@ -97,8 +125,14 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return jumpInstruction("OP_LOOP", chunk, offset);
         case OP_FUNCTION:
             return constantInstruction("OP_FUNCTION", chunk, offset);
+        case OP_CLOSURE:
+        {
+            return closureInstruction("OP_CLOSURE", chunk, offset);
+        }
         case OP_CALL:
             return constantInstruction("OP_CALL", chunk, offset);
+        case OP_CLOSE_UPVALUE:
+            return simpleInstruction("OP_CLOSE_UPVALUE", offset);
         case OP_POP:
             return simpleInstruction("OP_POP", offset);
         case OP_RETURN:

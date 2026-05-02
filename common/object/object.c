@@ -32,5 +32,13 @@ void printObject(Object* obj)
         case OBJ_FUNCTION:
             fprintf(stdout, "function");
             break;
+        case OBJ_CLOSURE:
+        {
+            fprintf(stdout, "closure");
+            break;
+        }
+        case OBJ_UPVALUE:
+            fprintf(stdout, "upvalue");
+            break;
     }
 }

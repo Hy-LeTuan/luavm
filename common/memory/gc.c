@@ -3,6 +3,7 @@
 #include <memory.h>
 #include <objstring.h>
 #include <objfunction.h>
+#include <objclosure.h>
 
 #include <stdio.h>
 
@@ -17,8 +18,6 @@ static void freeObject(Object* obj)
             FREE(string, ObjString);
             break;
         }
-        case OBJ_TABLE:
-            break;
         case OBJ_FUNCTION:
         {
             ObjFunction* function = (ObjFunction*)obj;
@@ -26,6 +25,19 @@ static void freeObject(Object* obj)
             FREE(function, ObjFunction);
             break;
         }
+        case OBJ_CLOSURE:
+        {
+            ObjClosure* closure = (ObjClosure*)obj;
+            FREE_ARRAY(closure->upvalues, closure->function->upvalueCount, ObjUpvalue);
+            break;
+        }
+        case OBJ_UPVALUE:
+        {
+            FREE(obj, ObjUpvalue);
+            break;
+        }
+        case OBJ_TABLE:
+            break;
     }
 }
 

@@ -12,6 +12,8 @@ add_library(common
     object/object.c;
     object/objstring.c;
     object/objfunction.c
+    object/objclosure.c
+    object/objupvalue.c
 
     # table
     table/table.c;
