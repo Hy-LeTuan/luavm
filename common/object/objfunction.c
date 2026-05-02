@@ -1,7 +1,5 @@
 #include <objfunction.h>
 
-#include <object.h>
-
 ObjFunction* newFunction()
 {
     ObjFunction* f = ALLOCATE_OBJ(OBJ_FUNCTION, ObjFunction);

@@ -4,6 +4,7 @@
 #include <objstring.h>
 #include <objfunction.h>
 #include <objclosure.h>
+#include <objnativefunction.h>
 
 #include <stdio.h>
 
@@ -34,6 +35,11 @@ static void freeObject(Object* obj)
         case OBJ_UPVALUE:
         {
             FREE(obj, ObjUpvalue);
+            break;
+        }
+        case OBJ_NATIVE:
+        {
+            FREE(obj, ObjNativeFunction);
             break;
         }
         case OBJ_TABLE:

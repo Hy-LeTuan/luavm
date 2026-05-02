@@ -15,6 +15,7 @@ typedef enum
     OBJ_TABLE,
     OBJ_FUNCTION,
     OBJ_CLOSURE,
+    OBJ_NATIVE,
     OBJ_UPVALUE
 } ObjType;
 

@@ -5,6 +5,8 @@
 #include <memory.h>
 #include <gc.h>
 #include <objstring.h>
+#include <objnativefunction.h>
+#include <native_functions.h>
 
 #include <stdarg.h>
 #include <math.h>
@@ -88,29 +90,59 @@ static void concatenate(VM* vm)
 
 static bool call(uint8_t callArity, VM* vm)
 {
-    Value caller = peek(callArity, vm);
-
-    if (!IS_CLOSURE(caller))
-    {
-        runtimeError(vm, "Error, cannot call a value that is not a function.");
-        return false;
-    }
-    else if (vm->frameCount > STACK_MAX)
+    if (vm->frameCount > STACK_MAX)
     {
         runtimeError(vm, "Error, stack overflow.");
         return false;
     }
 
-    // load a new frame
-    ObjClosure* closure = AS_CLOSURE(caller);
-    CallFrame* newFrame = &vm->frames[vm->frameCount];
-    vm->frameCount++;
+    Value caller = peek(callArity, vm);
 
-    newFrame->closure = closure;
-    newFrame->ip = closure->function->chunk.code;
-    newFrame->slots = vm->stackTop - callArity;
+    if (IS_CLOSURE(caller))
+    {
+        // load a new frame
+        ObjClosure* closure = AS_CLOSURE(caller);
 
-    return true;
+        CallFrame* newFrame = &vm->frames[vm->frameCount];
+        vm->frameCount++;
+
+        newFrame->closure = closure;
+        newFrame->ip = closure->function->chunk.code;
+        newFrame->slots = vm->stackTop - callArity;
+
+        return true;
+    }
+    else if (IS_NATIVE(caller))
+    {
+        ObjNativeFunction* native = AS_NATIVE(caller);
+        Value result = native->function(vm->stackTop - callArity);
+
+        vm->stackTop = vm->stackTop - callArity - 1;
+        push(result, vm);
+
+        return true;
+    }
+    else
+    {
+        runtimeError(vm, "Error, cannot call a value that is not a function.");
+        return false;
+    }
+}
+
+static void defineNativeFunction(const char* name, int length, NativeFn function, VM* vm)
+{
+    ObjString* key = copyString(name, length, &vm->strings);
+    ObjNativeFunction* native = newNativeFunction(function);
+
+    linkObject((Object*)key, vm);
+    linkObject((Object*)native, vm);
+
+    tableInsertOrSet(OBJ_VAL((Object*)key), OBJ_VAL((Object*)native), &vm->globals);
+}
+
+static void defineNativeFunctions(VM* vm)
+{
+    defineNativeFunction("print", 5, print, vm);
 }
 
 static ObjUpvalue* captureUpvalue(Value* location, VM* vm)
@@ -529,6 +561,7 @@ InterpretResult interpret(const char* source)
     VM vm;
 
     initVM(&vm);
+    defineNativeFunctions(&vm);
 
     ObjFunction* function = compile(source, &vm.strings);
     ObjClosure* closure = newClosure(function);

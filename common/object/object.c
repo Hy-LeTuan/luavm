@@ -33,10 +33,11 @@ void printObject(Object* obj)
             fprintf(stdout, "function");
             break;
         case OBJ_CLOSURE:
-        {
             fprintf(stdout, "closure");
             break;
-        }
+        case OBJ_NATIVE:
+            fprintf(stdout, "native_fn");
+            break;
         case OBJ_UPVALUE:
             fprintf(stdout, "upvalue");
             break;

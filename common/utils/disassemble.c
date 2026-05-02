@@ -81,11 +81,11 @@ static int closureInstruction(const char* code, Chunk* chunk, int offset)
     {
         int isLocal = chunk->code[offset++];
         int index = chunk->code[offset++];
-        fprintf(stdout, "%04d -> %s, %d", offset - 2, isLocal ? "local" : "upvalue", index);
+        fprintf(stdout, "%04d -> (%s, %d)", offset - 2, isLocal ? "local" : "upvalue", index);
 
         if (j != function->upvalueCount - 1)
         {
-            fprintf(stdout, ", ");
+            fprintf(stdout, "; ");
         }
     }
 

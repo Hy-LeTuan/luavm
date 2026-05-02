@@ -48,6 +48,9 @@ void* valueToByte(const Value value, int* byte_length)
                 }
                 case OBJ_TABLE:
                 case OBJ_FUNCTION:
+                case OBJ_CLOSURE:
+                case OBJ_UPVALUE:
+                case OBJ_NATIVE:
                     *byte_length = 0;
                     break;
             }
