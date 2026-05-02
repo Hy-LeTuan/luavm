@@ -1,16 +1,23 @@
+#include "value.h"
 #include <disassemble.h>
 
 #include <stdio.h>
 #include <objclosure.h>
 
-void disassembleChunk(Chunk* chunk)
+static bool DISASSEMBLE_CLOSURE_CHUNK = false;
+
+void disassembleChunk(Chunk* chunk, const char* chunkName)
 {
-    fprintf(stdout, "%-8s%s:\n", "", "Disassemble Chunk");
+    DISASSEMBLE_CLOSURE_CHUNK = true;
+
+    fprintf(stdout, "%-8s%s:\n", "", chunkName);
     for (int offset = 0; offset < chunk->count;)
     {
         fprintf(stdout, "%-8s%s", "", "|");
         offset = disassembleInstruction(chunk, offset);
     }
+
+    DISASSEMBLE_CLOSURE_CHUNK = false;
 }
 
 static void message(const char* message)
@@ -26,11 +33,25 @@ static int simpleInstruction(const char* code, int offset)
     return offset + 1;
 }
 
-static int constantInstruction(const char* code, Chunk* chunk, int offset)
+static int constantInstruction(const char* code, Chunk* chunk, int offset, bool isConstant)
 {
+    Value constant = chunk->constants.values[chunk->code[offset + 1]];
     message(code);
+
     fprintf(stdout, "%-8s", "");
-    fprintf(stdout, "%04d\n", chunk->code[offset + 1]);
+
+    if (isConstant)
+    {
+        fprintf(stdout, "%04d -> ", chunk->code[offset + 1]);
+        printValue(constant);
+    }
+    else
+    {
+        fprintf(stdout, "%04d", chunk->code[offset + 1]);
+    }
+
+    fprintf(stdout, "\n");
+
     return offset + 2;
 }
 
@@ -47,22 +68,34 @@ static int jumpInstruction(const char* code, Chunk* chunk, int offset)
 
 static int closureInstruction(const char* code, Chunk* chunk, int offset)
 {
-
     offset++;
-    uint8_t constant = chunk->code[offset++];
+    uint8_t constant = chunk->code[offset];
+    offset++;
+
     message(code);
     fprintf(stdout, "%-8s", "");
-    fprintf(stdout, "%04d\n", constant);
+    fprintf(stdout, "%04d: ", constant);
 
     ObjFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
     for (int j = 0; j < function->upvalueCount; j++)
     {
-        offset++;
-        // int isLocal = chunk->code[offset++];
-        // int index = chunk->code[offset++];
-        // printf("%04d    |                     %s %d\n", offset - 2, isLocal ? "local" :
-        // "upvalue",
-        //   index);
+        int isLocal = chunk->code[offset++];
+        int index = chunk->code[offset++];
+        fprintf(stdout, "%04d -> %s, %d", offset - 2, isLocal ? "local" : "upvalue", index);
+
+        if (j != function->upvalueCount - 1)
+        {
+            fprintf(stdout, ", ");
+        }
+    }
+
+    fprintf(stdout, "\n");
+
+    if (DISASSEMBLE_CLOSURE_CHUNK)
+    {
+        fprintf(stdout, "--Start Closure Chunk--\n");
+        disassembleChunk(&function->chunk, "Closure Chunk");
+        fprintf(stdout, "--End Closure Chunk--\n");
     }
 
     return offset;
@@ -80,7 +113,7 @@ int disassembleInstruction(Chunk* chunk, int offset)
     switch ((OPCode)chunk->code[offset])
     {
         case OP_CONSTANT:
-            return constantInstruction("OP_CONSTANT", chunk, offset);
+            return constantInstruction("OP_CONSTANT", chunk, offset, true);
         case OP_NEGATE:
             return simpleInstruction("OP_NEGATE", offset);
         case OP_ADD:
@@ -106,17 +139,17 @@ int disassembleInstruction(Chunk* chunk, int offset)
         case OP_EQUAL:
             return simpleInstruction("OP_EQUAL", offset);
         case OP_GET_GLOBAL:
-            return constantInstruction("OP_GET_GLOBAL", chunk, offset);
+            return constantInstruction("OP_GET_GLOBAL", chunk, offset, true);
         case OP_SET_GLOBAL:
-            return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+            return constantInstruction("OP_SET_GLOBAL", chunk, offset, true);
         case OP_GET_LOCAL:
-            return constantInstruction("OP_GET_LOCAL", chunk, offset);
+            return constantInstruction("OP_GET_LOCAL", chunk, offset, false);
         case OP_SET_LOCAL:
-            return constantInstruction("OP_SET_LOCAL", chunk, offset);
+            return constantInstruction("OP_SET_LOCAL", chunk, offset, false);
         case OP_GET_UPVALUE:
-            return constantInstruction("OP_GET_UPVALUE", chunk, offset);
+            return constantInstruction("OP_GET_UPVALUE", chunk, offset, false);
         case OP_SET_UPVALUE:
-            return constantInstruction("OP_SET_UPVALUE", chunk, offset);
+            return constantInstruction("OP_SET_UPVALUE", chunk, offset, false);
         case OP_JUMP:
             return jumpInstruction("OP_JUMP", chunk, offset);
         case OP_JUMP_IF_FALSE:
@@ -124,13 +157,11 @@ int disassembleInstruction(Chunk* chunk, int offset)
         case OP_LOOP:
             return jumpInstruction("OP_LOOP", chunk, offset);
         case OP_FUNCTION:
-            return constantInstruction("OP_FUNCTION", chunk, offset);
+            return constantInstruction("OP_FUNCTION", chunk, offset, true);
         case OP_CLOSURE:
-        {
             return closureInstruction("OP_CLOSURE", chunk, offset);
-        }
         case OP_CALL:
-            return constantInstruction("OP_CALL", chunk, offset);
+            return constantInstruction("OP_CALL", chunk, offset, false);
         case OP_CLOSE_UPVALUE:
             return simpleInstruction("OP_CLOSE_UPVALUE", offset);
         case OP_POP:

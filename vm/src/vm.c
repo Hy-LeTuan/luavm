@@ -38,7 +38,7 @@ static void runtimeError(VM* vm, const char* format, ...)
       vm->frames[vm->frameCount - 1].closure->function->chunk.code - 1;
     int line = vm->frames[vm->frameCount - 1].closure->function->chunk.lines[instruction];
 
-    fprintf(stderr, "[line %d] in ", line);
+    fprintf(stderr, "[line %d] in \n", line);
     resetStack(vm);
 }
 
@@ -171,7 +171,7 @@ InterpretResult run(VM* vm)
     } while (false)
 
 #ifdef DEBUG_DISASSEMBLE_CHUNK
-    disassembleChunk(&vm->frames[vm->frameCount - 1].closure->function->chunk);
+    disassembleChunk(&frame->closure->function->chunk, "Disassemble Chunk");
 #endif
 
     while (true)
@@ -211,14 +211,19 @@ InterpretResult run(VM* vm)
                     linkObject(AS_OBJ(constant), vm);
                 }
 
-                push(constant, vm);
-
                 // For strings, it could be a part of the call syntax if predecessed by a
                 // function. Greedily assume it's part of the call syntax without evaluating the
                 // expression
-                if (vm->stackTop - vm->stack > 2 && IS_FUNCTION(peek(1, vm)))
+                if (IS_STRING(constant))
                 {
-                    call(1, vm);
+                    if (vm->stackTop - vm->stack > 2 && IS_FUNCTION(peek(1, vm)))
+                    {
+                        call(1, vm);
+                    }
+                }
+                else
+                {
+                    push(constant, vm);
                 }
 
                 break;

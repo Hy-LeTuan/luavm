@@ -22,7 +22,8 @@ typedef enum
     PREC_TERM,
     PREC_FACTOR,
     PREC_UNARY,
-    PREC_EXPONENT
+    PREC_EXPONENT,
+    PREC_CALL
 } Precedence;
 
 typedef struct
