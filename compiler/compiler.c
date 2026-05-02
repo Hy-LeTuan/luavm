@@ -1119,6 +1119,11 @@ static void returnStatement(Parser* parser)
         expression(parser);
         emitByte(OP_RETURN, parser);
     }
+    else if (match(TOKEN_FUNCTION, parser))
+    {
+        functionStatement(parser, true, true);
+        emitByte(OP_RETURN, parser);
+    }
     else
     {
         emitConstant(NIL_CONSTANT, parser);
