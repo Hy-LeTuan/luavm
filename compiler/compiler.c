@@ -345,15 +345,13 @@ static int lookupUpvalue(Token* name, Compiler* compiler)
     {
         // add upvalue to the closure that actual needs the upvalue, not where it is found
         compiler->enclosing->locals[index].isCaptured = true;
-        addUpvalue((uint8_t)index, true, compiler);
-        return index;
+        return addUpvalue((uint8_t)index, true, compiler);
     }
 
     index = lookupUpvalue(name, compiler->enclosing);
     if (index != -1)
     {
-        addUpvalue((uint8_t)index, false, compiler);
-        return index;
+        return addUpvalue((uint8_t)index, false, compiler);
     }
 
     return -1;
