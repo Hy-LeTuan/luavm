@@ -250,24 +250,21 @@ InterpretResult run(VM* vm)
                 {
                     if (vm->stackTop - vm->stack > 2 && IS_FUNCTION(peek(1, vm)))
                     {
-                        call(1, vm);
+                        if (!call(1, vm))
+                        {
+                            return INTERPRET_ERROR;
+                        }
+                        break;
                     }
                 }
-                else
-                {
-                    push(constant, vm);
-                }
 
+                push(constant, vm);
                 break;
             }
             case OP_ADD:
                 if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
                 {
                     EXECUTE_BINARY(+, AS_NUM, NUM_VAL, vm);
-                }
-                else if (IS_STRING(peek(0, vm)) && IS_STRING(peek(1, vm)))
-                {
-                    concatenate(vm);
                 }
                 else
                 {
