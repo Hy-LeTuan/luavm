@@ -1,0 +1,34 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build",
+      "generator": "Ninja"
+    },
+    {
+      "name": "dev-debug",
+      "inherits": "base",
+      "displayName": "Debug with Full Tracing",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "LUAVM_DEBUG_STACK_TRACE": "ON",
+        "LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION": "ON",
+        "LUAVM_DEBUG_DISASSEMBLE_CHUNK": "ON"
+      }
+    },
+    {
+      "name": "ci-test",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/test",
+      "displayName": "Testing (Silent)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "LUAVM_DEBUG_STACK_TRACE": "OFF",
+        "LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION": "OFF",
+        "LUAVM_DEBUG_DISASSEMBLE_CHUNK": "OFF"
+      }
+    }
+  ]
+}

@@ -2,7 +2,10 @@
 #include <vm.h>
 #include <compiler.h>
 
-#include <stdio.h>
+static Value peek(int index, VM* vm)
+{
+    return vm->stackTop[-1 - index];
+}
 
 int main(int arc, char* argv[])
 {
@@ -11,7 +14,6 @@ int main(int arc, char* argv[])
 
     if (result == INTERPRET_ERROR)
     {
-        fprintf(stderr, "Error, cannot interpret call and function definition test.\n");
         return 1;
     }
 

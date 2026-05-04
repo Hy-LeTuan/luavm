@@ -11,7 +11,6 @@ int main(int arc, char* argv[])
 
     if (result == INTERPRET_ERROR)
     {
-        fprintf(stderr, "Error, cannot interpret jump test.\n");
         return 1;
     }
 

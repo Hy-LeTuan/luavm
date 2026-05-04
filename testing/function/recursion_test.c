@@ -2,8 +2,6 @@
 #include <vm.h>
 #include <compiler.h>
 
-#include <stdio.h>
-
 int main(int arc, char* argv[])
 {
     const char* source = readSourceFile(argv[1]);
@@ -11,7 +9,6 @@ int main(int arc, char* argv[])
 
     if (result == INTERPRET_ERROR)
     {
-        fprintf(stderr, "Error, cannot interpret local variable test.\n");
         return 1;
     }
 
