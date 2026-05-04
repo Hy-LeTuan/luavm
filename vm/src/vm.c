@@ -103,6 +103,13 @@ static bool call(uint8_t callArity, VM* vm)
         // load a new frame
         ObjClosure* closure = AS_CLOSURE(caller);
 
+        // nil all unspecified parameters
+        while (callArity < closure->function->arity)
+        {
+            push(NIL_CONSTANT, vm);
+            callArity++;
+        }
+
         CallFrame* newFrame = &vm->frames[vm->frameCount];
         vm->frameCount++;
 
