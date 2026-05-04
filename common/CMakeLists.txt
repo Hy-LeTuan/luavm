@@ -28,6 +28,8 @@ add_library(common
     native/native_functions.c
 )
 
+target_link_libraries(common PRIVATE m)
+
 target_include_directories(common PUBLIC utils)
 target_include_directories(common PUBLIC chunk)
 target_include_directories(common PUBLIC memory)

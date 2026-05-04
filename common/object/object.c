@@ -23,7 +23,7 @@ void printObject(Object* obj)
         case OBJ_STRING:
         {
             ObjString* string = (ObjString*)obj;
-            fprintf(stdout, "'%s'", string->chars);
+            fprintf(stdout, "%s", string->chars);
             break;
         }
         case OBJ_TABLE:
