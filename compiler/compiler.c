@@ -90,6 +90,21 @@ static bool match(TokenType type, Parser* parser)
     return true;
 }
 
+static bool blockFollow(TokenType type)
+{
+    switch (type)
+    {
+        case TOKEN_ELSE:
+        case TOKEN_ELSEIF:
+        case TOKEN_END:
+        case TOKEN_UNTIL:
+        case TOKEN_EOF:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 static Chunk* currentChunk(Parser* parser)
 {
     return &parser->compiler->function->chunk;
@@ -103,6 +118,11 @@ static TokenType peek(Parser* parser)
 static TokenType prev(Parser* parser)
 {
     return parser->prev.type;
+}
+
+static TokenType current(Parser* parser)
+{
+    return parser->current.type;
 }
 
 static void consume(TokenType token, const char* message, Parser* parser)
@@ -273,7 +293,7 @@ static ObjFunction* endCompiler(Parser* parser)
 
 // common declaration
 static void parse(Precedence prevPrec, Parser* parser);
-static void statements(Parser* parser);
+static bool statements(Parser* parser);
 static void functionStatement(Parser* parser, bool local, bool anonymous);
 static void expression(Parser* parser);
 Rule* getRule(TokenType op);
@@ -301,6 +321,18 @@ static int lookupLocal(Token* name, Compiler* compiler)
 static void markInitialized(uint8_t localIndex, Parser* parser)
 {
     parser->compiler->locals[localIndex].scope = parser->compiler->currentScope;
+}
+
+static uint8_t addLocal(Token* name, Parser* parser)
+{
+    Local* local = &parser->compiler->locals[parser->compiler->localCount];
+    local->start = name->start;
+    local->length = name->length;
+    local->scope = -1;
+    local->isCaptured = false;
+
+    parser->compiler->localCount++;
+    return parser->compiler->localCount - 1;
 }
 
 static int addUpvalue(uint8_t index, bool immediate, Compiler* compiler)
@@ -417,6 +449,9 @@ static void unary(Parser* parser)
         case TOKEN_NOT:
             emitByte(OP_NOT, parser);
             break;
+        case TOKEN_HASH:
+            // TODO: implement length for unary op
+            break;
         default:
             fprintf(stderr, "Invalid prefix operator.\n");
             exit(EXIT_FAILURE);
@@ -488,15 +523,19 @@ static void number(Parser* parser)
     emitConstant(value, parser);
 }
 
-static void boolean(Parser* parser)
+static void bool_and_nil(Parser* parser)
 {
     if (prev(parser) == TOKEN_TRUE)
     {
         emitConstant(BOOL_VAL(true), parser);
     }
-    else
+    else if (prev(parser) == TOKEN_FALSE)
     {
         emitConstant(BOOL_VAL(false), parser);
+    }
+    else
+    {
+        emitConstant(NIL_VAL(), parser);
     }
 }
 
@@ -582,7 +621,14 @@ static void logical_and(Parser* parser)
     patchJump(endJump, parser);
 }
 
-static uint8_t argumentList(Parser* parser)
+static uint8_t expressionList(Parser* parser)
+{
+    uint8_t arity = 0;
+
+    return arity;
+}
+
+static uint8_t functionArguments(Parser* parser)
 {
     uint8_t arity = 0;
 
@@ -607,7 +653,26 @@ static uint8_t argumentList(Parser* parser)
 
 static void call(Parser* parser)
 {
-    uint8_t arity = argumentList(parser);
+    uint8_t arity;
+
+    switch (current(parser))
+    {
+        case TOKEN_STRING:
+            advance(parser);
+            str(parser);
+            arity = 1;
+            break;
+        case TOKEN_LEFT_BRACE:
+        case TOKEN_LEFT_PAREN:
+            advance(parser);
+            arity = functionArguments(parser);
+            break;
+        default:
+            advance(parser);
+            arity = 0;
+            break;
+    }
+
     emitBytes(OP_CALL, arity, parser);
 }
 
@@ -618,7 +683,7 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_SLASH] = { NULL, binary, PREC_FACTOR },
     [TOKEN_PERCENT] = { NULL, binary, PREC_FACTOR },
     [TOKEN_CARET] = { NULL, binary, PREC_EXPONENT },
-    [TOKEN_HASH] = { NULL, NULL, PREC_NONE },
+    [TOKEN_HASH] = { unary, NULL, PREC_NONE },
     [TOKEN_LESS] = { NULL, relational, PREC_RELATIONAL },
     [TOKEN_GREATER] = { NULL, relational, PREC_RELATIONAL },
     [TOKEN_EQUAL] = { NULL, NULL, PREC_NONE },
@@ -644,7 +709,7 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_ELSE] = { NULL, NULL, PREC_NONE },
     [TOKEN_ELSEIF] = { NULL, NULL, PREC_NONE },
     [TOKEN_END] = { NULL, NULL, PREC_NONE },
-    [TOKEN_FALSE] = { boolean, NULL, PREC_NONE },
+    [TOKEN_FALSE] = { NULL, NULL, PREC_NONE },
     [TOKEN_FOR] = { NULL, NULL, PREC_NONE },
     [TOKEN_FUNCTION] = { NULL, NULL, PREC_NONE },
     [TOKEN_IF] = { NULL, NULL, PREC_NONE },
@@ -656,12 +721,12 @@ Rule rules[] = { [TOKEN_PLUS] = { NULL, binary, PREC_TERM },
     [TOKEN_REPEAT] = { NULL, NULL, PREC_NONE },
     [TOKEN_RETURN] = { NULL, NULL, PREC_NONE },
     [TOKEN_THEN] = { NULL, NULL, PREC_NONE },
-    [TOKEN_TRUE] = { boolean, NULL, PREC_NONE },
+    [TOKEN_TRUE] = { NULL, NULL, PREC_NONE },
     [TOKEN_UNTIL] = { NULL, NULL, PREC_NONE },
     [TOKEN_WHILE] = { NULL, NULL, PREC_NONE },
-    [TOKEN_IDENTIFIER] = { namedVariable, NULL, PREC_NONE },
-    [TOKEN_STRING] = { str, NULL, PREC_NONE },
-    [TOKEN_NUMBER] = { number, NULL, PREC_NONE },
+    [TOKEN_IDENTIFIER] = { NULL, NULL, PREC_NONE },
+    [TOKEN_STRING] = { NULL, NULL, PREC_NONE },
+    [TOKEN_NUMBER] = { NULL, NULL, PREC_NONE },
     [TOKEN_EOF] = { NULL, NULL, PREC_NONE },
     [TOKEN_ERROR] = { NULL, NULL, PREC_NONE } };
 
@@ -670,22 +735,112 @@ Rule* getRule(TokenType op)
     return &rules[op];
 }
 
+static void prefixExpression(Parser* parser)
+{
+    /*
+       prefixexp ::= Name | `(` expr `)`
+    */
+
+    switch (parser->current.type)
+    {
+        case TOKEN_IDENTIFIER:
+            advance(parser);
+            namedVariable(parser);
+            break;
+        case TOKEN_LEFT_PAREN:
+            advance(parser);
+            expression(parser);
+            consume(TOKEN_RIGHT_PAREN, "Error, '(' not closed, missing ')' character.", parser);
+            break;
+        default:
+            error("Error, unknown symbol encountered.", parser);
+            return;
+    }
+}
+
+static void primaryExpression(Parser* parser)
+{
+    // prefixExp ::= var | functioncall
+    prefixExpression(parser);
+
+    while (true)
+    {
+        switch (parser->current.type)
+        {
+            // `[` exp `]`
+            case TOKEN_LEFT_SQUARE:
+                // TODO: implement left square for var expr
+                break;
+            // `.` Name
+            case TOKEN_DOT:
+                // TODO: implement dot for var expr
+                break;
+            // `(` [explist] `)` | `{` [fieldlist] `}` | string
+            case TOKEN_STRING:
+            case TOKEN_LEFT_BRACE:
+            case TOKEN_LEFT_PAREN:
+                call(parser);
+                break;
+            // `:` Name args
+            case TOKEN_COLON:
+                // TODO: implement colon for function expr
+                break;
+            default:
+                return;
+        }
+    }
+}
+
+static void simpleExpression(Parser* parser)
+{
+    switch (current(parser))
+    {
+        case TOKEN_TRUE:
+        case TOKEN_FALSE:
+        case TOKEN_NIL:
+            advance(parser);
+            bool_and_nil(parser);
+            break;
+        case TOKEN_NUMBER:
+            advance(parser);
+            number(parser);
+            break;
+        case TOKEN_STRING:
+            advance(parser);
+            str(parser);
+            break;
+        case TOKEN_FUNCTION:
+            advance(parser);
+            functionStatement(parser, true, true);
+            break;
+        case TOKEN_LEFT_BRACE:
+            // TODO: tableconstructor for expr
+            break;
+        case TOKEN_THREE_DOTS:
+            // TODO: varargs for expr
+            break;
+        default:
+            primaryExpression(parser);
+            break;
+    }
+}
+
 static void parse(Precedence prevPrec, Parser* parser)
 {
-    advance(parser);
     parser->currentPrec = prevPrec;
 
-    TokenType prefixOp = prev(parser);
+    TokenType prefixOp = current(parser);
     ParseFn prefixFn = getRule(prefixOp)->prefix;
 
-    if (prefixFn == NULL)
+    if (prefixFn != NULL)
     {
-        errorAt(parser->prev, "Error, missing prefix rule.", parser);
-        exit(EXIT_FAILURE);
+        advance(parser);
+        prefixFn(parser);
     }
-
-    // left verse
-    prefixFn(parser);
+    else
+    {
+        simpleExpression(parser);
+    }
 
     Rule* infixRule;
     while ((infixRule = getRule(peek(parser)))->prec >= prevPrec)
@@ -714,20 +869,14 @@ static void expression(Parser* parser)
 
 static void expressionStatement(Parser* parser)
 {
+    /*
+       stat ::= varlist `=` explist |
+                functioncall
+    */
+
+    // they both start with a prefixexp or a Name
     expression(parser);
     emitByte(OP_POP, parser);
-}
-
-static uint8_t addLocal(Token* name, Parser* parser)
-{
-    Local* local = &parser->compiler->locals[parser->compiler->localCount];
-    local->start = name->start;
-    local->length = name->length;
-    local->scope = -1;
-    local->isCaptured = false;
-
-    parser->compiler->localCount++;
-    return parser->compiler->localCount - 1;
 }
 
 static uint8_t defineLocalVar(Token* name, Parser* parser)
@@ -1113,26 +1262,19 @@ static void breakStatement(Parser* parser)
 
 static void returnStatement(Parser* parser)
 {
-    if (getRule(peek(parser))->prefix != NULL)
+    if (blockFollow(current(parser)))
     {
-        expression(parser);
-        emitByte(OP_RETURN, parser);
-    }
-    else if (match(TOKEN_FUNCTION, parser))
-    {
-        functionStatement(parser, true, true);
-        emitByte(OP_RETURN, parser);
+        emitConstant(NIL_CONSTANT, parser);
     }
     else
     {
-        emitConstant(NIL_CONSTANT, parser);
-        emitByte(OP_RETURN, parser);
+        expression(parser);
     }
+    emitByte(OP_RETURN, parser);
 }
 
-static void statements(Parser* parser)
+static bool statements(Parser* parser)
 {
-    bool hasExpression = false;
     if (match(TOKEN_LOCAL, parser))
     {
         if (match(TOKEN_FUNCTION, parser))
@@ -1143,66 +1285,67 @@ static void statements(Parser* parser)
         {
             localVarStatement(parser);
         }
-
-        hasExpression = true;
+        return false;
     }
     else if (match(TOKEN_FUNCTION, parser))
     {
         functionStatement(parser, false, false);
-        hasExpression = true;
+        return false;
     }
     else if (match(TOKEN_DO, parser))
     {
         beginScope(parser);
         block("Error, missing token 'end' to close block.", parser);
         endScope(parser);
-        hasExpression = true;
+        return false;
     }
     else if (match(TOKEN_IF, parser))
     {
         ifStatement(parser);
-        hasExpression = true;
+        return false;
     }
     else if (match(TOKEN_WHILE, parser))
     {
         whileStatement(parser);
-        hasExpression = true;
+        return false;
     }
     else if (match(TOKEN_REPEAT, parser))
     {
         repeatStatement(parser);
-        hasExpression = true;
+        return false;
     }
     else if (match(TOKEN_BREAK, parser))
     {
         breakStatement(parser);
-        hasExpression = true;
+        return true;
     }
     else if (match(TOKEN_FOR, parser))
     {
         forStatement(parser);
-        hasExpression = true;
+        return false;
     }
     else if (match(TOKEN_RETURN, parser))
     {
         returnStatement(parser);
-        hasExpression = true;
+        return true;
     }
     else
     {
         expressionStatement(parser);
-        hasExpression = true;
+        return false;
     }
 
-    // consume an optinal semicolon
-    if (peek(parser) == TOKEN_SEMICOLON)
-    {
-        advance(parser);
-    }
+    return true;
+}
 
-    if (!hasExpression)
+static void chunk(Parser* parser)
+{
+    while (!isAtEnd(parser))
     {
-        error("Erorr, cannot have an empty statement.", parser);
+        bool stmt = statements(parser);
+
+        // consume an optinal semicolon
+        match(TOKEN_SEMICOLON, parser);
     }
 }
 
@@ -1217,10 +1360,7 @@ ObjFunction* compile(const char* source, Table* strings)
     advance(&parser);
 
     // continously parse the list of statements into a chunk
-    while (!match(TOKEN_EOF, &parser))
-    {
-        statements(&parser);
-    }
+    chunk(&parser);
 
     if (parser.hadError)
     {

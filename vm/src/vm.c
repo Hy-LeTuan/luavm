@@ -250,21 +250,6 @@ InterpretResult run(VM* vm)
                     linkObject(AS_OBJ(constant), vm);
                 }
 
-                // For strings, it could be a part of the call syntax if predecessed by a
-                // function. Greedily assume it's part of the call syntax without evaluating the
-                // expression
-                if (IS_STRING(constant))
-                {
-                    if (vm->stackTop - vm->stack > 2 && IS_FUNCTION(peek(1, vm)))
-                    {
-                        if (!call(1, vm))
-                        {
-                            return INTERPRET_ERROR;
-                        }
-                        break;
-                    }
-                }
-
                 push(constant, vm);
                 break;
             }
