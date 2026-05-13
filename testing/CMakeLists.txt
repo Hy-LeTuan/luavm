@@ -4,7 +4,7 @@ include(CTest)
 
 # test token production from lexer
 add_executable(TokenLexTest lexer/token_test.c)
-add_test(NAME TokenLexTest COMMAND TokenLexTest ${CMAKE_SOURCE_DIR}/testing/data/token_input.lua)
+add_test(NAME TokenLexTest COMMAND TokenLexTest ${CMAKE_SOURCE_DIR}/testing/data/token_test_input.lua)
 target_link_libraries(TokenLexTest PRIVATE lexer)
 target_link_libraries(TokenLexTest PRIVATE common)
 
@@ -42,7 +42,7 @@ target_link_libraries(ExpressionTest PRIVATE vm)
 add_test(NAME ExpressionTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ExpressionTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/expression_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/expression_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/expression_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/expression_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -57,9 +57,24 @@ target_link_libraries(JumpTest PRIVATE vm)
 add_test(NAME JumpTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:JumpTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/jump_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/jump_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/jump_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/jump_test.actual"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
+)
+
+# test assignment statements in local and in varlist
+add_executable(AssignTest function/jump_test.c)
+target_link_libraries(AssignTest PRIVATE common)
+target_link_libraries(AssignTest PRIVATE lexer)
+target_link_libraries(AssignTest PRIVATE compiler)
+target_link_libraries(AssignTest PRIVATE vm)
+add_test(NAME AssignTest
+    COMMAND ${CMAKE_COMMAND}
+    -D "TEST_EXECUTABLE=$<TARGET_FILE:AssignTest>"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/assign_test_input.lua"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/assign_test.expected"
+    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/assign_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
 
@@ -72,7 +87,7 @@ target_link_libraries(FunctionTest PRIVATE vm)
 add_test(NAME FunctionTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:FunctionTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/function_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/function_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/function_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/function_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -87,7 +102,7 @@ target_link_libraries(RecursionTest PRIVATE vm)
 add_test(NAME RecursionTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:RecursionTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/recursion_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/recursion_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/recursion_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/recursion_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"

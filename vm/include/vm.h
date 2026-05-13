@@ -20,6 +20,8 @@ typedef struct
     ObjClosure* closure;
     uint8_t* ip;
     Value* slots;
+    // expected number of return value
+    uint8_t expected;
 } CallFrame;
 
 typedef struct

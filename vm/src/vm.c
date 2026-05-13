@@ -7,6 +7,7 @@
 #include <objstring.h>
 #include <objnativefunction.h>
 #include <native_functions.h>
+#include <utils.h>
 
 #include <stdarg.h>
 #include <math.h>
@@ -88,7 +89,7 @@ static void concatenate(VM* vm)
     push(OBJ_VAL((Object*)result), vm);
 }
 
-static bool call(uint8_t callArity, VM* vm)
+static bool call(uint8_t callArity, uint8_t expected, VM* vm)
 {
     if (vm->frameCount > STACK_MAX)
     {
@@ -116,6 +117,7 @@ static bool call(uint8_t callArity, VM* vm)
         newFrame->closure = closure;
         newFrame->ip = closure->function->chunk.code;
         newFrame->slots = vm->stackTop - callArity;
+        newFrame->expected = expected;
 
         return true;
     }
@@ -126,6 +128,12 @@ static bool call(uint8_t callArity, VM* vm)
 
         vm->stackTop = vm->stackTop - callArity - 1;
         push(result, vm);
+
+        expected--;
+        for (int i = 0; i < expected; i++)
+        {
+            push(NIL_CONSTANT, vm);
+        }
 
         return true;
     }
@@ -496,7 +504,9 @@ InterpretResult run(VM* vm)
             case OP_CALL:
             {
                 uint8_t callArity = READ_BYTE();
-                if (!call(callArity, vm))
+                uint8_t expected = READ_BYTE();
+
+                if (!call(callArity, expected, vm))
                 {
                     return INTERPRET_ERROR;
                 }
@@ -515,7 +525,11 @@ InterpretResult run(VM* vm)
                 break;
             case OP_RETURN:
             {
-                Value result = pop(vm);
+                uint8_t nrets = READ_BYTE();
+                uint8_t expected = frame->expected;
+
+                Value* returns = vm->stackTop - nrets;
+
                 closeUpvalues(frame->slots, vm);
                 vm->frameCount--;
 
@@ -527,9 +541,22 @@ InterpretResult run(VM* vm)
                 // since slots starts at the first argument,
                 // we move 1 step back to reach the caller
                 vm->stackTop = frame->slots - 1;
-                push(result, vm);
-
                 frame = &vm->frames[vm->frameCount - 1];
+
+                // handle the difference in number of return value and expected value
+                int n = MIN(expected, nrets);
+                for (int i = 0; i < n; i++)
+                {
+                    push(*returns, vm);
+                    returns++;
+                    expected--;
+                }
+
+                while (expected)
+                {
+                    push(NIL_CONSTANT, vm);
+                    expected--;
+                }
 
                 break;
             }
@@ -556,7 +583,7 @@ InterpretResult interpret(const char* source)
     ObjClosure* closure = newClosure(function);
 
     push(OBJ_VAL((Object*)closure), &vm);
-    call(0, &vm);
+    call(0, 1, &vm);
 
     // the main run loop
     InterpretResult result = run(&vm);

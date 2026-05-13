@@ -9,6 +9,8 @@
 #include <upvalues.h>
 #include <objfunction.h>
 
+#define HAS_MULTRET(e) (e->kind == EXP_CALL || e->kind == EXP_VARARG)
+
 ObjFunction* compile(const char* source, Table* strings);
 
 typedef enum
@@ -60,7 +62,30 @@ typedef struct
     Compiler* compiler;
 } Parser;
 
-typedef void (*ParseFn)(Parser*);
+typedef enum
+{
+    EXP_VOID, /* no value */
+    EXP_NIL,
+    EXP_TRUE,
+    EXP_FALSE,
+    EXP_NUM,
+    EXP_STR,
+    EXP_LOCAL,
+    EXP_UPVAL,
+    EXP_GLOBAL,
+    EXP_JMP,
+    EXP_CALL,
+    EXP_VARARG
+} ExpKind;
+
+typedef struct
+{
+    ExpKind kind;
+    // the patch position if the op code requires it
+    size_t patch;
+} ExpDesc;
+
+typedef void (*ParseFn)(ExpDesc* e, Parser*);
 typedef struct
 {
     ParseFn prefix;

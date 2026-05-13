@@ -24,6 +24,10 @@ Value print(Value* start)
     {
         fprintf(stdout, "%s\n", AS_BOOL(*start) ? "true" : "false");
     }
+    else if (IS_NIL(*start))
+    {
+        fprintf(stdout, "nil\n");
+    }
     else if (IS_OBJ(*start))
     {
         printObject(AS_OBJ(*start));

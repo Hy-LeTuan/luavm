@@ -33,7 +33,8 @@ static int simpleInstruction(const char* code, int offset)
     return offset + 1;
 }
 
-static int constantInstruction(const char* code, Chunk* chunk, int offset, bool isConstant)
+static int constantInstruction(
+  const char* code, Chunk* chunk, int offset, const char* constantMessage, bool isConstant)
 {
     Value constant = chunk->constants.values[chunk->code[offset + 1]];
     message(code);
@@ -47,12 +48,22 @@ static int constantInstruction(const char* code, Chunk* chunk, int offset, bool 
     }
     else
     {
-        fprintf(stdout, "%04d", chunk->code[offset + 1]);
+        fprintf(stdout, "%s%04d", constantMessage, chunk->code[offset + 1]);
     }
 
     fprintf(stdout, "\n");
 
     return offset + 2;
+}
+
+static int callInstruction(const char* code, Chunk* chunk, int offset, bool isConstant)
+{
+    message(code);
+    fprintf(stdout, "%-8s", "");
+    fprintf(stdout, "Ar: %04d; Ret: %04d", chunk->code[offset + 1], chunk->code[offset + 2]);
+    fprintf(stdout, "\n");
+
+    return offset + 3;
 }
 
 static int jumpInstruction(const char* code, Chunk* chunk, int offset)
@@ -113,7 +124,7 @@ int disassembleInstruction(Chunk* chunk, int offset)
     switch ((OPCode)chunk->code[offset])
     {
         case OP_CONSTANT:
-            return constantInstruction("OP_CONSTANT", chunk, offset, true);
+            return constantInstruction("OP_CONSTANT", chunk, offset, "", true);
         case OP_NEGATE:
             return simpleInstruction("OP_NEGATE", offset);
         case OP_ADD:
@@ -139,17 +150,17 @@ int disassembleInstruction(Chunk* chunk, int offset)
         case OP_EQUAL:
             return simpleInstruction("OP_EQUAL", offset);
         case OP_GET_GLOBAL:
-            return constantInstruction("OP_GET_GLOBAL", chunk, offset, true);
+            return constantInstruction("OP_GET_GLOBAL", chunk, offset, "", true);
         case OP_SET_GLOBAL:
-            return constantInstruction("OP_SET_GLOBAL", chunk, offset, true);
+            return constantInstruction("OP_SET_GLOBAL", chunk, offset, "", true);
         case OP_GET_LOCAL:
-            return constantInstruction("OP_GET_LOCAL", chunk, offset, false);
+            return constantInstruction("OP_GET_LOCAL", chunk, offset, "local: ", false);
         case OP_SET_LOCAL:
-            return constantInstruction("OP_SET_LOCAL", chunk, offset, false);
+            return constantInstruction("OP_SET_LOCAL", chunk, offset, "local: ", false);
         case OP_GET_UPVALUE:
-            return constantInstruction("OP_GET_UPVALUE", chunk, offset, false);
+            return constantInstruction("OP_GET_UPVALUE", chunk, offset, "upval: ", false);
         case OP_SET_UPVALUE:
-            return constantInstruction("OP_SET_UPVALUE", chunk, offset, false);
+            return constantInstruction("OP_SET_UPVALUE", chunk, offset, "upval: ", false);
         case OP_JUMP:
             return jumpInstruction("OP_JUMP", chunk, offset);
         case OP_JUMP_IF_FALSE:
@@ -157,17 +168,17 @@ int disassembleInstruction(Chunk* chunk, int offset)
         case OP_LOOP:
             return jumpInstruction("OP_LOOP", chunk, offset);
         case OP_FUNCTION:
-            return constantInstruction("OP_FUNCTION", chunk, offset, true);
+            return constantInstruction("OP_FUNCTION", chunk, offset, "", true);
         case OP_CLOSURE:
             return closureInstruction("OP_CLOSURE", chunk, offset);
         case OP_CALL:
-            return constantInstruction("OP_CALL", chunk, offset, false);
+            return callInstruction("OP_CALL", chunk, offset, false);
         case OP_CLOSE_UPVALUE:
             return simpleInstruction("OP_CLOSE_UPVALUE", offset);
         case OP_POP:
             return simpleInstruction("OP_POP", offset);
         case OP_RETURN:
-            return simpleInstruction("OP_RETURN", offset);
+            return constantInstruction("OP_RETURN", chunk, offset, "ret: ", false);
     }
 
     return offset;
