@@ -163,10 +163,14 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return constantInstruction("OP_SET_UPVALUE", chunk, offset, "upval: ", false);
         case OP_JUMP:
             return jumpInstruction("OP_JUMP", chunk, offset);
+        case OP_VAR_FWD:
+            return jumpInstruction("OP_VAR_FWD", chunk, offset);
         case OP_JUMP_IF_FALSE:
             return jumpInstruction("OP_JUMP_IF_ELSE", chunk, offset);
         case OP_LOOP:
             return jumpInstruction("OP_LOOP", chunk, offset);
+        case OP_VAR_BWD:
+            return jumpInstruction("OP_VAR_BWD", chunk, offset);
         case OP_FUNCTION:
             return constantInstruction("OP_FUNCTION", chunk, offset, "", true);
         case OP_CLOSURE:

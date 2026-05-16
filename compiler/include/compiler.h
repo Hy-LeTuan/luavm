@@ -9,7 +9,9 @@
 #include <upvalues.h>
 #include <objfunction.h>
 
-#define HAS_MULTRET(e) (e->kind == EXP_CALL || e->kind == EXP_VARARG)
+#define HAS_MULTRET(k) (k == EXP_CALL || k == EXP_VARARG)
+#define HAS_ASSIGN(k)                                                                              \
+    (k == EXP_LOCAL || k == EXP_UPVAL || k == EXPR_INDEX || k == EXP_GLOBAL)
 
 ObjFunction* compile(const char* source, Table* strings);
 
@@ -72,6 +74,7 @@ typedef enum
     EXP_STR,
     EXP_LOCAL,
     EXP_UPVAL,
+    EXPR_INDEX, /* index into a table or array */
     EXP_GLOBAL,
     EXP_JMP,
     EXP_CALL,

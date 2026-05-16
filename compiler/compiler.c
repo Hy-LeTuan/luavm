@@ -156,8 +156,8 @@ static void emitBytes(uint8_t op1, uint8_t op2, Parser* parser)
 static size_t emitJump(OPCode jumpCode, Parser* parser)
 {
     emitByte(jumpCode, parser);
-    emitByte(0, parser);
-    emitByte(0, parser);
+    emitByte((0 >> 8) & 0xff, parser);
+    emitByte(0 & 0xff, parser);
 
     return currentChunk(parser)->count - 2;
 }
@@ -197,15 +197,15 @@ static size_t identifierConstant(Token* name, Parser* parser)
     return pos;
 }
 
-static void emitLoop(size_t start, Parser* parser)
+static void emitBackJump(OPCode jumpCode, size_t start, Parser* parser)
 {
-    emitByte(OP_LOOP, parser);
+    emitByte(jumpCode, parser);
 
     int jump = currentChunk(parser)->count - start + 2;
 
     if (jump > UINT16_MAX)
     {
-        error("Error, loop body too large.", parser);
+        error("Error, back jump too large.", parser);
     }
 
     emitByte((jump >> 8) & 0xff, parser);
@@ -218,7 +218,7 @@ static void emitReturn(Parser* parser)
     emitBytes(OP_RETURN, 1, parser);
 }
 
-static size_t getLoopStart(Parser* parser)
+static size_t getBytePos(Parser* parser)
 {
     return currentChunk(parser)->count;
 }
@@ -400,7 +400,7 @@ static int lookupUpvalue(Token* name, Compiler* compiler)
     return -1;
 }
 
-static void namedVariable(ExpDesc* e, Parser* parser)
+static void namedVariable(ExpDesc* e, bool assignment, Parser* parser)
 {
     Token name = parser->prev;
     uint8_t var_constant = identifierConstant(&name, parser);
@@ -429,23 +429,16 @@ static void namedVariable(ExpDesc* e, Parser* parser)
         e->kind = EXP_GLOBAL;
     }
 
-    if (parser->currentPrec <= PREC_ASSIGNMENT && match(TOKEN_EQUAL, parser))
+    if (assignment)
     {
-        if (match(TOKEN_FUNCTION, parser))
-        {
-            functionStatement(parser, false, true);
-        }
-        else
-        {
-            // consume the expression
-            expression(e, parser);
-        }
         emitBytes(opSet, (uint8_t)index, parser);
     }
     else
     {
         emitBytes(opGet, (uint8_t)index, parser);
     }
+
+    e->patch = currentChunk(parser)->count - 2;
 }
 
 static void unary(ExpDesc* e, Parser* parser)
@@ -758,7 +751,7 @@ Rule* getRule(TokenType op)
     return &rules[op];
 }
 
-static void prefixExpression(ExpDesc* e, Parser* parser)
+static void prefixExpression(ExpDesc* e, bool assignment, Parser* parser)
 {
     /*
        prefixexp ::= Name | `(` expr `)`
@@ -768,7 +761,7 @@ static void prefixExpression(ExpDesc* e, Parser* parser)
     {
         case TOKEN_IDENTIFIER:
             advance(parser);
-            namedVariable(e, parser);
+            namedVariable(e, assignment, parser);
             break;
         case TOKEN_LEFT_PAREN:
             advance(parser);
@@ -781,10 +774,10 @@ static void prefixExpression(ExpDesc* e, Parser* parser)
     }
 }
 
-static void primaryExpression(ExpDesc* e, Parser* parser)
+static void primaryExpression(ExpDesc* e, bool assignment, Parser* parser)
 {
     // prefixExp ::= var | functioncall
-    prefixExpression(e, parser);
+    prefixExpression(e, assignment, parser);
 
     while (true)
     {
@@ -843,7 +836,7 @@ static void simpleExpression(ExpDesc* e, Parser* parser)
             // TODO: varargs for expr
             break;
         default:
-            primaryExpression(e, parser);
+            primaryExpression(e, false, parser);
             break;
     }
 }
@@ -890,26 +883,11 @@ static void expression(ExpDesc* e, Parser* parser)
     parse(PREC_ASSIGNMENT, e, parser);
 }
 
-static void expressionStatement(Parser* parser)
-{
-    /*
-       stat ::= varlist `=` explist |
-                functioncall
-    */
-
-    ExpDesc e;
-    initExpDesc(&e);
-
-    primaryExpression(&e, parser);
-
-    emitByte(OP_POP, parser);
-}
-
 static void adjustExprList(ExpDesc* last, int nexprs, int expected, Parser* parser)
 {
     int diff = expected - nexprs;
 
-    if (HAS_MULTRET(last) && diff != 0)
+    if (HAS_MULTRET(last->kind) && diff != 0)
     {
         int offset = last->patch;
 
@@ -943,6 +921,94 @@ static void adjustExprList(ExpDesc* last, int nexprs, int expected, Parser* pars
                 emitConstant(NIL_CONSTANT, parser);
             }
         }
+    }
+}
+
+inline static uint8_t swapGetAndSet(ExpDesc* e, Parser* parser)
+{
+    switch (e->kind)
+    {
+        case EXP_LOCAL:
+            return OP_SET_LOCAL;
+        case EXP_UPVAL:
+            return OP_SET_UPVALUE;
+        case EXPR_INDEX:
+            return 0;
+        case EXP_GLOBAL:
+            return OP_SET_GLOBAL;
+        default:
+            error("Error, no assignment target found.", parser);
+            return 0;
+    }
+}
+
+static size_t assign(int* nvars, size_t prev, ExpDesc* e, Parser* parser)
+{
+
+    if (match(TOKEN_COMMA, parser))
+    {
+        size_t start = getBytePos(parser);
+        primaryExpression(e, true, parser);
+        (*nvars)++;
+
+        // jump to the 'var' expression
+        emitBackJump(OP_VAR_BWD, prev, parser);
+
+        if (!HAS_ASSIGN(e->kind))
+        {
+            error("Error, cannot assign to this target.", parser);
+        }
+
+        return assign(nvars, start, e, parser);
+    }
+
+    return prev;
+}
+
+static void expressionStatement(Parser* parser)
+{
+    /*
+       stat ::= varlist `=` explist |
+                functioncall
+    */
+
+    ExpDesc e;
+    initExpDesc(&e);
+
+    size_t exprJump = emitJump(OP_VAR_FWD, parser);
+
+    size_t firstVar = getBytePos(parser);
+    primaryExpression(&e, false, parser);
+
+    if (e.kind == EXP_CALL)
+    {
+        emitByte(OP_POP, parser);
+        return;
+    }
+    else
+    {
+        int nvars = 1;
+        int nexprs = 0;
+
+        // fix the first expression to allow assingment
+        patchSingleByte(e.patch, swapGetAndSet(&e, parser), parser);
+        size_t exitJump = emitJump(OP_VAR_FWD, parser);
+
+        /* assign function that handles the reverse of variable */
+        size_t assignStart = assign(&nvars, firstVar, &e, parser);
+
+        // jump to the start of expression list
+        patchJump(exprJump, parser);
+
+        consume(TOKEN_EQUAL, "Error, missing '=' for assignment.", parser);
+        nexprs = expressionList(&e, parser);
+        adjustExprList(&e, nexprs, nvars, parser);
+
+        // jump back to the assignment
+        emitBackJump(OP_VAR_BWD, assignStart, parser);
+
+        // jump to exit after
+        patchJump(exitJump, parser);
     }
 }
 
@@ -1043,7 +1109,7 @@ static void functionStatement(Parser* parser, bool local, bool anonymous)
     if (!anonymous && !local)
     {
         emitBytes(OP_SET_GLOBAL, var_constant, parser);
-        emitByte(OP_POP, parser);
+        // emitByte(OP_POP, parser);
     }
 }
 
@@ -1137,7 +1203,7 @@ static void whileStatement(Parser* parser)
     initExpDesc(&e);
 
     beginLoop(parser);
-    size_t loopStart = getLoopStart(parser);
+    size_t loopStart = getBytePos(parser);
 
     expression(&e, parser);
     size_t endJump = emitJump(OP_JUMP_IF_FALSE, parser);
@@ -1148,7 +1214,7 @@ static void whileStatement(Parser* parser)
     block("Error, missing token 'end' to close while statement", parser);
     endScope(parser);
 
-    emitLoop(loopStart, parser);
+    emitBackJump(OP_LOOP, loopStart, parser);
 
     patchJump(endJump, parser);
     emitByte(OP_POP, parser);
@@ -1161,7 +1227,7 @@ static void repeatStatement(Parser* parser)
     initExpDesc(&e);
 
     beginLoop(parser);
-    size_t loopStart = getLoopStart(parser);
+    size_t loopStart = getBytePos(parser);
 
     beginScope(parser);
     while (!isAtEnd(parser) && peek(parser) != TOKEN_UNTIL)
@@ -1177,7 +1243,7 @@ static void repeatStatement(Parser* parser)
     size_t endJump = emitJump(OP_JUMP_IF_FALSE, parser);
 
     emitByte(OP_POP, parser);
-    emitLoop(loopStart, parser);
+    emitBackJump(OP_LOOP, loopStart, parser);
 
     patchJump(endJump, parser);
     emitByte(OP_POP, parser);
@@ -1227,7 +1293,7 @@ static void numericalFor(Token* loop_var, Parser* parser)
 
     /* begin loop */
     beginLoop(parser);
-    size_t loopStart = getLoopStart(parser);
+    size_t loopStart = getBytePos(parser);
     int outerLoopScope = parser->compiler->currentScope;
 
     /* start condition */
@@ -1304,7 +1370,7 @@ static void numericalFor(Token* loop_var, Parser* parser)
 
     /* end body */
 
-    emitLoop(loopStart, parser);
+    emitBackJump(OP_LOOP, loopStart, parser);
 
     patchJump(endLoopJump, parser);
     emitByte(OP_POP, parser);

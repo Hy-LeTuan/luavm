@@ -427,6 +427,7 @@ InterpretResult run(VM* vm)
                 Value key = READ_CONSTANT();
                 Value value = peek(0, vm);
                 tableInsertOrSet(key, value, &vm->globals);
+                pop(vm);
                 break;
             }
             case OP_GET_LOCAL:
@@ -464,12 +465,14 @@ InterpretResult run(VM* vm)
                 break;
             }
             case OP_JUMP:
+            case OP_VAR_FWD:
             {
                 int offset = READ_SHORT();
                 frame->ip += offset;
                 break;
             }
             case OP_LOOP:
+            case OP_VAR_BWD:
             {
                 int offset = READ_SHORT();
                 frame->ip -= offset;
