@@ -663,6 +663,7 @@ static int field(int expIdx, Parser* parser)
 
             return 0;
         case TOKEN_IDENTIFIER:
+        {
             Token name = parser->current;
             advance(parser);
 
@@ -689,6 +690,7 @@ static int field(int expIdx, Parser* parser)
 
                 return 1;
             }
+        }
         default:
             // key
             emitConstant(NUM_VAL(expIdx), parser);
@@ -885,13 +887,35 @@ static void primaryExpression(ExpDesc* e, bool assignment, Parser* parser)
         {
             // `[` exp `]`
             case TOKEN_LEFT_SQUARE:
-                // TODO: implement left square for var expr
+            {
+                advance(parser);
+
+                // key
+                expression(e, parser);
+
+                emitByte(OP_GET_FIELD, parser);
+
+                consume(TOKEN_RIGHT_SQUARE, "Error, expect ']' to close index operation.", parser);
+                e->kind = EXP_INDEX;
+                e->patch = getBytePos(parser) - 1;
                 break;
+            }
             // `.` Name
             case TOKEN_DOT:
-                // TODO: implement dot for var expr
-                // dot expression only takes in string as key, while [] takes in any expression
+            {
+                advance(parser);
+
+                consume(TOKEN_IDENTIFIER, "Error, expect a name after '.'", parser);
+                Token name = parser->prev;
+
+                size_t nameConstant = identifierConstant(&name, parser);
+                emitBytes(OP_CONSTANT, nameConstant, parser);
+
+                emitByte(OP_GET_FIELD, parser);
+                e->kind = EXP_INDEX;
+                e->patch = getBytePos(parser) - 1;
                 break;
+            }
             // `(` [explist] `)` | `{` [fieldlist] `}` | string
             case TOKEN_STRING:
             case TOKEN_LEFT_BRACE:
@@ -1033,7 +1057,7 @@ inline static uint8_t swapGetAndSet(ExpDesc* e, Parser* parser)
             return OP_SET_LOCAL;
         case EXP_UPVAL:
             return OP_SET_UPVALUE;
-        case EXPR_INDEX:
+        case EXP_INDEX:
             return 0;
         case EXP_GLOBAL:
             return OP_SET_GLOBAL;
@@ -1136,20 +1160,27 @@ Parameters:
 static void functionStatement(Parser* parser, bool local, bool anonymous)
 {
     uint8_t var_constant = 0;
+
     if (!anonymous)
     {
-        consume(TOKEN_IDENTIFIER,
-          "Error, expect function name after 'function' and before arguments.", parser);
+        if (!check(TOKEN_IDENTIFIER, parser))
+        {
+            error("Error, expect function name after 'function' and before arguments.", parser);
+        }
 
-        Token name = parser->prev;
+        Token name = parser->current;
 
+        /* local function can only use identifer as name */
         if (local)
         {
+            advance(parser);
             uint8_t local = defineLocalVar(&name, parser);
             markInitialized(local, parser);
         }
         else
         {
+            /* identifer | field */
+            advance(parser);
             var_constant = identifierConstant(&name, parser);
         }
     }

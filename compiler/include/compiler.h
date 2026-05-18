@@ -11,7 +11,7 @@
 
 #define HAS_MULTRET(k) (k == EXP_CALL || k == EXP_VARARG)
 #define HAS_ASSIGN(k)                                                                              \
-    (k == EXP_LOCAL || k == EXP_UPVAL || k == EXPR_INDEX || k == EXP_GLOBAL)
+    (k == EXP_LOCAL || k == EXP_UPVAL || k == EXP_INDEX || k == EXP_GLOBAL)
 
 ObjFunction* compile(const char* source, Table* strings);
 
@@ -74,7 +74,7 @@ typedef enum
     EXP_STR,
     EXP_LOCAL,
     EXP_UPVAL,
-    EXPR_INDEX, /* index into a table or array */
+    EXP_INDEX, /* index into a table or array */
     EXP_GLOBAL,
     EXP_JMP,
     EXP_CALL,

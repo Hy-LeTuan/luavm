@@ -35,6 +35,8 @@ typedef enum
     OP_CLOSURE,
     OP_CALL,
     OP_CONSTRUCT,
+    OP_GET_FIELD,
+    OP_SET_FIELD,
     OP_CLOSE_UPVALUE,
     OP_POP,
     OP_RETURN

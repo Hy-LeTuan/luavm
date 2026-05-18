@@ -537,6 +537,16 @@ InterpretResult run(VM* vm)
                 push(OBJ_VAL((Object*)table), vm);
                 break;
             }
+            case OP_GET_FIELD:
+            {
+                Value key = pop(vm);
+                Value tableVal = pop(vm);
+                ObjTable* table = AS_TABLE(tableVal);
+
+                Value val = tableGet(key, &table->content);
+                push(val, vm);
+                break;
+            }
             case OP_CLOSE_UPVALUE:
             {
                 closeUpvalues(vm->stackTop - 1, vm);

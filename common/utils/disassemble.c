@@ -179,6 +179,10 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return callInstruction("OP_CALL", chunk, offset, false);
         case OP_CONSTRUCT:
             return constantInstruction("OP_CONSTRUCT", chunk, offset, "fields: ", false);
+        case OP_GET_FIELD:
+            return simpleInstruction("OP_GET_FIELD", offset);
+        case OP_SET_FIELD:
+            return simpleInstruction("OP_SET_FIELD", offset);
         case OP_CLOSE_UPVALUE:
             return simpleInstruction("OP_CLOSE_UPVALUE", offset);
         case OP_POP:
