@@ -460,8 +460,7 @@ static void unary(ExpDesc* e, Parser* parser)
             // TODO: implement length for unary op
             break;
         default:
-            fprintf(stderr, "Invalid prefix operator.\n");
-            exit(EXIT_FAILURE);
+            error("Erorr, uknown operator found.", parser);
     }
 }
 
@@ -639,6 +638,104 @@ static uint8_t expressionList(ExpDesc* e, Parser* parser)
     return length;
 }
 
+static int field(int expIdx, Parser* parser)
+{
+    /*
+        field ::= `[´ exp `]´ `=´ exp | Name `=´ exp | exp
+    */
+    ExpDesc e;
+    initExpDesc(&e);
+
+    switch (peek(parser))
+    {
+        case TOKEN_LEFT_SQUARE:
+            advance(parser);
+
+            // key
+            expression(&e, parser);
+
+            consume(TOKEN_RIGHT_SQUARE, "Error, missing ']' for field construction.", parser);
+            consume(TOKEN_EQUAL,
+              "Error, missing '=' character for field construction of form [exp] = exp.", parser);
+
+            // value
+            expression(&e, parser);
+
+            return 0;
+        case TOKEN_IDENTIFIER:
+            Token name = parser->current;
+            advance(parser);
+
+            /* identifier = expr */
+            if (match(TOKEN_EQUAL, parser))
+            {
+                // key
+                size_t nameConstant = identifierConstant(&name, parser);
+                emitBytes(OP_CONSTANT, nameConstant, parser);
+
+                // value
+                expression(&e, parser);
+
+                return 0;
+            }
+            /* prefixexpr / functioncall */
+            else
+            {
+                // key
+                emitConstant(NUM_VAL(expIdx), parser);
+
+                // value
+                expression(&e, parser);
+
+                return 1;
+            }
+        default:
+            // key
+            emitConstant(NUM_VAL(expIdx), parser);
+
+            // value
+            expression(&e, parser);
+
+            return 1;
+    }
+}
+
+static void constructor(ExpDesc* e, Parser* parser)
+{
+    /*
+        tableconstructor ::= `{´ [fieldlist] `}´
+        fieldlist ::= field {fieldsep field} [fieldsep]
+        fieldsep ::= `,´ | `;´
+    */
+
+    consume(TOKEN_LEFT_BRACE, "Error, expect '{' for table constructor.", parser);
+
+    int expIdx = 1;
+    int arity = 0;
+
+    if (!check(TOKEN_RIGHT_BRACE, parser))
+    {
+        do
+        {
+            if (field(expIdx, parser) == 1)
+            {
+                expIdx++;
+            }
+            arity++;
+
+            if (arity > 255)
+            {
+                error("Can't have more than 255 arguments.", parser);
+                break;
+            }
+        } while (match(TOKEN_COMMA, parser) || match(TOKEN_SEMICOLON, parser));
+    }
+
+    consume(TOKEN_RIGHT_BRACE, "Error, missing '}' to close constructor.", parser);
+
+    emitBytes(OP_CONSTRUCT, arity, parser);
+}
+
 static uint8_t functionArguments(ExpDesc* e, Parser* parser)
 {
     uint8_t arity = 0;
@@ -674,6 +771,9 @@ static void call(ExpDesc* e, Parser* parser)
             arity = 1;
             break;
         case TOKEN_LEFT_BRACE:
+            constructor(e, parser);
+            arity = 1;
+            break;
         case TOKEN_LEFT_PAREN:
             advance(parser);
             arity = functionArguments(e, parser);
@@ -790,6 +890,7 @@ static void primaryExpression(ExpDesc* e, bool assignment, Parser* parser)
             // `.` Name
             case TOKEN_DOT:
                 // TODO: implement dot for var expr
+                // dot expression only takes in string as key, while [] takes in any expression
                 break;
             // `(` [explist] `)` | `{` [fieldlist] `}` | string
             case TOKEN_STRING:
@@ -830,7 +931,7 @@ static void simpleExpression(ExpDesc* e, Parser* parser)
             functionStatement(parser, true, true);
             break;
         case TOKEN_LEFT_BRACE:
-            // TODO: tableconstructor for expr
+            constructor(e, parser);
             break;
         case TOKEN_THREE_DOTS:
             // TODO: varargs for expr

@@ -5,6 +5,7 @@
 #include <objfunction.h>
 #include <objclosure.h>
 #include <objnativefunction.h>
+#include <objtable.h>
 
 const uint32_t FnvDefaultPrime = 0x01000193U;
 const uint32_t FnvDefaultOffsetBasis = 0x811C9DC5U;
@@ -71,6 +72,12 @@ void* valueToByte(const Value value, int* byte_length)
                     break;
                 }
                 case OBJ_TABLE:
+                {
+                    ObjTable* table = (ObjTable*)obj;
+                    bytes = (void*)table;
+                    *byte_length = (int)sizeof(ObjTable*);
+                    break;
+                }
                 case OBJ_UPVALUE:
                     *byte_length = 0;
                     break;

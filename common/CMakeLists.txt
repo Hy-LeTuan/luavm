@@ -15,6 +15,7 @@ add_library(common
     object/objclosure.c
     object/objupvalue.c
     object/objnativefunction.c
+    object/objtable.c
 
     # table
     table/table.c;

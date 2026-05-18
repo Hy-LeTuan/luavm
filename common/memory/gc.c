@@ -5,6 +5,7 @@
 #include <objfunction.h>
 #include <objclosure.h>
 #include <objnativefunction.h>
+#include <objtable.h>
 
 #include <stdio.h>
 
@@ -30,6 +31,7 @@ static void freeObject(Object* obj)
         {
             ObjClosure* closure = (ObjClosure*)obj;
             FREE_ARRAY(closure->upvalues, closure->function->upvalueCount, ObjUpvalue);
+            FREE(closure, ObjClosure);
             break;
         }
         case OBJ_UPVALUE:
@@ -43,7 +45,12 @@ static void freeObject(Object* obj)
             break;
         }
         case OBJ_TABLE:
+        {
+            ObjTable* table = (ObjTable*)obj;
+            freeTable(&table->content);
+            FREE(table, ObjTable);
             break;
+        }
     }
 }
 

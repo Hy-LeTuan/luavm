@@ -7,6 +7,7 @@
 #include <objstring.h>
 #include <objnativefunction.h>
 #include <native_functions.h>
+#include <objtable.h>
 #include <utils.h>
 
 #include <stdarg.h>
@@ -515,6 +516,25 @@ InterpretResult run(VM* vm)
                 }
 
                 frame = &vm->frames[vm->frameCount - 1];
+                break;
+            }
+            case OP_CONSTRUCT:
+            {
+                ObjTable* table = newTable();
+
+                linkObject((Object*)table, vm);
+
+                uint8_t fields = READ_BYTE();
+
+                for (int i = 0; i < fields; i++)
+                {
+                    Value value = pop(vm);
+                    Value key = pop(vm);
+
+                    tableInsertOrSet(key, value, &table->content);
+                }
+
+                push(OBJ_VAL((Object*)table), vm);
                 break;
             }
             case OP_CLOSE_UPVALUE:
