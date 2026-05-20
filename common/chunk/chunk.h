@@ -9,6 +9,7 @@ typedef enum
 {
     OP_CONSTANT,
     OP_NEGATE,
+    OP_LENGTH,
     OP_ADD,
     OP_MINUS,
     OP_MUL,
@@ -27,9 +28,7 @@ typedef enum
     OP_GET_UPVALUE,
     OP_SET_UPVALUE,
     OP_JUMP,
-    OP_VAR_FWD,
     OP_JUMP_IF_FALSE,
-    OP_VAR_BWD,
     OP_LOOP,
     OP_FUNCTION,
     OP_CLOSURE,

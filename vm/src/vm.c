@@ -275,6 +275,12 @@ InterpretResult run(VM* vm)
                 push(constant, vm);
                 break;
             }
+            case OP_LENGTH:
+            {
+                ObjString* s = AS_STRING(pop(vm));
+                push(NUM_VAL(s->length), vm);
+                break;
+            }
             case OP_ADD:
                 if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
                 {
@@ -478,14 +484,12 @@ InterpretResult run(VM* vm)
                 break;
             }
             case OP_JUMP:
-            case OP_VAR_FWD:
             {
                 int offset = READ_SHORT();
                 frame->ip += offset;
                 break;
             }
             case OP_LOOP:
-            case OP_VAR_BWD:
             {
                 int offset = READ_SHORT();
                 frame->ip -= offset;

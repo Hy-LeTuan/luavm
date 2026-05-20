@@ -453,7 +453,7 @@ static void unary(ExpDesc* e, Parser* p)
             emitByte(OP_NOT, p);
             break;
         case TOKEN_HASH:
-            // TODO: implement length for unary op
+            emitByte(OP_LENGTH, p);
             break;
         default:
             error("Erorr, uknown operator found.", p);
