@@ -650,19 +650,8 @@ static void evaluateAssign(LhsAssign* lhs, bool assign, Parser* p)
             emitBytes(assign ? OP_SET_UPVALUE : OP_GET_UPVALUE, lhs->index, p);
             break;
         case EXP_INDEX:
-        {
-            /*
-               for set statement with indexed expr, only the last field indexed is set; everything
-               else is a get
-            */
-            for (int i = 0; i < lhs->fieldCount - 1; i++)
-            {
-                emitByte(OP_GET_FIELD, p);
-            }
-
             emitByte(assign ? OP_SET_FIELD : OP_GET_FIELD, p);
             break;
-        }
         case EXP_GLOBAL:
             emitBytes(assign ? OP_SET_GLOBAL : OP_GET_GLOBAL, lhs->index, p);
             break;
@@ -914,8 +903,6 @@ static void primaryExpression(ExpDesc* e, LhsAssign* lhs, bool def, Parser* p)
     // prefixExp ::= var | functioncall
     prefixExpression(e, lhs, p);
 
-    bool didEvalTable = false;
-
     while (true)
     {
         switch (current(p))
@@ -924,11 +911,10 @@ static void primaryExpression(ExpDesc* e, LhsAssign* lhs, bool def, Parser* p)
             case TOKEN_LEFT_SQUARE:
             case TOKEN_DOT:
             {
-                // evaluate the get expression to retreive a table first
-                if (lhs != NULL && !didEvalTable)
+                // evaluate prefix to get table
+                if (lhs != NULL)
                 {
                     evaluateAssign(lhs, false, p);
-                    didEvalTable = true;
                 }
 
                 if (current(p) == TOKEN_LEFT_SQUARE)
@@ -1357,8 +1343,7 @@ static void ifStatement(Parser* p)
 
     // body statements
     beginScope(p);
-    while (!isAtEnd(p) && peek(p) != TOKEN_ELSE && peek(p) != TOKEN_ELSEIF &&
-      peek(p) != TOKEN_END)
+    while (!isAtEnd(p) && peek(p) != TOKEN_ELSE && peek(p) != TOKEN_ELSEIF && peek(p) != TOKEN_END)
     {
         statements(p);
     }
@@ -1451,8 +1436,7 @@ static void numericalFor(Token* loop_var, Parser* p)
 
     // initializer
     expression(&e, p);
-    consume(
-      TOKEN_COMMA, "Error, no comma to separate between iniitializer, limit and step.", p);
+    consume(TOKEN_COMMA, "Error, no comma to separate between iniitializer, limit and step.", p);
 
     // limit
     expression(&e, p);

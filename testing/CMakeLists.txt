@@ -33,6 +33,21 @@ target_link_libraries(StringTest PRIVATE vm)
 
 # EXECUTION TEST
 
+# test objtable basic operations
+add_executable(ObjtableTest function/objtable_test.c)
+target_link_libraries(ObjtableTest PRIVATE common)
+target_link_libraries(ObjtableTest PRIVATE lexer)
+target_link_libraries(ObjtableTest PRIVATE compiler)
+target_link_libraries(ObjtableTest PRIVATE vm)
+add_test(NAME ObjtableTest
+    COMMAND ${CMAKE_COMMAND}
+    -D "TEST_EXECUTABLE=$<TARGET_FILE:ObjtableTest>"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/objtable_test_input.lua"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/objtable_test.expected"
+    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/objtable_test.actual"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
+)
+
 # test expressions
 add_executable(ExpressionTest function/expression_test.c)
 target_link_libraries(ExpressionTest PRIVATE common)
