@@ -38,6 +38,7 @@ typedef enum
     OP_GET_FIELD,
     OP_SET_FIELD,
     OP_CLOSE_UPVALUE,
+    OP_CACHE,
     OP_POP,
     OP_RETURN
 } OPCode;

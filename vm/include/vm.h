@@ -8,6 +8,7 @@
 #include <objclosure.h>
 
 #define STACK_MAX 256
+#define CACHE_MAX 128
 
 typedef enum
 {
@@ -27,6 +28,8 @@ typedef struct
 typedef struct
 {
     Value stack[STACK_MAX];
+    Value cache[CACHE_MAX];
+    uint8_t cacheSize;
     CallFrame frames[STACK_MAX];
     int frameCount;
     Value* stackTop;

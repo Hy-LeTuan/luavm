@@ -43,56 +43,56 @@ static void initExpDesc(ExpDesc* e)
     e->patch = -1;
 }
 
-static bool isAtEnd(Parser* parser)
+static bool isAtEnd(Parser* p)
 {
-    return parser->current.type == TOKEN_EOF;
+    return p->current.type == TOKEN_EOF;
 }
 
-static void errorAt(Token at, const char* message, Parser* parser)
+static void errorAt(Token at, const char* message, Parser* p)
 {
-    parser->hadError = true;
+    p->hadError = true;
     fprintf(stderr, "Compile Error on line [%zu], at %.*s.\n", at.line, (int)at.length, at.start);
     fprintf(stderr, "Error reads: %s\n", message);
 }
 
-static void error(const char* message, Parser* parser)
+static void error(const char* message, Parser* p)
 {
-    errorAt(parser->current, message, parser);
+    errorAt(p->current, message, p);
 }
 
-static void advance(Parser* parser)
+static void advance(Parser* p)
 {
-    parser->prev = parser->current;
+    p->prev = p->current;
 
     for (;;)
     {
-        Token token = lex(&parser->lexer);
+        Token token = lex(&p->lexer);
 
         if (token.type == TOKEN_ERROR)
         {
-            parser->hadError = true;
-            errorAt(token, "Lexer Error, cannot parse the current word.", parser);
+            p->hadError = true;
+            errorAt(token, "Lexer Error, cannot parse the current word.", p);
             return;
         }
 
-        parser->current = token;
+        p->current = token;
         break;
     }
 }
 
-static bool check(TokenType type, Parser* parser)
+static bool check(TokenType type, Parser* p)
 {
-    return parser->current.type == type;
+    return p->current.type == type;
 }
 
-static bool match(TokenType type, Parser* parser)
+static bool match(TokenType type, Parser* p)
 {
-    if (!check(type, parser))
+    if (!check(type, p))
     {
         return false;
     }
 
-    advance(parser);
+    advance(p);
     return true;
 }
 
@@ -111,168 +111,164 @@ static bool blockFollow(TokenType type)
     }
 }
 
-static Chunk* currentChunk(Parser* parser)
+static Chunk* currentChunk(Parser* p)
 {
-    return &parser->compiler->function->chunk;
+    return &p->compiler->function->chunk;
 }
 
-static TokenType peek(Parser* parser)
+static TokenType peek(Parser* p)
 {
-    return parser->current.type;
+    return p->current.type;
 }
 
-static TokenType prev(Parser* parser)
+static TokenType prev(Parser* p)
 {
-    return parser->prev.type;
+    return p->prev.type;
 }
 
-static TokenType current(Parser* parser)
+static TokenType current(Parser* p)
 {
-    return parser->current.type;
+    return p->current.type;
 }
 
-static void consume(TokenType token, const char* message, Parser* parser)
+static void consume(TokenType token, const char* message, Parser* p)
 {
-    if (peek(parser) != token)
+    if (peek(p) != token)
     {
         fprintf(stdout, "%s\n", message);
         exit(EXIT_FAILURE);
     }
 
-    advance(parser);
+    advance(p);
 }
 
-static void emitByte(uint8_t op, Parser* parser)
+static void emitByte(uint8_t op, Parser* p)
 {
-    writeChunk(currentChunk(parser), op, parser->prev.line);
+    writeChunk(currentChunk(p), op, p->prev.line);
 }
 
-static void emitBytes(uint8_t op1, uint8_t op2, Parser* parser)
+static void emitBytes(uint8_t op1, uint8_t op2, Parser* p)
 {
-    emitByte(op1, parser);
-    emitByte(op2, parser);
+    emitByte(op1, p);
+    emitByte(op2, p);
 }
 
-static size_t emitJump(OPCode jumpCode, Parser* parser)
+static size_t emitJump(OPCode jumpCode, Parser* p)
 {
-    emitByte(jumpCode, parser);
-    emitByte((0 >> 8) & 0xff, parser);
-    emitByte(0 & 0xff, parser);
+    emitByte(jumpCode, p);
+    emitByte((0 >> 8) & 0xff, p);
+    emitByte(0 & 0xff, p);
 
-    return currentChunk(parser)->count - 2;
+    return currentChunk(p)->count - 2;
 }
 
 /*
  * Patch the operands of a jump statement to jump to the current bytecode
  * */
-static void patchJump(size_t offset, Parser* parser)
+static void patchJump(size_t offset, Parser* p)
 {
-    int jump = currentChunk(parser)->count - offset - 2;
+    int jump = currentChunk(p)->count - offset - 2;
 
     if (jump > UINT16_MAX)
     {
-        error("Error, too much code to jump over.", parser);
+        error("Error, too much code to jump over.", p);
     }
 
-    currentChunk(parser)->code[offset] = (jump >> 8) & 0xff;
-    currentChunk(parser)->code[offset + 1] = jump & 0xff;
+    currentChunk(p)->code[offset] = (jump >> 8) & 0xff;
+    currentChunk(p)->code[offset + 1] = jump & 0xff;
 }
 
-static void patchSingleByte(size_t offset, uint8_t value, Parser* parser)
+static void patchSingleByte(size_t offset, uint8_t value, Parser* p)
 {
-    currentChunk(parser)->code[offset] = value;
+    currentChunk(p)->code[offset] = value;
 }
 
-static void emitConstant(Value value, Parser* parser)
+static void emitConstant(Value value, Parser* p)
 {
-    size_t pos = addConstant(currentChunk(parser), value);
-    emitBytes(OP_CONSTANT, pos, parser);
+    size_t pos = addConstant(currentChunk(p), value);
+    emitBytes(OP_CONSTANT, pos, p);
 }
 
-static size_t identifierConstant(Token* name, Parser* parser)
+static size_t identifierConstant(Token* name, Parser* p)
 {
-    Value name_obj = OBJ_VAL((Object*)copyString(name->start, name->length, parser->strings));
+    Value name_obj = OBJ_VAL((Object*)copyString(name->start, name->length, p->strings));
 
-    size_t pos = addConstant(currentChunk(parser), name_obj);
+    size_t pos = addConstant(currentChunk(p), name_obj);
     return pos;
 }
 
-static void emitBackJump(OPCode jumpCode, size_t start, Parser* parser)
+static void emitBackJump(OPCode jumpCode, size_t start, Parser* p)
 {
-    emitByte(jumpCode, parser);
+    emitByte(jumpCode, p);
 
-    int jump = currentChunk(parser)->count - start + 2;
+    int jump = currentChunk(p)->count - start + 2;
 
     if (jump > UINT16_MAX)
     {
-        error("Error, back jump too large.", parser);
+        error("Error, back jump too large.", p);
     }
 
-    emitByte((jump >> 8) & 0xff, parser);
-    emitByte(jump & 0xff, parser);
+    emitByte((jump >> 8) & 0xff, p);
+    emitByte(jump & 0xff, p);
 }
 
-static void emitReturn(Parser* parser)
+static void emitReturn(Parser* p)
 {
-    emitConstant(NIL_CONSTANT, parser);
-    emitBytes(OP_RETURN, 1, parser);
+    emitConstant(NIL_CONSTANT, p);
+    emitBytes(OP_RETURN, 1, p);
 }
 
-static size_t getBytePos(Parser* parser)
+static size_t getBytePos(Parser* p)
 {
-    return currentChunk(parser)->count;
+    return currentChunk(p)->count;
 }
 
-static void beginScope(Parser* parser)
+static void beginScope(Parser* p)
 {
-    parser->compiler->currentScope++;
+    p->compiler->currentScope++;
 }
 
-static void endScope(Parser* parser)
+static void endScope(Parser* p)
 {
-    parser->compiler->currentScope--;
+    p->compiler->currentScope--;
 
-    while (parser->compiler->localCount > 0 &&
-      parser->compiler->locals[parser->compiler->localCount - 1].scope >
-        parser->compiler->currentScope)
+    while (p->compiler->localCount > 0 &&
+      p->compiler->locals[p->compiler->localCount - 1].scope > p->compiler->currentScope)
     {
-        parser->compiler->locals[parser->compiler->localCount - 1].isCaptured
-          ? emitByte(OP_CLOSE_UPVALUE, parser)
-          : emitByte(OP_POP, parser);
-        parser->compiler->localCount--;
+        p->compiler->locals[p->compiler->localCount - 1].isCaptured ? emitByte(OP_CLOSE_UPVALUE, p)
+                                                                    : emitByte(OP_POP, p);
+        p->compiler->localCount--;
     }
 }
 
-static void endScopeUntil(int targetScope, Parser* parser)
+static void endScopeUntil(int targetScope, Parser* p)
 {
-    size_t i = parser->compiler->localCount;
+    size_t i = p->compiler->localCount;
 
-    while (i > 0 && parser->compiler->locals[i - 1].scope > targetScope)
+    while (i > 0 && p->compiler->locals[i - 1].scope > targetScope)
     {
-        parser->compiler->locals[i - 1].isCaptured ? emitByte(OP_CLOSE_UPVALUE, parser)
-                                                   : emitByte(OP_POP, parser);
+        p->compiler->locals[i - 1].isCaptured ? emitByte(OP_CLOSE_UPVALUE, p) : emitByte(OP_POP, p);
         i--;
     }
 }
 
-static void beginLoop(Parser* parser)
+static void beginLoop(Parser* p)
 {
-    parser->compiler->currentLoopScope++;
-    int* loopContext = &parser->compiler->loopContexts[parser->compiler->currentLoopScope];
-    *loopContext = parser->compiler->currentScope;
+    p->compiler->currentLoopScope++;
+    int* loopContext = &p->compiler->loopContexts[p->compiler->currentLoopScope];
+    *loopContext = p->compiler->currentScope;
 }
 
-static void endLoop(Parser* parser)
+static void endLoop(Parser* p)
 {
-    parser->compiler->currentLoopScope--;
+    p->compiler->currentLoopScope--;
 
-    while (parser->compiler->breakCount > 0 &&
-      parser->compiler->breaks[parser->compiler->breakCount - 1].depth >
-        parser->compiler->currentLoopScope)
+    while (p->compiler->breakCount > 0 &&
+      p->compiler->breaks[p->compiler->breakCount - 1].depth > p->compiler->currentLoopScope)
     {
-        Break* br = &parser->compiler->breaks[parser->compiler->breakCount - 1];
-        patchJump(br->pos, parser);
-        parser->compiler->breakCount--;
+        Break* br = &p->compiler->breaks[p->compiler->breakCount - 1];
+        patchJump(br->pos, p);
+        p->compiler->breakCount--;
     }
 }
 
@@ -292,21 +288,22 @@ static Token genReservedVarToken(ReservedVarType type)
 /*
 Resets parser to previous function and return function held by popped compiler.
 */
-static ObjFunction* endCompiler(Parser* parser)
+static ObjFunction* endCompiler(Parser* p)
 {
-    emitReturn(parser);
+    emitReturn(p);
 
-    ObjFunction* function = parser->compiler->function;
-    parser->compiler = parser->compiler->enclosing;
+    ObjFunction* function = p->compiler->function;
+    p->compiler = p->compiler->enclosing;
 
     return function;
 }
 
 // common declaration
-static void parse(Precedence prevPrec, ExpDesc* e, Parser* parser);
-static bool statements(Parser* parser);
-static void functionStatement(Parser* parser, bool local, bool anonymous);
-static void expression(ExpDesc* e, Parser* parser);
+static void parse(Precedence prevPrec, ExpDesc* e, Parser* p);
+static bool statements(Parser* p);
+static void functionStatement(bool local, Parser* p);
+static void functionBody(Parser* p);
+static void expression(ExpDesc* e, Parser* p);
 Rule* getRule(TokenType op);
 
 static int lookupLocal(Token* name, Compiler* compiler)
@@ -329,21 +326,21 @@ static int lookupLocal(Token* name, Compiler* compiler)
     return -1;
 }
 
-static void markInitialized(uint8_t localIndex, Parser* parser)
+static void markInitialized(uint8_t localIndex, Parser* p)
 {
-    parser->compiler->locals[localIndex].scope = parser->compiler->currentScope;
+    p->compiler->locals[localIndex].scope = p->compiler->currentScope;
 }
 
-static uint8_t addLocal(Token* name, Parser* parser)
+static uint8_t addLocal(Token* name, Parser* p)
 {
-    Local* local = &parser->compiler->locals[parser->compiler->localCount];
+    Local* local = &p->compiler->locals[p->compiler->localCount];
     local->start = name->start;
     local->length = name->length;
     local->scope = -1;
     local->isCaptured = false;
 
-    parser->compiler->localCount++;
-    return parser->compiler->localCount - 1;
+    p->compiler->localCount++;
+    return p->compiler->localCount - 1;
 }
 
 static int addUpvalue(uint8_t index, bool immediate, Compiler* compiler)
@@ -400,113 +397,112 @@ static int lookupUpvalue(Token* name, Compiler* compiler)
     return -1;
 }
 
-static void namedVariable(ExpDesc* e, bool assignment, Parser* parser)
+static void namedVariable(ExpDesc* e, LhsAssign* lhs, Parser* p)
 {
-    Token name = parser->prev;
-    uint8_t var_constant = identifierConstant(&name, parser);
+    Token name = p->prev;
+    uint8_t var_constant = identifierConstant(&name, p);
 
     uint8_t opGet;
-    uint8_t opSet;
-    int index = lookupLocal(&name, parser->compiler);
+    ExpKind k = EXP_LOCAL;
+    int index = lookupLocal(&name, p->compiler);
 
     if (index != -1)
     {
         opGet = OP_GET_LOCAL;
-        opSet = OP_SET_LOCAL;
-        e->kind = EXP_LOCAL;
+        k = EXP_LOCAL;
     }
-    else if ((index = lookupUpvalue(&name, parser->compiler)) != -1)
+    else if ((index = lookupUpvalue(&name, p->compiler)) != -1)
     {
         opGet = OP_GET_UPVALUE;
-        opSet = OP_SET_UPVALUE;
-        e->kind = EXP_UPVAL;
+        k = EXP_UPVAL;
     }
     else
     {
         opGet = OP_GET_GLOBAL;
-        opSet = OP_SET_GLOBAL;
         index = var_constant;
-        e->kind = EXP_GLOBAL;
+        k = EXP_GLOBAL;
     }
 
-    if (assignment)
+    e->kind = k;
+
+    if (lhs == NULL)
     {
-        emitBytes(opSet, (uint8_t)index, parser);
+        emitBytes(opGet, (uint8_t)index, p);
+        e->patch = currentChunk(p)->count - 2;
     }
     else
     {
-        emitBytes(opGet, (uint8_t)index, parser);
+        lhs->e.kind = k;
+        lhs->index = (uint8_t)index;
     }
-
-    e->patch = currentChunk(parser)->count - 2;
 }
 
-static void unary(ExpDesc* e, Parser* parser)
+static void unary(ExpDesc* e, Parser* p)
 {
-    TokenType op = prev(parser);
+    TokenType op = prev(p);
 
     // all negate operators are right associative
-    parse(PREC_UNARY, e, parser);
+    parse(PREC_UNARY, e, p);
 
     switch (op)
     {
         case TOKEN_MINUS:
-            emitByte(OP_NEGATE, parser);
+            emitByte(OP_NEGATE, p);
             break;
         case TOKEN_NOT:
-            emitByte(OP_NOT, parser);
+            emitByte(OP_NOT, p);
             break;
         case TOKEN_HASH:
             // TODO: implement length for unary op
             break;
         default:
-            error("Erorr, uknown operator found.", parser);
+            error("Erorr, uknown operator found.", p);
     }
 }
 
-static void binary(ExpDesc* e, Parser* parser)
+static void binary(ExpDesc* e, Parser* p)
 {
-    TokenType op = prev(parser);
+    TokenType op = prev(p);
     Rule* rule = getRule(op);
 
     // right associative
     if (op == TOKEN_CARET)
     {
-        parse(rule->prec, e, parser);
+        parse(rule->prec, e, p);
     }
     // left associative
     else
     {
-        parse(rule->prec + 1, e, parser);
+        parse(rule->prec + 1, e, p);
     }
 
     if (op == TOKEN_PLUS)
     {
-        emitByte(OP_ADD, parser);
+        emitByte(OP_ADD, p);
     }
     else if (op == TOKEN_MINUS)
     {
-        emitByte(OP_MINUS, parser);
+        emitByte(OP_MINUS, p);
     }
     else if (op == TOKEN_STAR)
     {
-        emitByte(OP_MUL, parser);
+        emitByte(OP_MUL, p);
     }
     else if (op == TOKEN_SLASH)
     {
-        emitByte(OP_DIV, parser);
+        emitByte(OP_DIV, p);
     }
     else if (op == TOKEN_CARET)
     {
-        emitByte(OP_EXPONENT, parser);
+        emitByte(OP_EXPONENT, p);
     }
     else if (op == TOKEN_PERCENT)
     {
-        emitByte(OP_MODULO, parser);
+        emitByte(OP_MODULO, p);
     }
     else if (op == TOKEN_DOT_DOT)
     {
-        emitByte(OP_JOIN, parser);
+        emitByte(OP_JOIN, p);
     }
     else
     {
@@ -515,130 +511,167 @@ static void binary(ExpDesc* e, Parser* parser)
     }
 }
 
-static void number(ExpDesc* e, Parser* parser)
+static void number(ExpDesc* e, Parser* p)
 {
-    double num = strtod(parser->prev.start, NULL);
+    double num = strtod(p->prev.start, NULL);
     Value value = NUM_VAL(num);
-    emitConstant(value, parser);
+    emitConstant(value, p);
     e->kind = EXP_NUM;
 }
 
-static void bool_and_nil(ExpDesc* e, Parser* parser)
+static void bool_and_nil(ExpDesc* e, Parser* p)
 {
-    if (prev(parser) == TOKEN_TRUE)
+    if (prev(p) == TOKEN_TRUE)
     {
-        emitConstant(BOOL_VAL(true), parser);
+        emitConstant(BOOL_VAL(true), p);
         e->kind = EXP_TRUE;
     }
-    else if (prev(parser) == TOKEN_FALSE)
+    else if (prev(p) == TOKEN_FALSE)
     {
-        emitConstant(BOOL_VAL(false), parser);
+        emitConstant(BOOL_VAL(false), p);
         e->kind = EXP_FALSE;
     }
     else
     {
-        emitConstant(NIL_VAL(), parser);
+        emitConstant(NIL_VAL(), p);
         e->kind = EXP_NIL;
     }
 }
 
-static void str(ExpDesc* e, Parser* parser)
+static void str(ExpDesc* e, Parser* p)
 {
-    const char* text = parser->prev.start + 1;
-    size_t length = parser->prev.length - 2;
+    const char* text = p->prev.start + 1;
+    size_t length = p->prev.length - 2;
 
-    ObjString* string = copyString(text, length, parser->strings);
-    emitConstant(OBJ_VAL((Object*)string), parser);
+    ObjString* string = copyString(text, length, p->strings);
+    emitConstant(OBJ_VAL((Object*)string), p);
     e->kind = EXP_STR;
 }
 
-static void block(const char* message, Parser* parser)
+static void block(const char* message, Parser* p)
 {
-    while (peek(parser) != TOKEN_END && !isAtEnd(parser))
+    while (peek(p) != TOKEN_END && !isAtEnd(p))
     {
-        statements(parser);
+        statements(p);
     }
 
-    consume(TOKEN_END, message, parser);
+    consume(TOKEN_END, message, p);
 }
 
-static void relational(ExpDesc* e, Parser* parser)
+static void relational(ExpDesc* e, Parser* p)
 {
-    TokenType op = prev(parser);
-    parse(PREC_RELATIONAL + 1, e, parser);
+    TokenType op = prev(p);
+    parse(PREC_RELATIONAL + 1, e, p);
 
     if (op == TOKEN_LESS)
     {
-        emitByte(OP_LESS, parser);
+        emitByte(OP_LESS, p);
     }
     else if (op == TOKEN_LESS_EQUAL)
     {
-        emitByte(OP_GREATER, parser);
-        emitByte(OP_NOT, parser);
+        emitByte(OP_GREATER, p);
+        emitByte(OP_NOT, p);
     }
     else if (op == TOKEN_GREATER)
     {
-        emitByte(OP_GREATER, parser);
+        emitByte(OP_GREATER, p);
     }
     else if (op == TOKEN_GREATER_EQUAL)
     {
-        emitByte(OP_LESS, parser);
-        emitByte(OP_NOT, parser);
+        emitByte(OP_LESS, p);
+        emitByte(OP_NOT, p);
     }
     else if (op == TOKEN_EQUAL_EQUAL)
     {
-        emitByte(OP_EQUAL, parser);
+        emitByte(OP_EQUAL, p);
     }
     else
     {
-        emitByte(OP_EQUAL, parser);
-        emitByte(OP_NOT, parser);
+        emitByte(OP_EQUAL, p);
+        emitByte(OP_NOT, p);
     }
 }
 
 /*
  * `or` operator leaves the first truthful value evaluated on the stack
  * */
-static void logical_or(ExpDesc* e, Parser* parser)
+static void logical_or(ExpDesc* e, Parser* p)
 {
-    size_t nextBranchJump = emitJump(OP_JUMP_IF_FALSE, parser);
-    size_t endJump = emitJump(OP_JUMP, parser);
+    size_t nextBranchJump = emitJump(OP_JUMP_IF_FALSE, p);
+    size_t endJump = emitJump(OP_JUMP, p);
 
-    patchJump(nextBranchJump, parser);
-    emitByte(OP_POP, parser);
+    patchJump(nextBranchJump, p);
+    emitByte(OP_POP, p);
 
-    parse(PREC_OR, e, parser);
+    parse(PREC_OR, e, p);
 
-    patchJump(endJump, parser);
+    patchJump(endJump, p);
 }
 
 /*
  * `and` operator leaves the last value evaluated on the stack
  * */
-static void logical_and(ExpDesc* e, Parser* parser)
+static void logical_and(ExpDesc* e, Parser* p)
 {
-    size_t endJump = emitJump(OP_JUMP_IF_FALSE, parser);
+    size_t endJump = emitJump(OP_JUMP_IF_FALSE, p);
 
-    emitByte(OP_POP, parser);
-    parse(PREC_AND, e, parser);
+    emitByte(OP_POP, p);
+    parse(PREC_AND, e, p);
 
-    patchJump(endJump, parser);
+    patchJump(endJump, p);
 }
 
-static uint8_t expressionList(ExpDesc* e, Parser* parser)
+static uint8_t expressionList(ExpDesc* e, Parser* p)
 {
     uint8_t length = 0;
 
     do
     {
-        expression(e, parser);
+        expression(e, p);
         length++;
-    } while (match(TOKEN_COMMA, parser));
+    } while (match(TOKEN_COMMA, p));
 
     return length;
 }
 
-static int field(int expIdx, Parser* parser)
+static void evaluateAssign(LhsAssign* lhs, bool assign, Parser* p)
+{
+    if (lhs == NULL)
+    {
+        return;
+    }
+
+    switch (lhs->e.kind)
+    {
+        case EXP_LOCAL:
+            emitBytes(assign ? OP_SET_LOCAL : OP_GET_LOCAL, lhs->index, p);
+            break;
+        case EXP_UPVAL:
+            emitBytes(assign ? OP_SET_UPVALUE : OP_GET_UPVALUE, lhs->index, p);
+            break;
+        case EXP_INDEX:
+        {
+            /*
+               for set statement with indexed expr, only the last field indexed is set; everything
+               else is a get
+            */
+            for (int i = 0; i < lhs->fieldCount - 1; i++)
+            {
+                emitByte(OP_GET_FIELD, p);
+            }
+
+            emitByte(assign ? OP_SET_FIELD : OP_GET_FIELD, p);
+            break;
+        }
+        case EXP_GLOBAL:
+            emitBytes(assign ? OP_SET_GLOBAL : OP_GET_GLOBAL, lhs->index, p);
+            break;
+        default:
+            return;
+    }
+}
+
+static int field(int expIdx, Parser* p)
 {
     /*
         field ::= `[´ exp `]´ `=´ exp | Name `=´ exp | exp
@@ -646,36 +679,36 @@ static int field(int expIdx, Parser* parser)
     ExpDesc e;
     initExpDesc(&e);
 
-    switch (peek(parser))
+    switch (peek(p))
     {
         case TOKEN_LEFT_SQUARE:
-            advance(parser);
+            advance(p);
 
             // key
-            expression(&e, parser);
+            expression(&e, p);
 
-            consume(TOKEN_RIGHT_SQUARE, "Error, missing ']' for field construction.", parser);
+            consume(TOKEN_RIGHT_SQUARE, "Error, missing ']' for field construction.", p);
             consume(TOKEN_EQUAL,
-              "Error, missing '=' character for field construction of form [exp] = exp.", parser);
+              "Error, missing '=' character for field construction of form [exp] = exp.", p);
 
             // value
-            expression(&e, parser);
+            expression(&e, p);
 
             return 0;
         case TOKEN_IDENTIFIER:
         {
-            Token name = parser->current;
-            advance(parser);
+            Token name = p->current;
+            advance(p);
 
             /* identifier = expr */
-            if (match(TOKEN_EQUAL, parser))
+            if (match(TOKEN_EQUAL, p))
             {
                 // key
-                size_t nameConstant = identifierConstant(&name, parser);
-                emitBytes(OP_CONSTANT, nameConstant, parser);
+                size_t nameConstant = identifierConstant(&name, p);
+                emitBytes(OP_CONSTANT, nameConstant, p);
 
                 // value
-                expression(&e, parser);
+                expression(&e, p);
 
                 return 0;
             }
@@ -683,26 +716,26 @@ static int field(int expIdx, Parser* parser)
             else
             {
                 // key
-                emitConstant(NUM_VAL(expIdx), parser);
+                emitConstant(NUM_VAL(expIdx), p);
 
                 // value
-                expression(&e, parser);
+                expression(&e, p);
 
                 return 1;
             }
         }
         default:
             // key
-            emitConstant(NUM_VAL(expIdx), parser);
+            emitConstant(NUM_VAL(expIdx), p);
 
             // value
-            expression(&e, parser);
+            expression(&e, p);
 
             return 1;
     }
 }
 
-static void constructor(ExpDesc* e, Parser* parser)
+static void constructor(ExpDesc* e, Parser* p)
 {
     /*
         tableconstructor ::= `{´ [fieldlist] `}´
@@ -710,16 +743,16 @@ static void constructor(ExpDesc* e, Parser* parser)
         fieldsep ::= `,´ | `;´
     */
 
-    consume(TOKEN_LEFT_BRACE, "Error, expect '{' for table constructor.", parser);
+    consume(TOKEN_LEFT_BRACE, "Error, expect '{' for table constructor.", p);
 
     int expIdx = 1;
     int arity = 0;
 
-    if (!check(TOKEN_RIGHT_BRACE, parser))
+    if (!check(TOKEN_RIGHT_BRACE, p))
     {
         do
         {
-            if (field(expIdx, parser) == 1)
+            if (field(expIdx, p) == 1)
             {
                 expIdx++;
             }
@@ -727,71 +760,71 @@ static void constructor(ExpDesc* e, Parser* parser)
 
             if (arity > 255)
             {
-                error("Can't have more than 255 arguments.", parser);
+                error("Can't have more than 255 arguments.", p);
                 break;
             }
-        } while (match(TOKEN_COMMA, parser) || match(TOKEN_SEMICOLON, parser));
+        } while (match(TOKEN_COMMA, p) || match(TOKEN_SEMICOLON, p));
     }
 
-    consume(TOKEN_RIGHT_BRACE, "Error, missing '}' to close constructor.", parser);
+    consume(TOKEN_RIGHT_BRACE, "Error, missing '}' to close constructor.", p);
 
-    emitBytes(OP_CONSTRUCT, arity, parser);
+    emitBytes(OP_CONSTRUCT, arity, p);
 }
 
-static uint8_t functionArguments(ExpDesc* e, Parser* parser)
+static uint8_t functionArguments(ExpDesc* e, Parser* p)
 {
     uint8_t arity = 0;
 
-    if (!check(TOKEN_RIGHT_PAREN, parser))
+    if (!check(TOKEN_RIGHT_PAREN, p))
     {
         do
         {
-            expression(e, parser);
+            expression(e, p);
 
             if (arity > 255)
             {
-                error("Can't have more than 255 arguments.", parser);
+                error("Can't have more than 255 arguments.", p);
             }
             arity++;
-        } while (match(TOKEN_COMMA, parser));
+        } while (match(TOKEN_COMMA, p));
     }
 
-    consume(TOKEN_RIGHT_PAREN, "Error, missing ')' to close function call.", parser);
+    consume(TOKEN_RIGHT_PAREN, "Error, missing ')' to close function call.", p);
 
     return arity;
 }
 
-static void call(ExpDesc* e, Parser* parser)
+static void call(ExpDesc* e, Parser* p)
 {
     uint8_t arity;
 
-    switch (current(parser))
+    switch (current(p))
     {
         case TOKEN_STRING:
-            advance(parser);
-            str(e, parser);
+            advance(p);
+            str(e, p);
             arity = 1;
             break;
         case TOKEN_LEFT_BRACE:
-            constructor(e, parser);
+            constructor(e, p);
             arity = 1;
             break;
         case TOKEN_LEFT_PAREN:
-            advance(parser);
-            arity = functionArguments(e, parser);
+            advance(p);
+            arity = functionArguments(e, p);
             break;
         default:
-            advance(parser);
+            advance(p);
             arity = 0;
             break;
     }
 
     // all functions will be restricted to returning only 1 value at first.
     // if a function is permitted to have more than 1 return value, the return value will be patched
-    emitBytes(OP_CALL, arity, parser);
-    emitByte(1, parser);
+    emitBytes(OP_CALL, arity, p);
+    emitByte(1, p);
     e->kind = EXP_CALL;
-    e->patch = currentChunk(parser)->count - 1;
+    e->patch = currentChunk(p)->count - 1;
 }
 
 // pratt parsing table
@@ -853,75 +886,104 @@ Rule* getRule(TokenType op)
     return &rules[op];
 }
 
-static void prefixExpression(ExpDesc* e, bool assignment, Parser* parser)
+static void prefixExpression(ExpDesc* e, LhsAssign* lhs, Parser* p)
 {
     /*
        prefixexp ::= Name | `(` expr `)`
     */
 
-    switch (parser->current.type)
+    switch (p->current.type)
     {
         case TOKEN_IDENTIFIER:
-            advance(parser);
-            namedVariable(e, assignment, parser);
+            advance(p);
+            namedVariable(e, lhs, p);
             break;
         case TOKEN_LEFT_PAREN:
-            advance(parser);
-            expression(e, parser);
-            consume(TOKEN_RIGHT_PAREN, "Error, '(' not closed, missing ')' character.", parser);
+            advance(p);
+            expression(e, p);
+            consume(TOKEN_RIGHT_PAREN, "Error, '(' not closed, missing ')' character.", p);
             break;
         default:
-            error("Error, unknown symbol encountered.", parser);
+            error("Error, unknown symbol encountered.", p);
             return;
     }
 }
 
-static void primaryExpression(ExpDesc* e, bool assignment, Parser* parser)
+static void primaryExpression(ExpDesc* e, LhsAssign* lhs, bool def, Parser* p)
 {
     // prefixExp ::= var | functioncall
-    prefixExpression(e, assignment, parser);
+    prefixExpression(e, lhs, p);
+
+    bool didEvalTable = false;
 
     while (true)
     {
-        switch (parser->current.type)
+        switch (current(p))
         {
-            // `[` exp `]`
+            // `[` exp `]` | `.` Name
             case TOKEN_LEFT_SQUARE:
-            {
-                advance(parser);
-
-                // key
-                expression(e, parser);
-
-                emitByte(OP_GET_FIELD, parser);
-
-                consume(TOKEN_RIGHT_SQUARE, "Error, expect ']' to close index operation.", parser);
-                e->kind = EXP_INDEX;
-                e->patch = getBytePos(parser) - 1;
-                break;
-            }
-            // `.` Name
             case TOKEN_DOT:
             {
-                advance(parser);
+                // evaluate the get expression to retreive a table first
+                if (lhs != NULL && !didEvalTable)
+                {
+                    evaluateAssign(lhs, false, p);
+                    didEvalTable = true;
+                }
 
-                consume(TOKEN_IDENTIFIER, "Error, expect a name after '.'", parser);
-                Token name = parser->prev;
+                if (current(p) == TOKEN_LEFT_SQUARE)
+                {
+                    advance(p);
 
-                size_t nameConstant = identifierConstant(&name, parser);
-                emitBytes(OP_CONSTANT, nameConstant, parser);
+                    // key
+                    expression(e, p);
 
-                emitByte(OP_GET_FIELD, parser);
+                    consume(TOKEN_RIGHT_SQUARE, "Error, expect ']' to close index operation.", p);
+                }
+                else
+                {
+                    advance(p);
+
+                    // key
+                    consume(TOKEN_IDENTIFIER, "Error, expect a name after '.'", p);
+                    Token name = p->prev;
+                    size_t nameConstant = identifierConstant(&name, p);
+
+                    emitBytes(OP_CONSTANT, nameConstant, p);
+                }
+
+                if (lhs == NULL)
+                {
+                    emitByte(OP_GET_FIELD, p);
+                }
+                else
+                {
+                    lhs->fieldCount++;
+                    lhs->e.kind = EXP_INDEX;
+                }
+
                 e->kind = EXP_INDEX;
-                e->patch = getBytePos(parser) - 1;
+                e->patch = getBytePos(p) - 1;
                 break;
             }
             // `(` [explist] `)` | `{` [fieldlist] `}` | string
             case TOKEN_STRING:
             case TOKEN_LEFT_BRACE:
             case TOKEN_LEFT_PAREN:
-                call(e, parser);
+            {
+                /*
+                    parsing 'primary' for a definition, so no call
+                */
+                if (def)
+                {
+                    return;
+                }
+
+                // parse the lhs since its a call
+                evaluateAssign(lhs, false, p);
+                call(e, p);
                 break;
+            }
             // `:` Name args
             case TOKEN_COLON:
                 // TODO: implement colon for function expr
@@ -932,63 +994,63 @@ static void primaryExpression(ExpDesc* e, bool assignment, Parser* parser)
     }
 }
 
-static void simpleExpression(ExpDesc* e, Parser* parser)
+static void simpleExpression(ExpDesc* e, Parser* p)
 {
-    switch (current(parser))
+    switch (current(p))
     {
         case TOKEN_TRUE:
         case TOKEN_FALSE:
         case TOKEN_NIL:
-            advance(parser);
-            bool_and_nil(e, parser);
+            advance(p);
+            bool_and_nil(e, p);
             break;
         case TOKEN_NUMBER:
-            advance(parser);
-            number(e, parser);
+            advance(p);
+            number(e, p);
             break;
         case TOKEN_STRING:
-            advance(parser);
-            str(e, parser);
+            advance(p);
+            str(e, p);
             break;
         case TOKEN_FUNCTION:
-            advance(parser);
-            functionStatement(parser, true, true);
+            advance(p);
+            functionBody(p);
             break;
         case TOKEN_LEFT_BRACE:
-            constructor(e, parser);
+            constructor(e, p);
             break;
         case TOKEN_THREE_DOTS:
             // TODO: varargs for expr
             break;
         default:
-            primaryExpression(e, false, parser);
+            primaryExpression(e, NULL, false, p);
             break;
     }
 }
 
-static void parse(Precedence prevPrec, ExpDesc* e, Parser* parser)
+static void parse(Precedence prevPrec, ExpDesc* e, Parser* p)
 {
-    parser->currentPrec = prevPrec;
+    p->currentPrec = prevPrec;
 
-    TokenType prefixOp = current(parser);
+    TokenType prefixOp = current(p);
     ParseFn prefixFn = getRule(prefixOp)->prefix;
 
     if (prefixFn != NULL)
     {
-        advance(parser);
-        prefixFn(e, parser);
+        advance(p);
+        prefixFn(e, p);
     }
     else
     {
-        simpleExpression(e, parser);
+        simpleExpression(e, p);
     }
 
     Rule* infixRule;
-    while ((infixRule = getRule(peek(parser)))->prec >= prevPrec)
+    while ((infixRule = getRule(peek(p)))->prec >= prevPrec)
     {
         // move to the next prefix starting point
-        advance(parser);
-        parser->currentPrec = infixRule->prec;
+        advance(p);
+        p->currentPrec = infixRule->prec;
 
         ParseFn infixFn = infixRule->infix;
 
@@ -997,18 +1059,18 @@ static void parse(Precedence prevPrec, ExpDesc* e, Parser* parser)
             fprintf(stderr, "Error, missing infix rule.\n");
         }
 
-        infixFn(e, parser);
+        infixFn(e, p);
     }
 
-    parser->currentPrec = prevPrec;
+    p->currentPrec = prevPrec;
 }
 
-static void expression(ExpDesc* e, Parser* parser)
+static void expression(ExpDesc* e, Parser* p)
 {
-    parse(PREC_ASSIGNMENT, e, parser);
+    parse(PREC_ASSIGNMENT, e, p);
 }
 
-static void adjustExprList(ExpDesc* last, int nexprs, int expected, Parser* parser)
+static void adjustExprList(ExpDesc* last, int nexprs, int expected, Parser* p)
 {
     int diff = expected - nexprs;
 
@@ -1019,17 +1081,17 @@ static void adjustExprList(ExpDesc* last, int nexprs, int expected, Parser* pars
         if (diff > 0)
         {
             // add 1 to balance the initial 1 counted
-            patchSingleByte(offset, diff + 1, parser);
+            patchSingleByte(offset, diff + 1, p);
             return;
         }
         else
         {
-            patchSingleByte(offset, 0, parser);
+            patchSingleByte(offset, 0, p);
             diff = abs(diff) - 1;
 
             for (int i = 0; i < diff; i++)
             {
-                emitByte(OP_POP, parser);
+                emitByte(OP_POP, p);
             }
         }
     }
@@ -1039,17 +1101,17 @@ static void adjustExprList(ExpDesc* last, int nexprs, int expected, Parser* pars
         {
             if (diff < 0)
             {
-                emitByte(OP_POP, parser);
+                emitByte(OP_POP, p);
             }
             else
             {
-                emitConstant(NIL_CONSTANT, parser);
+                emitConstant(NIL_CONSTANT, p);
             }
         }
     }
 }
 
-inline static uint8_t swapGetAndSet(ExpDesc* e, Parser* parser)
+inline static uint8_t swapGetAndSet(ExpDesc* e, Parser* p)
 {
     switch (e->kind)
     {
@@ -1062,35 +1124,48 @@ inline static uint8_t swapGetAndSet(ExpDesc* e, Parser* parser)
         case EXP_GLOBAL:
             return OP_SET_GLOBAL;
         default:
-            error("Error, no assignment target found.", parser);
+            error("Error, no assignment target found.", p);
             return 0;
     }
 }
 
-static size_t assign(int* nvars, size_t prev, ExpDesc* e, Parser* parser)
+static void assign(int nvars, Parser* p)
 {
+    LhsAssign lhs;
+    lhs.fieldCount = 0;
+    initExpDesc(&lhs.e);
 
-    if (match(TOKEN_COMMA, parser))
+    if (match(TOKEN_COMMA, p))
     {
-        size_t start = getBytePos(parser);
-        primaryExpression(e, true, parser);
-        (*nvars)++;
+        primaryExpression(&lhs.e, &lhs, false, p);
 
-        // jump to the 'var' expression
-        emitBackJump(OP_VAR_BWD, prev, parser);
-
-        if (!HAS_ASSIGN(e->kind))
+        if (!HAS_ASSIGN(lhs.e.kind))
         {
-            error("Error, cannot assign to this target.", parser);
+            error("Error, cannot assign to this target.", p);
         }
 
-        return assign(nvars, start, e, parser);
+        assign(nvars + 1, p);
+    }
+    else
+    {
+        ExpDesc e;
+        initExpDesc(&e);
+
+        consume(TOKEN_EQUAL, "Error, missing '=' for assignment.", p);
+
+        uint8_t nexprs = expressionList(&e, p);
+        adjustExprList(&e, nexprs, nvars, p);
+
+        emitBytes(OP_CACHE, (uint8_t)nvars, p);
+
+        return;
     }
 
-    return prev;
+    // generate code from lhs
+    evaluateAssign(&lhs, true, p);
 }
 
-static void expressionStatement(Parser* parser)
+static void expressionStatement(Parser* p)
 {
     /*
        stat ::= varlist `=` explist |
@@ -1100,148 +1175,132 @@ static void expressionStatement(Parser* parser)
     ExpDesc e;
     initExpDesc(&e);
 
-    size_t exprJump = emitJump(OP_VAR_FWD, parser);
+    LhsAssign lhs;
+    lhs.fieldCount = 0;
+    initExpDesc(&lhs.e);
 
-    size_t firstVar = getBytePos(parser);
-    primaryExpression(&e, false, parser);
+    size_t firstVar = getBytePos(p);
+    primaryExpression(&e, &lhs, false, p);
 
     if (e.kind == EXP_CALL)
     {
-        emitByte(OP_POP, parser);
+        emitByte(OP_POP, p);
         return;
     }
     else
     {
         int nvars = 1;
-        int nexprs = 0;
+        assign(nvars, p);
 
-        // fix the first expression to allow assingment
-        patchSingleByte(e.patch, swapGetAndSet(&e, parser), parser);
-        size_t exitJump = emitJump(OP_VAR_FWD, parser);
-
-        /* assign function that handles the reverse of variable */
-        size_t assignStart = assign(&nvars, firstVar, &e, parser);
-
-        // jump to the start of expression list
-        patchJump(exprJump, parser);
-
-        consume(TOKEN_EQUAL, "Error, missing '=' for assignment.", parser);
-        nexprs = expressionList(&e, parser);
-        adjustExprList(&e, nexprs, nvars, parser);
-
-        // jump back to the assignment
-        emitBackJump(OP_VAR_BWD, assignStart, parser);
-
-        // jump to exit after
-        patchJump(exitJump, parser);
+        // evaluate the first expression
+        evaluateAssign(&lhs, true, p);
     }
 }
 
-static uint8_t defineLocalVar(Token* name, Parser* parser)
+static uint8_t defineLocalVar(Token* name, Parser* p)
 {
-    uint8_t constantIndex = identifierConstant(name, parser);
-    uint8_t localIndex = addLocal(name, parser);
+    uint8_t constantIndex = identifierConstant(name, p);
+    uint8_t localIndex = addLocal(name, p);
 
     return localIndex;
 }
 
-/*
-Generate a `ObjFunction` object that represents the function currently defined.
-
-When called in anonymous mode (with `anonymous = true`), the function generates the object only and
-let the assignment to a variable be handled by the assignment statement. Otherwise, it simulates the
-assignemnt process by defining the variable (globally or locally with `local`) based on the provided
-function name.
-
-Parameters:
-- `local`: The option to denote whether this function is defined locally or not
-- `anonymous`: The option to denote whether this function is anonymous or not
-*/
-static void functionStatement(Parser* parser, bool local, bool anonymous)
+static void functionBody(Parser* p)
 {
-    uint8_t var_constant = 0;
-
-    if (!anonymous)
-    {
-        if (!check(TOKEN_IDENTIFIER, parser))
-        {
-            error("Error, expect function name after 'function' and before arguments.", parser);
-        }
-
-        Token name = parser->current;
-
-        /* local function can only use identifer as name */
-        if (local)
-        {
-            advance(parser);
-            uint8_t local = defineLocalVar(&name, parser);
-            markInitialized(local, parser);
-        }
-        else
-        {
-            /* identifer | field */
-            advance(parser);
-            var_constant = identifierConstant(&name, parser);
-        }
-    }
-
-    consume(TOKEN_LEFT_PAREN, "Error, expect '(' after.", parser);
+    consume(TOKEN_LEFT_PAREN, "Error, expect '(' after.", p);
 
     Compiler compiler;
-    initCompiler(&compiler, parser->compiler);
+    initCompiler(&compiler, p->compiler);
 
-    beginScope(parser);
+    beginScope(p);
 
     /* start parsing current function */
-    parser->compiler = &compiler;
+    p->compiler = &compiler;
 
-    if (!check(TOKEN_RIGHT_PAREN, parser))
+    if (!check(TOKEN_RIGHT_PAREN, p))
     {
         do
         {
-            parser->compiler->function->arity++;
-            if (parser->compiler->function->arity > 255)
+            p->compiler->function->arity++;
+            if (p->compiler->function->arity > 255)
             {
-                error("Can't have more than 255 parameters.", parser);
+                error("Can't have more than 255 parameters.", p);
             }
 
-            consume(TOKEN_IDENTIFIER, "Error, expect parameter name.", parser);
-            Token name = parser->prev;
-            uint8_t constant = defineLocalVar(&name, parser);
-            markInitialized(constant, parser);
-        } while (match(TOKEN_COMMA, parser));
+            consume(TOKEN_IDENTIFIER, "Error, expect parameter name.", p);
+            Token name = p->prev;
+            uint8_t constant = defineLocalVar(&name, p);
+            markInitialized(constant, p);
+        } while (match(TOKEN_COMMA, p));
     }
 
-    consume(TOKEN_RIGHT_PAREN, "Error, expect ')' after argument list.", parser);
+    consume(TOKEN_RIGHT_PAREN, "Error, expect ')' after argument list.", p);
 
-    block("Error, expect 'end' after function definition.", parser);
+    block("Error, expect 'end' after function definition.", p);
 
     // endCompiler emits a return that would already reset the stack, no need for endScope
-    ObjFunction* function = endCompiler(parser);
+    ObjFunction* function = endCompiler(p);
     function->upvalueCount = compiler.upvalueCount;
 
     /* finish parsing current function */
 
     ObjClosure* closure = newClosure(function);
 
-    size_t constant = addConstant(currentChunk(parser), OBJ_VAL((Object*)function));
+    size_t constant = addConstant(currentChunk(p), OBJ_VAL((Object*)function));
 
-    emitBytes(OP_CLOSURE, constant, parser);
+    emitBytes(OP_CLOSURE, constant, p);
 
     // add upvalues
     for (int i = 0; i < function->upvalueCount; i++)
     {
         Upvalue* upvalue = &compiler.upvalues[i];
 
-        emitByte(upvalue->immediate ? 1 : 0, parser);
-        emitByte((uint8_t)upvalue->index, parser);
+        emitByte(upvalue->immediate ? 1 : 0, p);
+        emitByte((uint8_t)upvalue->index, p);
+    }
+}
+
+/*
+Generate a `ObjFunction` object that represents the function currently defined. If local is true,
+then the function is defined locally with a single identifier as an assign target. If not, the
+function can have a table field or a global variable as the assign target.
+
+Parameters:
+- `local`: The option to denote whether this function is defined locally or not
+*/
+static void functionStatement(bool local, Parser* p)
+{
+    LhsAssign lhs;
+    lhs.fieldCount = 0;
+    initExpDesc(&lhs.e);
+
+    if (!check(TOKEN_IDENTIFIER, p))
+    {
+        error("Error, expect function name after 'function' and before arguments.", p);
     }
 
-    // set function as a global variable
-    if (!anonymous && !local)
+    /* Name */
+    if (local)
     {
-        emitBytes(OP_SET_GLOBAL, var_constant, parser);
-        // emitByte(OP_POP, parser);
+        Token name = p->current;
+        advance(p);
+        uint8_t local = defineLocalVar(&name, p);
+        markInitialized(local, p);
+        lhs.e.kind = EXP_LOCAL;
+    }
+    /* Name | prefix */
+    else
+    {
+        primaryExpression(&lhs.e, &lhs, true, p);
+    }
+
+    functionBody(p);
+
+    // set assign if needed
+    if (!local)
+    {
+        emitBytes(OP_CACHE, (uint8_t)1, p);
+        evaluateAssign(&lhs, true, p);
     }
 }
 
@@ -1284,274 +1343,274 @@ static void localVarStatement(Parser* parser)
     adjustExprList(&e, nexprs, nvars, parser);
 }
 
-static void ifStatement(Parser* parser)
+static void ifStatement(Parser* p)
 {
     ExpDesc e;
     initExpDesc(&e);
 
     // start of a single if branch
-    expression(&e, parser);
-    consume(TOKEN_THEN, "Error, expect 'then' to follow after condition expression.", parser);
+    expression(&e, p);
+    consume(TOKEN_THEN, "Error, expect 'then' to follow after condition expression.", p);
 
-    size_t nextBranchJump = emitJump(OP_JUMP_IF_FALSE, parser);
-    emitByte(OP_POP, parser);
+    size_t nextBranchJump = emitJump(OP_JUMP_IF_FALSE, p);
+    emitByte(OP_POP, p);
 
     // body statements
-    beginScope(parser);
-    while (!isAtEnd(parser) && peek(parser) != TOKEN_ELSE && peek(parser) != TOKEN_ELSEIF &&
-      peek(parser) != TOKEN_END)
+    beginScope(p);
+    while (!isAtEnd(p) && peek(p) != TOKEN_ELSE && peek(p) != TOKEN_ELSEIF &&
+      peek(p) != TOKEN_END)
     {
-        statements(parser);
+        statements(p);
     }
-    endScope(parser);
-    size_t endJump = emitJump(OP_JUMP, parser);
+    endScope(p);
+    size_t endJump = emitJump(OP_JUMP, p);
 
-    patchJump(nextBranchJump, parser);
-    emitByte(OP_POP, parser);
+    patchJump(nextBranchJump, p);
+    emitByte(OP_POP, p);
 
     // possible parralel branches
-    if (match(TOKEN_ELSEIF, parser))
+    if (match(TOKEN_ELSEIF, p))
     {
-        ifStatement(parser);
+        ifStatement(p);
     }
-    else if (match(TOKEN_ELSE, parser))
+    else if (match(TOKEN_ELSE, p))
     {
-        beginScope(parser);
-        block("Error, missing token 'end' to close if statement.", parser);
-        endScope(parser);
+        beginScope(p);
+        block("Error, missing token 'end' to close if statement.", p);
+        endScope(p);
     }
     else
     {
-        consume(TOKEN_END, "Error, missing token 'end' to close if statement.", parser);
+        consume(TOKEN_END, "Error, missing token 'end' to close if statement.", p);
     }
 
     // jump to end of if-statement
-    patchJump(endJump, parser);
+    patchJump(endJump, p);
 }
 
-static void whileStatement(Parser* parser)
+static void whileStatement(Parser* p)
 {
     ExpDesc e;
     initExpDesc(&e);
 
-    beginLoop(parser);
-    size_t loopStart = getBytePos(parser);
+    beginLoop(p);
+    size_t loopStart = getBytePos(p);
 
-    expression(&e, parser);
-    size_t endJump = emitJump(OP_JUMP_IF_FALSE, parser);
-    emitByte(OP_POP, parser);
+    expression(&e, p);
+    size_t endJump = emitJump(OP_JUMP_IF_FALSE, p);
+    emitByte(OP_POP, p);
 
-    consume(TOKEN_DO, "Error, expect token 'do' after while statement.", parser);
-    beginScope(parser);
-    block("Error, missing token 'end' to close while statement", parser);
-    endScope(parser);
+    consume(TOKEN_DO, "Error, expect token 'do' after while statement.", p);
+    beginScope(p);
+    block("Error, missing token 'end' to close while statement", p);
+    endScope(p);
 
-    emitBackJump(OP_LOOP, loopStart, parser);
+    emitBackJump(OP_LOOP, loopStart, p);
 
-    patchJump(endJump, parser);
-    emitByte(OP_POP, parser);
-    endLoop(parser);
+    patchJump(endJump, p);
+    emitByte(OP_POP, p);
+    endLoop(p);
 }
 
-static void repeatStatement(Parser* parser)
+static void repeatStatement(Parser* p)
 {
     ExpDesc e;
     initExpDesc(&e);
 
-    beginLoop(parser);
-    size_t loopStart = getBytePos(parser);
+    beginLoop(p);
+    size_t loopStart = getBytePos(p);
 
-    beginScope(parser);
-    while (!isAtEnd(parser) && peek(parser) != TOKEN_UNTIL)
+    beginScope(p);
+    while (!isAtEnd(p) && peek(p) != TOKEN_UNTIL)
     {
-        statements(parser);
+        statements(p);
     }
-    consume(TOKEN_UNTIL, "Error, expect until before condition of repeat statement.", parser);
-    expression(&e, parser);
+    consume(TOKEN_UNTIL, "Error, expect until before condition of repeat statement.", p);
+    expression(&e, p);
     // flip condition to loop while exit condition is false
-    emitByte(OP_NOT, parser);
-    endScope(parser);
+    emitByte(OP_NOT, p);
+    endScope(p);
 
-    size_t endJump = emitJump(OP_JUMP_IF_FALSE, parser);
+    size_t endJump = emitJump(OP_JUMP_IF_FALSE, p);
 
-    emitByte(OP_POP, parser);
-    emitBackJump(OP_LOOP, loopStart, parser);
+    emitByte(OP_POP, p);
+    emitBackJump(OP_LOOP, loopStart, p);
 
-    patchJump(endJump, parser);
-    emitByte(OP_POP, parser);
+    patchJump(endJump, p);
+    emitByte(OP_POP, p);
 
-    endLoop(parser);
+    endLoop(p);
 }
 
-static void numericalFor(Token* loop_var, Parser* parser)
+static void numericalFor(Token* loop_var, Parser* p)
 {
     ExpDesc e;
     initExpDesc(&e);
 
-    beginScope(parser);
+    beginScope(p);
 
     // initializer
-    expression(&e, parser);
+    expression(&e, p);
     consume(
-      TOKEN_COMMA, "Error, no comma to separate between iniitializer, limit and step.", parser);
+      TOKEN_COMMA, "Error, no comma to separate between iniitializer, limit and step.", p);
 
     // limit
-    expression(&e, parser);
+    expression(&e, p);
 
     // step
-    if (match(TOKEN_COMMA, parser))
+    if (match(TOKEN_COMMA, p))
     {
-        expression(&e, parser);
+        expression(&e, p);
     }
     else
     {
-        emitConstant(NUM_VAL(1), parser);
+        emitConstant(NUM_VAL(1), p);
     }
 
     // define custom variables by the compiler
     Token var = genReservedVarToken(RESERVED_VAR);
-    size_t var_index = defineLocalVar(&var, parser);
-    markInitialized(var_index, parser);
+    size_t var_index = defineLocalVar(&var, p);
+    markInitialized(var_index, p);
 
     Token limit = genReservedVarToken(RESERVED_LIMIT);
-    size_t limit_index = defineLocalVar(&limit, parser);
-    markInitialized(limit_index, parser);
+    size_t limit_index = defineLocalVar(&limit, p);
+    markInitialized(limit_index, p);
 
     Token step = genReservedVarToken(RESERVED_STEP);
-    size_t step_index = defineLocalVar(&step, parser);
-    markInitialized(step_index, parser);
+    size_t step_index = defineLocalVar(&step, p);
+    markInitialized(step_index, p);
 
-    size_t zero_constant = addConstant(currentChunk(parser), NUM_VAL(0));
+    size_t zero_constant = addConstant(currentChunk(p), NUM_VAL(0));
 
     /* begin loop */
-    beginLoop(parser);
-    size_t loopStart = getBytePos(parser);
-    int outerLoopScope = parser->compiler->currentScope;
+    beginLoop(p);
+    size_t loopStart = getBytePos(p);
+    int outerLoopScope = p->compiler->currentScope;
 
     /* start condition */
 
     // step > 0
-    emitBytes(OP_GET_LOCAL, step_index, parser);
-    emitBytes(OP_CONSTANT, (uint8_t)zero_constant, parser);
-    emitByte(OP_GREATER, parser);
+    emitBytes(OP_GET_LOCAL, step_index, p);
+    emitBytes(OP_CONSTANT, (uint8_t)zero_constant, p);
+    emitByte(OP_GREATER, p);
 
     // and
-    size_t andJump1 = emitJump(OP_JUMP_IF_FALSE, parser);
-    emitByte(OP_POP, parser);
+    size_t andJump1 = emitJump(OP_JUMP_IF_FALSE, p);
+    emitByte(OP_POP, p);
 
     // var <= limit
-    emitBytes(OP_GET_LOCAL, var_index, parser);
-    emitBytes(OP_GET_LOCAL, limit_index, parser);
-    emitBytes(OP_GREATER, OP_NOT, parser);
+    emitBytes(OP_GET_LOCAL, var_index, p);
+    emitBytes(OP_GET_LOCAL, limit_index, p);
+    emitBytes(OP_GREATER, OP_NOT, p);
 
     // patch andJump
-    patchJump(andJump1, parser);
+    patchJump(andJump1, p);
 
-    size_t orNextJump = emitJump(OP_JUMP_IF_FALSE, parser);
-    size_t orEndJump = emitJump(OP_JUMP, parser);
+    size_t orNextJump = emitJump(OP_JUMP_IF_FALSE, p);
+    size_t orEndJump = emitJump(OP_JUMP, p);
 
-    patchJump(orNextJump, parser);
-    emitByte(OP_POP, parser);
+    patchJump(orNextJump, p);
+    emitByte(OP_POP, p);
 
     // step <= 0
-    emitBytes(OP_GET_LOCAL, step_index, parser);
-    emitBytes(OP_CONSTANT, (uint8_t)zero_constant, parser);
-    emitBytes(OP_GREATER, OP_NOT, parser);
+    emitBytes(OP_GET_LOCAL, step_index, p);
+    emitBytes(OP_CONSTANT, (uint8_t)zero_constant, p);
+    emitBytes(OP_GREATER, OP_NOT, p);
 
     // and
-    size_t andJump2 = emitJump(OP_JUMP_IF_FALSE, parser);
-    emitByte(OP_POP, parser);
+    size_t andJump2 = emitJump(OP_JUMP_IF_FALSE, p);
+    emitByte(OP_POP, p);
 
     // var >= limit
-    emitBytes(OP_GET_LOCAL, var_index, parser);
-    emitBytes(OP_GET_LOCAL, limit_index, parser);
-    emitBytes(OP_NOT, OP_LESS, parser);
+    emitBytes(OP_GET_LOCAL, var_index, p);
+    emitBytes(OP_GET_LOCAL, limit_index, p);
+    emitBytes(OP_NOT, OP_LESS, p);
 
     // patch andJump
-    patchJump(andJump2, parser);
+    patchJump(andJump2, p);
 
     // patch or jump
-    patchJump(orEndJump, parser);
+    patchJump(orEndJump, p);
 
     /* end condition */
 
     /* start body */
 
-    size_t endLoopJump = emitJump(OP_JUMP_IF_FALSE, parser);
-    emitByte(OP_POP, parser);
+    size_t endLoopJump = emitJump(OP_JUMP_IF_FALSE, p);
+    emitByte(OP_POP, p);
 
-    consume(TOKEN_DO, "Error, expect token 'do' after for initializations.", parser);
-    beginScope(parser);
+    consume(TOKEN_DO, "Error, expect token 'do' after for initializations.", p);
+    beginScope(p);
 
     // load loop_var
-    emitBytes(OP_GET_LOCAL, var_index, parser);
-    size_t loop_var_index = defineLocalVar(loop_var, parser);
-    emitBytes(OP_SET_LOCAL, loop_var_index, parser);
-    markInitialized(loop_var_index, parser);
+    emitBytes(OP_GET_LOCAL, var_index, p);
+    size_t loop_var_index = defineLocalVar(loop_var, p);
+    emitBytes(OP_SET_LOCAL, loop_var_index, p);
+    markInitialized(loop_var_index, p);
 
-    block("Error, missing token 'end' to close for statement.", parser);
+    block("Error, missing token 'end' to close for statement.", p);
 
     // increment var via assignment expression
-    emitBytes(OP_GET_LOCAL, var_index, parser);
-    emitBytes(OP_GET_LOCAL, step_index, parser);
-    emitByte(OP_ADD, parser);
-    emitBytes(OP_SET_LOCAL, var_index, parser);
-    emitByte(OP_POP, parser);
+    emitBytes(OP_GET_LOCAL, var_index, p);
+    emitBytes(OP_GET_LOCAL, step_index, p);
+    emitByte(OP_ADD, p);
+    emitBytes(OP_SET_LOCAL, var_index, p);
+    emitByte(OP_POP, p);
 
-    endScope(parser);
+    endScope(p);
 
     /* end body */
 
-    emitBackJump(OP_LOOP, loopStart, parser);
+    emitBackJump(OP_LOOP, loopStart, p);
 
-    patchJump(endLoopJump, parser);
-    emitByte(OP_POP, parser);
-    endLoop(parser);
+    patchJump(endLoopJump, p);
+    emitByte(OP_POP, p);
+    endLoop(p);
 
     /* end loop*/
 
-    endScope(parser);
+    endScope(p);
 }
 
-static void forStatement(Parser* parser)
+static void forStatement(Parser* p)
 {
-    consume(TOKEN_IDENTIFIER, "Error, identifier needs to follow 'for' statement.", parser);
-    Token loop_var = parser->prev;
+    consume(TOKEN_IDENTIFIER, "Error, identifier needs to follow 'for' statement.", p);
+    Token loop_var = p->prev;
 
-    if (match(TOKEN_EQUAL, parser))
+    if (match(TOKEN_EQUAL, p))
     {
-        numericalFor(&loop_var, parser);
+        numericalFor(&loop_var, p);
     }
-    else if (match(TOKEN_IN, parser))
+    else if (match(TOKEN_IN, p))
     {
         // TODO: implement generic for
     }
     else
     {
-        error("Error, unknown keyword found after 'for'.", parser);
+        error("Error, unknown keyword found after 'for'.", p);
     }
 }
 
-static void breakStatement(Parser* parser)
+static void breakStatement(Parser* p)
 {
-    if (parser->compiler->currentLoopScope == 0)
+    if (p->compiler->currentLoopScope == 0)
     {
-        errorAt(parser->prev, "Error, a break statement cannot appear outside of a loop.", parser);
+        errorAt(p->prev, "Error, a break statement cannot appear outside of a loop.", p);
     }
 
     // clean up until we meet the outer scope of the loop
-    int loopScope = parser->compiler->loopContexts[parser->compiler->currentLoopScope];
+    int loopScope = p->compiler->loopContexts[p->compiler->currentLoopScope];
 
-    endScopeUntil(loopScope, parser);
+    endScopeUntil(loopScope, p);
 
-    size_t breakJump = emitJump(OP_JUMP, parser);
-    Break* br = &parser->compiler->breaks[parser->compiler->breakCount];
+    size_t breakJump = emitJump(OP_JUMP, p);
+    Break* br = &p->compiler->breaks[p->compiler->breakCount];
     br->pos = breakJump;
-    br->depth = parser->compiler->currentLoopScope;
-    parser->compiler->breakCount++;
+    br->depth = p->compiler->currentLoopScope;
+    p->compiler->breakCount++;
 }
 
-static void returnStatement(Parser* parser)
+static void returnStatement(Parser* p)
 {
     ExpDesc e;
     initExpDesc(&e);
@@ -1561,91 +1620,91 @@ static void returnStatement(Parser* parser)
     // return statement now carry with it the number of expression it would return
     // if this number does not match with the number permitted by the call, adjustment is needed
 
-    if (blockFollow(current(parser)))
+    if (blockFollow(current(p)))
     {
-        emitConstant(NIL_CONSTANT, parser);
+        emitConstant(NIL_CONSTANT, p);
     }
     else
     {
-        nexprs = expressionList(&e, parser);
+        nexprs = expressionList(&e, p);
     }
 
-    emitBytes(OP_RETURN, nexprs, parser);
+    emitBytes(OP_RETURN, nexprs, p);
 }
 
-static bool statements(Parser* parser)
+static bool statements(Parser* p)
 {
-    if (match(TOKEN_LOCAL, parser))
+    if (match(TOKEN_LOCAL, p))
     {
-        if (match(TOKEN_FUNCTION, parser))
+        if (match(TOKEN_FUNCTION, p))
         {
-            functionStatement(parser, true, false);
+            functionStatement(true, p);
         }
         else
         {
-            localVarStatement(parser);
+            localVarStatement(p);
         }
         return false;
     }
-    else if (match(TOKEN_FUNCTION, parser))
+    else if (match(TOKEN_FUNCTION, p))
     {
-        functionStatement(parser, false, false);
+        functionStatement(false, p);
         return false;
     }
-    else if (match(TOKEN_DO, parser))
+    else if (match(TOKEN_DO, p))
     {
-        beginScope(parser);
-        block("Error, missing token 'end' to close block.", parser);
-        endScope(parser);
+        beginScope(p);
+        block("Error, missing token 'end' to close block.", p);
+        endScope(p);
         return false;
     }
-    else if (match(TOKEN_IF, parser))
+    else if (match(TOKEN_IF, p))
     {
-        ifStatement(parser);
+        ifStatement(p);
         return false;
     }
-    else if (match(TOKEN_WHILE, parser))
+    else if (match(TOKEN_WHILE, p))
     {
-        whileStatement(parser);
+        whileStatement(p);
         return false;
     }
-    else if (match(TOKEN_REPEAT, parser))
+    else if (match(TOKEN_REPEAT, p))
     {
-        repeatStatement(parser);
+        repeatStatement(p);
         return false;
     }
-    else if (match(TOKEN_BREAK, parser))
+    else if (match(TOKEN_BREAK, p))
     {
-        breakStatement(parser);
+        breakStatement(p);
         return true;
     }
-    else if (match(TOKEN_FOR, parser))
+    else if (match(TOKEN_FOR, p))
     {
-        forStatement(parser);
+        forStatement(p);
         return false;
     }
-    else if (match(TOKEN_RETURN, parser))
+    else if (match(TOKEN_RETURN, p))
     {
-        returnStatement(parser);
+        returnStatement(p);
         return true;
     }
     else
     {
-        expressionStatement(parser);
+        expressionStatement(p);
         return false;
     }
 
     return true;
 }
 
-static void chunk(Parser* parser)
+static void chunk(Parser* p)
 {
-    while (!isAtEnd(parser))
+    while (!isAtEnd(p))
     {
-        bool stmt = statements(parser);
+        bool stmt = statements(p);
 
         // consume an optinal semicolon
-        match(TOKEN_SEMICOLON, parser);
+        match(TOKEN_SEMICOLON, p);
     }
 }
 

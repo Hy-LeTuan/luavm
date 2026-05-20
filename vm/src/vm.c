@@ -24,6 +24,7 @@ void initVM(VM* vm)
     vm->objectStack = NULL;
     vm->frameCount = 0;
     vm->openUpvalues = NULL;
+    vm->cacheSize = 0;
 
     resetStack(vm);
     initTable(&vm->strings);
@@ -61,8 +62,8 @@ static void push(Value value, VM* vm)
 {
     if (vm->stackTop - vm->stack == STACK_MAX)
     {
-        fprintf(stderr, "Error, stack limit exceeded.\n");
-        exit(EXIT_FAILURE);
+        runtimeError(vm, "Error, stack limit exceeded.");
+        return;
     }
 
     *vm->stackTop = value;
@@ -78,6 +79,18 @@ static Value pop(VM* vm)
 {
     vm->stackTop--;
     return *vm->stackTop;
+}
+
+static Value getAssignValue(VM* vm)
+{
+    if (vm->cacheSize > 0)
+    {
+        Value v = vm->cache[vm->cacheSize - 1];
+        vm->cacheSize--;
+        return v;
+    }
+
+    return pop(vm);
 }
 
 static void concatenate(VM* vm)
@@ -426,9 +439,8 @@ InterpretResult run(VM* vm)
             case OP_SET_GLOBAL:
             {
                 Value key = READ_CONSTANT();
-                Value value = peek(0, vm);
+                Value value = getAssignValue(vm);
                 tableInsertOrSet(key, value, &vm->globals);
-                pop(vm);
                 break;
             }
             case OP_GET_LOCAL:
@@ -440,7 +452,7 @@ InterpretResult run(VM* vm)
             case OP_SET_LOCAL:
             {
                 uint8_t index = READ_BYTE();
-                frame->slots[index] = peek(0, vm);
+                frame->slots[index] = getAssignValue(vm);
                 break;
             }
             case OP_GET_UPVALUE:
@@ -547,10 +559,47 @@ InterpretResult run(VM* vm)
                 push(val, vm);
                 break;
             }
+            case OP_SET_FIELD:
+            {
+                Value key = pop(vm);
+                Value tableVal = pop(vm);
+
+                if (!IS_TABLE(tableVal))
+                {
+                    runtimeError(vm, "Error, trying to index into a value that is not a table.");
+                    break;
+                }
+
+                ObjTable* table = AS_TABLE(tableVal);
+
+                Value val = getAssignValue(vm);
+                tableInsertOrSet(key, val, &table->content);
+                break;
+            }
             case OP_CLOSE_UPVALUE:
             {
                 closeUpvalues(vm->stackTop - 1, vm);
                 pop(vm);
+                break;
+            }
+            case OP_CACHE:
+            {
+                uint8_t n = READ_BYTE();
+
+                if (n > CACHE_MAX)
+                {
+                    runtimeError(vm, "Error, cache limit exceeded.");
+                    break;
+                }
+
+                vm->cacheSize = n;
+
+                // reverse the order of the insertion
+                for (int i = 0; i < n; i++)
+                {
+                    Value v = pop(vm);
+                    vm->cache[vm->cacheSize - i - 1] = v;
+                }
                 break;
             }
             case OP_POP:

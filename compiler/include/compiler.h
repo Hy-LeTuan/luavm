@@ -10,8 +10,7 @@
 #include <objfunction.h>
 
 #define HAS_MULTRET(k) (k == EXP_CALL || k == EXP_VARARG)
-#define HAS_ASSIGN(k)                                                                              \
-    (k == EXP_LOCAL || k == EXP_UPVAL || k == EXP_INDEX || k == EXP_GLOBAL)
+#define HAS_ASSIGN(k) (k == EXP_LOCAL || k == EXP_UPVAL || k == EXP_INDEX || k == EXP_GLOBAL)
 
 ObjFunction* compile(const char* source, Table* strings);
 
@@ -96,5 +95,12 @@ typedef struct
     // precedence of the infix operator
     Precedence prec;
 } Rule;
+
+typedef struct
+{
+    ExpDesc e;
+    int fieldCount;
+    uint8_t index;
+} LhsAssign;
 
 #endif

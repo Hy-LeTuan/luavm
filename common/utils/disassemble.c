@@ -1,4 +1,3 @@
-#include "value.h"
 #include <disassemble.h>
 
 #include <stdio.h>
@@ -185,6 +184,8 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return simpleInstruction("OP_SET_FIELD", offset);
         case OP_CLOSE_UPVALUE:
             return simpleInstruction("OP_CLOSE_UPVALUE", offset);
+        case OP_CACHE:
+            return constantInstruction("OP_CACHE", chunk, offset, "cache: ", false);
         case OP_POP:
             return simpleInstruction("OP_POP", offset);
         case OP_RETURN:
