@@ -46,10 +46,10 @@ typedef struct Compiler
     size_t localCount;
     size_t breakCount;
     size_t upvalueCount;
-    int loopContexts[UINT8_MAX + 1];
+    size_t loopContexts[UINT8_MAX + 1];
     Local locals[UINT8_MAX + 1];
     Upvalue upvalues[UINT8_MAX + 1];
-    Break breaks[UINT16_MAX + 1];
+    Break breaks[UINT8_MAX + 1];
 } Compiler;
 
 typedef struct

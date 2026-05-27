@@ -254,8 +254,13 @@ static void endScopeUntil(int targetScope, Parser* p)
 
 static void beginLoop(Parser* p)
 {
+    if (p->compiler->currentLoopScope + 1 > UINT8_MAX)
+    {
+        error("Error, inner loop depth exceeded.", p);
+    }
+
     p->compiler->currentLoopScope++;
-    int* loopContext = &p->compiler->loopContexts[p->compiler->currentLoopScope];
+    size_t* loopContext = &p->compiler->loopContexts[p->compiler->currentLoopScope];
     *loopContext = p->compiler->currentScope;
 }
 
@@ -333,6 +338,12 @@ static void markInitialized(uint8_t localIndex, Parser* p)
 
 static uint8_t addLocal(Token* name, Parser* p)
 {
+    if (p->compiler->localCount + 1 > UINT8_MAX)
+    {
+        error("Error, too many local variables declared.", p);
+        return 0;
+    }
+
     Local* local = &p->compiler->locals[p->compiler->localCount];
     local->start = name->start;
     local->length = name->length;
@@ -343,13 +354,13 @@ static uint8_t addLocal(Token* name, Parser* p)
     return p->compiler->localCount - 1;
 }
 
-static int addUpvalue(uint8_t index, bool immediate, Compiler* compiler)
+static int addUpvalue(uint8_t index, bool immediate, Compiler* c)
 {
-    int upvalueCount = compiler->upvalueCount;
+    int upvalueCount = c->upvalueCount;
 
     for (int i = 0; i < upvalueCount; i++)
     {
-        Upvalue* upvalue = &compiler->upvalues[i];
+        Upvalue* upvalue = &c->upvalues[i];
 
         // upvalue already exists
         if (upvalue->index == index && upvalue->immediate == immediate)
@@ -363,35 +374,35 @@ static int addUpvalue(uint8_t index, bool immediate, Compiler* compiler)
         return -1;
     }
 
-    Upvalue* upvalue = &compiler->upvalues[upvalueCount];
+    Upvalue* upvalue = &c->upvalues[upvalueCount];
     upvalue->index = index;
     upvalue->immediate = immediate;
 
-    compiler->upvalueCount++;
+    c->upvalueCount++;
 
     return upvalueCount;
 }
 
-static int lookupUpvalue(Token* name, Compiler* compiler)
+static int lookupUpvalue(Token* name, Compiler* c)
 {
-    if (compiler->enclosing == NULL)
+    if (c->enclosing == NULL)
     {
         return -1;
     }
 
-    int index = lookupLocal(name, compiler->enclosing);
+    int index = lookupLocal(name, c->enclosing);
 
     if (index != -1)
     {
         // add upvalue to the closure that actual needs the upvalue, not where it is found
-        compiler->enclosing->locals[index].isCaptured = true;
-        return addUpvalue((uint8_t)index, true, compiler);
+        c->enclosing->locals[index].isCaptured = true;
+        return addUpvalue((uint8_t)index, true, c);
     }
 
-    index = lookupUpvalue(name, compiler->enclosing);
+    index = lookupUpvalue(name, c->enclosing);
     if (index != -1)
     {
-        return addUpvalue((uint8_t)index, false, compiler);
+        return addUpvalue((uint8_t)index, false, c);
     }
 
     return -1;
@@ -1581,9 +1592,13 @@ static void breakStatement(Parser* p)
     {
         errorAt(p->prev, "Error, a break statement cannot appear outside of a loop.", p);
     }
+    else if (p->compiler->breakCount + 1 > UINT8_MAX)
+    {
+        error("Error, too many break statement inside a single block.", p);
+    }
 
     // clean up until we meet the outer scope of the loop
-    int loopScope = p->compiler->loopContexts[p->compiler->currentLoopScope];
+    size_t loopScope = p->compiler->loopContexts[p->compiler->currentLoopScope];
 
     endScopeUntil(loopScope, p);
 
