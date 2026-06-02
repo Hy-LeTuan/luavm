@@ -9,6 +9,7 @@ ObjFunction* newFunction()
     f->ip = f->chunk.code;
     f->arity = 0;
     f->upvalueCount = 0;
+    f->type = TYPE_FUNCTION;
 
     return f;
 }

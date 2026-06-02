@@ -639,8 +639,19 @@ static uint8_t expressionList(ExpDesc* e, Parser* p)
     do
     {
         expression(e, p);
+
+        if (length > UINT8_MAX)
+        {
+            error("Error, argument count exceeded.", p);
+        }
+
         length++;
     } while (match(TOKEN_COMMA, p));
+
+    if (HAS_MULTRET(e->kind))
+    {
+        patchSingleByte(e->patch, MULTRET, p);
+    }
 
     return length;
 }
@@ -774,19 +785,9 @@ static void constructor(ExpDesc* e, Parser* p)
 static uint8_t functionArguments(ExpDesc* e, Parser* p)
 {
     uint8_t arity = 0;
-
     if (!check(TOKEN_RIGHT_PAREN, p))
     {
-        do
-        {
-            expression(e, p);
-
-            if (arity > 255)
-            {
-                error("Can't have more than 255 arguments.", p);
-            }
-            arity++;
-        } while (match(TOKEN_COMMA, p));
+        arity = expressionList(e, p);
     }
 
     consume(TOKEN_RIGHT_PAREN, "Error, missing ')' to close function call.", p);
@@ -822,9 +823,9 @@ static void call(ExpDesc* e, Parser* p)
     // all functions will be restricted to returning only 1 value at first.
     // if a function is permitted to have more than 1 return value, the return value will be patched
     emitBytes(OP_CALL, arity, p);
-    emitByte(1, p);
+    emitByte(SINGLERET, p);
     e->kind = EXP_CALL;
-    e->patch = currentChunk(p)->count - 1;
+    e->patch = getBytePos(p) - 1;
 }
 
 // pratt parsing table
@@ -902,6 +903,13 @@ static void prefixExpression(ExpDesc* e, LhsAssign* lhs, Parser* p)
             advance(p);
             expression(e, p);
             consume(TOKEN_RIGHT_PAREN, "Error, '(' not closed, missing ')' character.", p);
+
+            if (HAS_MULTRET(e->kind))
+            {
+                patchSingleByte(e->patch, SINGLERET, p);
+            }
+
+            e->kind = EXP_NIL;
             break;
         default:
             error("Error, unknown symbol encountered.", p);
@@ -1017,7 +1025,20 @@ static void simpleExpression(ExpDesc* e, Parser* p)
             constructor(e, p);
             break;
         case TOKEN_THREE_DOTS:
-            // TODO: varargs for expr
+            advance(p);
+            if (!ALLOW_VARARG(p->compiler->function->type))
+            {
+                error(
+                  "Erorr, vararg expression `...` cannot be used outside of vararg function.", p);
+                break;
+            }
+
+            // cancel the arg local variable
+            p->compiler->function->type = TYPE_VARARG_NO_ARG;
+
+            emitBytes(OP_VARARG, SINGLERET, p);
+            e->kind = EXP_VARARG;
+            e->patch = getBytePos(p) - 1;
             break;
         default:
             primaryExpression(e, NULL, false, p);
@@ -1067,26 +1088,27 @@ static void expression(ExpDesc* e, Parser* p)
     parse(PREC_ASSIGNMENT, e, p);
 }
 
-static void adjustExprList(ExpDesc* last, int nexprs, int expected, Parser* p)
+static void adjustAssign(ExpDesc* last, uint8_t nexprs, uint8_t expected, Parser* p)
 {
-    int diff = expected - nexprs;
+    uint8_t diff = abs(expected - nexprs);
 
-    if (HAS_MULTRET(last->kind) && diff != 0)
+    if (HAS_MULTRET(last->kind))
     {
-        int offset = last->patch;
-
-        if (diff > 0)
+        if (diff == 0)
         {
-            // add 1 to balance the initial 1 counted
-            patchSingleByte(offset, diff + 1, p);
+            patchSingleByte(last->patch, SINGLERET, p);
+        }
+        else if (nexprs < expected)
+        {
+            /* return value offset by 1 */
+            patchSingleByte(last->patch, MAKE_RET(diff + 1), p);
             return;
         }
         else
         {
-            patchSingleByte(offset, 0, p);
-            diff = abs(diff) - 1;
-
-            for (int i = 0; i < diff; i++)
+            patchSingleByte(last->patch, ZERORET, p);
+            diff--;
+            for (uint8_t i = 0; i < diff; i++)
             {
                 emitByte(OP_POP, p);
             }
@@ -1094,9 +1116,9 @@ static void adjustExprList(ExpDesc* last, int nexprs, int expected, Parser* p)
     }
     else
     {
-        for (int i = 0; i < abs(diff); i++)
+        for (uint8_t i = 0; i < diff; i++)
         {
-            if (diff < 0)
+            if (nexprs > expected)
             {
                 emitByte(OP_POP, p);
             }
@@ -1151,7 +1173,7 @@ static void assign(int nvars, Parser* p)
         consume(TOKEN_EQUAL, "Error, missing '=' for assignment.", p);
 
         uint8_t nexprs = expressionList(&e, p);
-        adjustExprList(&e, nexprs, nvars, p);
+        adjustAssign(&e, nexprs, nvars, p);
 
         emitBytes(OP_CACHE, (uint8_t)nvars, p);
 
@@ -1181,7 +1203,7 @@ static void expressionStatement(Parser* p)
 
     if (e.kind == EXP_CALL)
     {
-        emitByte(OP_POP, p);
+        patchSingleByte(e.patch, ZERORET, p);
         return;
     }
     else
@@ -1202,6 +1224,53 @@ static uint8_t defineLocalVar(Token* name, Parser* p)
     return localIndex;
 }
 
+static void paramList(Parser* p)
+{
+    if (!check(TOKEN_RIGHT_PAREN, p))
+    {
+        do
+        {
+            p->compiler->function->arity++;
+            if (p->compiler->function->arity > UINT8_MAX)
+            {
+                error("Error, can't have more than 255 parameters.", p);
+            }
+
+            switch (current(p))
+            {
+                case TOKEN_IDENTIFIER:
+                {
+                    Token name = p->current;
+                    advance(p);
+                    uint8_t constant = defineLocalVar(&name, p);
+                    markInitialized(constant, p);
+                    break;
+                }
+                case TOKEN_THREE_DOTS:
+                {
+                    advance(p);
+                    Token argToken = genReservedVarToken(RESERVED_ARG);
+                    uint8_t constant = defineLocalVar(&argToken, p);
+                    markInitialized(constant, p);
+
+                    p->compiler->function->type = TYPE_VARARG;
+
+                    if (!check(TOKEN_RIGHT_PAREN, p))
+                    {
+                        error("Error, vararg must be at the end of parameter list.", p);
+                    }
+                    break;
+                }
+                default:
+                    error("Error, invalid expression in parameter list.", p);
+                    break;
+            }
+        } while (match(TOKEN_COMMA, p));
+    }
+
+    consume(TOKEN_RIGHT_PAREN, "Error, expect ')' after argument list.", p);
+}
+
 static void functionBody(Parser* p)
 {
     consume(TOKEN_LEFT_PAREN, "Error, expect '(' after.", p);
@@ -1214,24 +1283,8 @@ static void functionBody(Parser* p)
     /* start parsing current function */
     p->compiler = &compiler;
 
-    if (!check(TOKEN_RIGHT_PAREN, p))
-    {
-        do
-        {
-            p->compiler->function->arity++;
-            if (p->compiler->function->arity > 255)
-            {
-                error("Can't have more than 255 parameters.", p);
-            }
-
-            consume(TOKEN_IDENTIFIER, "Error, expect parameter name.", p);
-            Token name = p->prev;
-            uint8_t constant = defineLocalVar(&name, p);
-            markInitialized(constant, p);
-        } while (match(TOKEN_COMMA, p));
-    }
-
-    consume(TOKEN_RIGHT_PAREN, "Error, expect ')' after argument list.", p);
+    /* parse parameters */
+    paramList(p);
 
     block("Error, expect 'end' after function definition.", p);
 
@@ -1301,7 +1354,7 @@ static void functionStatement(bool local, Parser* p)
     }
 }
 
-static void localVarStatement(Parser* parser)
+static void localVarStatement(Parser* p)
 {
     uint8_t initList[UINT8_MAX + 1];
     int nvars = 0;
@@ -1312,32 +1365,39 @@ static void localVarStatement(Parser* parser)
 
     do
     {
-        consume(TOKEN_IDENTIFIER, "Error, an identifier is required.", parser);
-        Token name = parser->prev;
-        uint8_t localIndex = defineLocalVar(&name, parser);
+        consume(TOKEN_IDENTIFIER, "Error, an identifier is required.", p);
+        Token name = p->prev;
+        uint8_t localIndex = defineLocalVar(&name, p);
         initList[nvars] = localIndex;
-        nvars++;
-    } while (match(TOKEN_COMMA, parser));
 
-    if (match(TOKEN_EQUAL, parser))
+        if (nvars + 1 >= UINT8_MAX)
+        {
+            error("Error ,too many variables in assignment statement.", p);
+            return;
+        }
+
+        nvars++;
+    } while (match(TOKEN_COMMA, p));
+
+    if (match(TOKEN_EQUAL, p))
     {
-        nexprs = expressionList(&e, parser);
+        nexprs = expressionList(&e, p);
     }
     else
     {
         for (int i = 0; i < nvars; i++)
         {
-            emitConstant(NIL_CONSTANT, parser);
+            emitConstant(NIL_CONSTANT, p);
         }
         nexprs = nvars;
     }
 
     for (int i = 0; i < nvars; i++)
     {
-        markInitialized(initList[i], parser);
+        markInitialized(initList[i], p);
     }
 
-    adjustExprList(&e, nexprs, nvars, parser);
+    adjustAssign(&e, nexprs, nvars, p);
 }
 
 static void ifStatement(Parser* p)

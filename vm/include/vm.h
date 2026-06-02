@@ -10,6 +10,8 @@
 #define STACK_MAX 256
 #define CACHE_MAX 128
 
+#define IS_MULTRET(status) (status == 0)
+
 typedef enum
 {
     INTERPRET_SUCCESS,
@@ -21,8 +23,12 @@ typedef struct
     ObjClosure* closure;
     uint8_t* ip;
     Value* slots;
-    // expected number of return value
+
+    /* expected number of return value */
     uint8_t expected;
+
+    /* the number of extra arguments hidden in a vararg function */
+    uint8_t extras;
 } CallFrame;
 
 typedef struct
@@ -37,6 +43,9 @@ typedef struct
     Table strings;
     Table globals;
     ObjUpvalue* openUpvalues;
+
+    /* this field is used to keep track of how many values are generated from multret expressions */
+    uint8_t nvals;
 } VM;
 
 void initVM(VM* vm);

@@ -59,7 +59,21 @@ static int callInstruction(const char* code, Chunk* chunk, int offset, bool isCo
 {
     message(code);
     fprintf(stdout, "%-8s", "");
-    fprintf(stdout, "Ar: %04d; Ret: %04d", chunk->code[offset + 1], chunk->code[offset + 2]);
+
+    uint8_t arity = chunk->code[offset + 1];
+    uint8_t ret = chunk->code[offset + 2];
+
+    fprintf(stdout, "arity: %04d; ", arity);
+
+    if (ret == 0)
+    {
+        fprintf(stdout, "nrets: all");
+    }
+    else
+    {
+        fprintf(stdout, "nrets: %04d", ret);
+    }
+
     fprintf(stdout, "\n");
 
     return offset + 3;
@@ -74,6 +88,28 @@ static int jumpInstruction(const char* code, Chunk* chunk, int offset)
     fprintf(stdout, "%-8s", "");
     fprintf(stdout, "%04d\n", jump);
     return offset + 3;
+}
+static int varargInstruction(const char* code, Chunk* chunk, int offset)
+{
+    Value constant = chunk->constants.values[chunk->code[offset + 1]];
+    message(code);
+
+    fprintf(stdout, "%-8s", "");
+
+    uint8_t status = chunk->code[offset + 1];
+
+    if (status == 0)
+    {
+        fprintf(stdout, "nrets: all");
+    }
+    else
+    {
+        fprintf(stdout, "%s%04d", "nrets: ", chunk->code[offset + 1]);
+    }
+
+    fprintf(stdout, "\n");
+
+    return offset + 2;
 }
 
 static int closureInstruction(const char* code, Chunk* chunk, int offset)
@@ -174,6 +210,8 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return closureInstruction("OP_CLOSURE", chunk, offset);
         case OP_CALL:
             return callInstruction("OP_CALL", chunk, offset, false);
+        case OP_VARARG:
+            return varargInstruction("OP_VARARG", chunk, offset);
         case OP_CONSTRUCT:
             return constantInstruction("OP_CONSTRUCT", chunk, offset, "fields: ", false);
         case OP_GET_FIELD:
@@ -187,7 +225,7 @@ int disassembleInstruction(Chunk* chunk, int offset)
         case OP_POP:
             return simpleInstruction("OP_POP", offset);
         case OP_RETURN:
-            return constantInstruction("OP_RETURN", chunk, offset, "ret: ", false);
+            return constantInstruction("OP_RETURN", chunk, offset, "nrets: ", false);
     }
 
     return offset;

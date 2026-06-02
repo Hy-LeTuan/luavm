@@ -25,6 +25,7 @@ void initVM(VM* vm)
     vm->frameCount = 0;
     vm->openUpvalues = NULL;
     vm->cacheSize = 0;
+    vm->nvals = 0;
 
     resetStack(vm);
     initTable(&vm->strings);
@@ -81,6 +82,33 @@ static Value pop(VM* vm)
     return *vm->stackTop;
 }
 
+static void reduceStack(uint8_t amount, VM* vm)
+{
+    if (vm->stackTop - vm->stack < amount)
+    {
+        runtimeError(vm, "Internal Error, stack is reduced past the limit.");
+    }
+
+    vm->stackTop -= amount;
+}
+
+static void setnvals(uint8_t val, VM* vm)
+{
+    vm->nvals = val;
+}
+
+/*
+   Adjust the number of expressions in an expression list based on whether a multret expression is
+   there. The function also consumes the `nvals` register.
+*/
+static uint8_t getnexprs(uint8_t nexprs, VM* vm)
+{
+    uint8_t final = vm->nvals == 0 ? nexprs : nexprs + vm->nvals - 1;
+    vm->nvals = 0;
+
+    return final;
+}
+
 static Value getAssignValue(VM* vm)
 {
     if (vm->cacheSize > 0)
@@ -103,7 +131,82 @@ static void concatenate(VM* vm)
     push(OBJ_VAL((Object*)result), vm);
 }
 
-static bool call(uint8_t callArity, uint8_t expected, VM* vm)
+/*
+   Adjust parameter list to match argument count. For vararg functions, an arg table will be
+   generated (if permitted) and all extra arguments are lifted into cache
+*/
+static uint8_t adjustParamters(uint8_t callArity, uint8_t functionArity, FunctionType type, VM* vm)
+{
+    uint8_t diff = abs(callArity - functionArity);
+
+    if (callArity < functionArity)
+    {
+        for (uint8_t i = 0; i < diff; i++)
+        {
+            push(NIL_CONSTANT, vm);
+        }
+        return 0;
+    }
+    else if (type == TYPE_FUNCTION)
+    {
+        if (callArity == functionArity)
+        {
+            return 0;
+        }
+        else
+        {
+            reduceStack(diff, vm);
+        }
+    }
+    else
+    {
+        /*
+           callArity == functionArity:
+           1. all args have a value
+           2. `...` has the last value
+
+           callArity > functionArity:
+           1. all args have a value
+           2. `...` holds the rest
+        */
+
+        // shift 1 to include all argument for `...`
+        diff++;
+
+        ObjTable* table = type == TYPE_VARARG ? newTable() : NULL;
+
+        vm->cacheSize += diff;
+
+        for (uint8_t i = 0; i < diff; i++)
+        {
+            Value v = pop(vm);
+
+            // keep stack order consistent
+            vm->cache[vm->cacheSize - i - 1] = v;
+
+            if (table != NULL)
+            {
+                tableInsertOrSet(NUM_VAL(diff - i), v, &table->content);
+            }
+        }
+
+        if (table != NULL)
+        {
+            ObjString* length = copyString("n", 1, &vm->strings);
+
+            tableInsertOrSet(OBJ_VAL((Object*)length), NUM_VAL(diff), &table->content);
+            push(OBJ_VAL((Object*)table), vm);
+        }
+        else
+        {
+            push(NIL_CONSTANT, vm);
+        }
+    }
+
+    return diff;
+}
+
+static bool call(uint8_t nexprs, uint8_t expected, VM* vm)
 {
     if (vm->frameCount > STACK_MAX)
     {
@@ -111,6 +214,7 @@ static bool call(uint8_t callArity, uint8_t expected, VM* vm)
         return false;
     }
 
+    uint8_t callArity = getnexprs(nexprs, vm);
     Value caller = peek(callArity, vm);
 
     if (IS_CLOSURE(caller))
@@ -118,20 +222,25 @@ static bool call(uint8_t callArity, uint8_t expected, VM* vm)
         // load a new frame
         ObjClosure* closure = AS_CLOSURE(caller);
 
-        // nil all unspecified parameters
-        while (callArity < closure->function->arity)
-        {
-            push(NIL_CONSTANT, vm);
-            callArity++;
-        }
+        uint8_t extras =
+          adjustParamters(callArity, closure->function->arity, closure->function->type, vm);
 
         CallFrame* newFrame = &vm->frames[vm->frameCount];
         vm->frameCount++;
 
         newFrame->closure = closure;
         newFrame->ip = closure->function->chunk.code;
-        newFrame->slots = vm->stackTop - callArity;
+        newFrame->slots = vm->stackTop - closure->function->arity;
         newFrame->expected = expected;
+
+        if (closure->function->type == TYPE_FUNCTION)
+        {
+            newFrame->extras = 0;
+        }
+        else
+        {
+            newFrame->extras = extras;
+        }
 
         return true;
     }
@@ -139,11 +248,16 @@ static bool call(uint8_t callArity, uint8_t expected, VM* vm)
     {
         ObjNativeFunction* native = AS_NATIVE(caller);
         Value result = native->function(vm->stackTop - callArity);
+        expected = GET_RET(expected);
 
-        vm->stackTop = vm->stackTop - callArity - 1;
-        push(result, vm);
+        reduceStack(callArity + 1, vm);
 
-        expected--;
+        if (expected > 0)
+        {
+            push(result, vm);
+            expected--;
+        }
+
         for (int i = 0; i < expected; i++)
         {
             push(NIL_CONSTANT, vm);
@@ -213,6 +327,42 @@ static void closeUpvalues(Value* last, VM* vm)
         upvalue->storage = *upvalue->location;
         upvalue->location = &upvalue->storage;
         vm->openUpvalues = upvalue->next;
+    }
+}
+
+/*
+   Resolve multret expression and handle null padding if number of values generated is insufficient
+*/
+static void resolveMultret(uint8_t status, uint8_t maxnrets, Value* vals, VM* vm)
+{
+    if (IS_MULTRET(status))
+    {
+        for (uint8_t i = 0; i < maxnrets; i++)
+        {
+            push(vals[i], vm);
+        }
+
+        setnvals(maxnrets, vm);
+    }
+    else
+    {
+        uint8_t expected = GET_RET(status);
+        uint8_t n = MIN(expected, maxnrets);
+
+        for (uint8_t i = 0; i < n; i++)
+        {
+            push(vals[i], vm);
+            expected--;
+        }
+
+        // nil padding
+        while (expected)
+        {
+            push(NIL_CONSTANT, vm);
+            expected--;
+        }
+
+        setnvals(expected, vm);
     }
 }
 
@@ -523,15 +673,22 @@ InterpretResult run(VM* vm)
             }
             case OP_CALL:
             {
-                uint8_t callArity = READ_BYTE();
+                uint8_t nexprs = READ_BYTE();
                 uint8_t expected = READ_BYTE();
 
-                if (!call(callArity, expected, vm))
+                if (!call(nexprs, expected, vm))
                 {
                     return INTERPRET_ERROR;
                 }
 
                 frame = &vm->frames[vm->frameCount - 1];
+                break;
+            }
+            case OP_VARARG:
+            {
+                uint8_t retStatus = READ_BYTE();
+                resolveMultret(
+                  retStatus, frame->extras, vm->cache + vm->cacheSize - frame->extras, vm);
                 break;
             }
             case OP_CONSTRUCT:
@@ -596,7 +753,7 @@ InterpretResult run(VM* vm)
                     break;
                 }
 
-                vm->cacheSize = n;
+                vm->cacheSize += n;
 
                 // reverse the order of the insertion
                 for (int i = 0; i < n; i++)
@@ -611,8 +768,10 @@ InterpretResult run(VM* vm)
                 break;
             case OP_RETURN:
             {
-                uint8_t nrets = READ_BYTE();
-                uint8_t expected = frame->expected;
+                uint8_t nexprs = READ_BYTE();
+                uint8_t nrets = getnexprs(nexprs, vm);
+
+                uint8_t retStatus = frame->expected;
 
                 Value* returns = vm->stackTop - nrets;
 
@@ -624,26 +783,14 @@ InterpretResult run(VM* vm)
                     return INTERPRET_SUCCESS;
                 }
 
-                // since slots starts at the first argument,
-                // we move 1 step back to reach the caller
+                vm->cacheSize -= frame->extras;
+
+                /* slots at first argument; move 1 step back to reach the caller */
                 vm->stackTop = frame->slots - 1;
+
                 frame = &vm->frames[vm->frameCount - 1];
 
-                // handle the difference in number of return value and expected value
-                int n = MIN(expected, nrets);
-                for (int i = 0; i < n; i++)
-                {
-                    push(*returns, vm);
-                    returns++;
-                    expected--;
-                }
-
-                while (expected)
-                {
-                    push(NIL_CONSTANT, vm);
-                    expected--;
-                }
-
+                resolveMultret(retStatus, nrets, returns, vm);
                 break;
             }
             default:

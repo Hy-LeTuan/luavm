@@ -122,3 +122,18 @@ add_test(NAME RecursionTest
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/recursion_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
+
+# test multret expressions and multret adjustment
+add_executable(MultretTest function/multret_test.c)
+target_link_libraries(MultretTest PRIVATE common)
+target_link_libraries(MultretTest PRIVATE lexer)
+target_link_libraries(MultretTest PRIVATE compiler)
+target_link_libraries(MultretTest PRIVATE vm)
+add_test(NAME MultretTest
+    COMMAND ${CMAKE_COMMAND}
+    -D "TEST_EXECUTABLE=$<TARGET_FILE:MultretTest>"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/multret_test_input.lua"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/multret_test.expected"
+    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/multret_test.actual"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
+)

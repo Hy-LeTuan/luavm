@@ -33,6 +33,7 @@ typedef enum
     OP_FUNCTION,
     OP_CLOSURE,
     OP_CALL,
+    OP_VARARG,
     OP_CONSTRUCT,
     OP_GET_FIELD,
     OP_SET_FIELD,

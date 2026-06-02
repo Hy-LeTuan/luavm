@@ -9,8 +9,15 @@
 #include <upvalues.h>
 #include <objfunction.h>
 
+#define MULTRET 0
+#define ZERORET 1
+#define SINGLERET 2
+#define MAKE_RET(actual) (actual + 1)
+#define GET_RET(status) (status - 1)
+
 #define HAS_MULTRET(k) (k == EXP_CALL || k == EXP_VARARG)
 #define HAS_ASSIGN(k) (k == EXP_LOCAL || k == EXP_UPVAL || k == EXP_INDEX || k == EXP_GLOBAL)
+#define ALLOW_VARARG(f) (f == TYPE_VARARG || f == TYPE_VARARG_NO_ARG)
 
 ObjFunction* compile(const char* source, Table* strings);
 
