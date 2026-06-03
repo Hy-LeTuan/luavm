@@ -1375,9 +1375,9 @@ static void functionStatement(bool local, Parser* p)
 
 static void localVarStatement(Parser* p)
 {
-    uint8_t initList[UINT8_MAX + 1];
     int nvars = 0;
     int nexprs = 0;
+    uint8_t initIdx = p->compiler->localCount;
 
     ExpDesc e;
     initExpDesc(&e);
@@ -1386,8 +1386,7 @@ static void localVarStatement(Parser* p)
     {
         consume(TOKEN_IDENTIFIER, "Error, an identifier is required.", p);
         Token name = p->prev;
-        uint8_t localIndex = defineLocalVar(&name, p);
-        initList[nvars] = localIndex;
+        defineLocalVar(&name, p);
 
         if (nvars + 1 >= UINT8_MAX)
         {
@@ -1413,7 +1412,7 @@ static void localVarStatement(Parser* p)
 
     for (int i = 0; i < nvars; i++)
     {
-        markInitialized(initList[i], p);
+        markInitialized(initIdx + i, p);
     }
 
     adjustAssign(&e, nexprs, nvars, p);
