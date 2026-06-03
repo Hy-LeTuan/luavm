@@ -190,22 +190,24 @@ Token lex(Lexer* lexer)
 
                 if (match('[', lexer) && match('[', lexer))
                 {
-                    while (!isAtEnd(lexer) && peek(lexer) != ']')
+                    while (!isAtEnd(lexer))
                     {
+                        if (peek(lexer) == ']')
+                        {
+                            advance(lexer);
+
+                            // ending braces exit
+                            if (peek(lexer) == ']')
+                            {
+                                advance(lexer);
+                                break;
+                            }
+                        }
+
                         if (advance(lexer) == '\n')
                         {
                             lexer->line++;
                         }
-                    }
-
-                    // skip the 2 double braces
-                    for (int i = 0; i < 2; i++)
-                    {
-                        if (peek(lexer) != ']')
-                        {
-                            return error("Multiline comment is not properly closed", lexer);
-                        }
-                        advance(lexer);
                     }
                 }
                 else
