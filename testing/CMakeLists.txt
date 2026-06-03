@@ -109,17 +109,17 @@ add_test(NAME FunctionTest
 )
 
 # test recursive function and upvalues
-add_executable(RecursionTest function/recursion_test.c)
-target_link_libraries(RecursionTest PRIVATE common)
-target_link_libraries(RecursionTest PRIVATE lexer)
-target_link_libraries(RecursionTest PRIVATE compiler)
-target_link_libraries(RecursionTest PRIVATE vm)
-add_test(NAME RecursionTest
+add_executable(ClosureAndIterTest function/closure_and_iter_test.c)
+target_link_libraries(ClosureAndIterTest PRIVATE common)
+target_link_libraries(ClosureAndIterTest PRIVATE lexer)
+target_link_libraries(ClosureAndIterTest PRIVATE compiler)
+target_link_libraries(ClosureAndIterTest PRIVATE vm)
+add_test(NAME ClosureAndIterTest
     COMMAND ${CMAKE_COMMAND}
-    -D "TEST_EXECUTABLE=$<TARGET_FILE:RecursionTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/recursion_test_input.lua"
-    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/recursion_test.expected"
-    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/recursion_test.actual"
+    -D "TEST_EXECUTABLE=$<TARGET_FILE:ClosureAndIterTest>"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/closure_and_iter_test_input.lua"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/closure_and_iter_test.expected"
+    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/closure_and_iter_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
 

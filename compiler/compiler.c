@@ -153,6 +153,13 @@ static void emitBytes(uint8_t op1, uint8_t op2, Parser* p)
     emitByte(op2, p);
 }
 
+static void emitBytesABC(uint8_t A, uint8_t B, uint8_t C, Parser* p)
+{
+    emitByte(A, p);
+    emitByte(B, p);
+    emitByte(C, p);
+}
+
 static size_t emitJump(OPCode jumpCode, Parser* p)
 {
     emitByte(jumpCode, p);
@@ -331,6 +338,9 @@ static int lookupLocal(Token* name, Compiler* compiler)
     return -1;
 }
 
+/*
+   Mark the variable at `localIndex` as initialized by changing its scope to the current scope.
+*/
 static void markInitialized(uint8_t localIndex, Parser* p)
 {
     p->compiler->locals[localIndex].scope = p->compiler->currentScope;
@@ -822,8 +832,7 @@ static void call(ExpDesc* e, Parser* p)
 
     // all functions will be restricted to returning only 1 value at first.
     // if a function is permitted to have more than 1 return value, the return value will be patched
-    emitBytes(OP_CALL, arity, p);
-    emitByte(SINGLERET, p);
+    emitBytesABC(OP_CALL, arity, SINGLERET, p);
     e->kind = EXP_CALL;
     e->patch = getBytePos(p) - 1;
 }
@@ -1224,6 +1233,14 @@ static uint8_t defineLocalVar(Token* name, Parser* p)
     return localIndex;
 }
 
+static uint8_t defineReservedVar(ReservedVarType type, Parser* p)
+{
+    Token var = genReservedVarToken(type);
+    uint8_t varIdx = defineLocalVar(&var, p);
+
+    return varIdx;
+}
+
 static void paramList(Parser* p)
 {
     if (!check(TOKEN_RIGHT_PAREN, p))
@@ -1290,6 +1307,8 @@ static void functionBody(Parser* p)
 
     // endCompiler emits a return that would already reset the stack, no need for endScope
     ObjFunction* function = endCompiler(p);
+    endScope(p);
+
     function->upvalueCount = compiler.upvalueCount;
 
     /* finish parsing current function */
@@ -1498,154 +1517,6 @@ static void repeatStatement(Parser* p)
     endLoop(p);
 }
 
-static void numericalFor(Token* loop_var, Parser* p)
-{
-    ExpDesc e;
-    initExpDesc(&e);
-
-    beginScope(p);
-
-    // initializer
-    expression(&e, p);
-    consume(TOKEN_COMMA, "Error, no comma to separate between iniitializer, limit and step.", p);
-
-    // limit
-    expression(&e, p);
-
-    // step
-    if (match(TOKEN_COMMA, p))
-    {
-        expression(&e, p);
-    }
-    else
-    {
-        emitConstant(NUM_VAL(1), p);
-    }
-
-    // define custom variables by the compiler
-    Token var = genReservedVarToken(RESERVED_VAR);
-    size_t var_index = defineLocalVar(&var, p);
-    markInitialized(var_index, p);
-
-    Token limit = genReservedVarToken(RESERVED_LIMIT);
-    size_t limit_index = defineLocalVar(&limit, p);
-    markInitialized(limit_index, p);
-
-    Token step = genReservedVarToken(RESERVED_STEP);
-    size_t step_index = defineLocalVar(&step, p);
-    markInitialized(step_index, p);
-
-    size_t zero_constant = addConstant(currentChunk(p), NUM_VAL(0));
-
-    /* begin loop */
-    beginLoop(p);
-    size_t loopStart = getBytePos(p);
-    int outerLoopScope = p->compiler->currentScope;
-
-    /* start condition */
-
-    // step > 0
-    emitBytes(OP_GET_LOCAL, step_index, p);
-    emitBytes(OP_CONSTANT, (uint8_t)zero_constant, p);
-    emitByte(OP_GREATER, p);
-
-    // and
-    size_t andJump1 = emitJump(OP_JUMP_IF_FALSE, p);
-    emitByte(OP_POP, p);
-
-    // var <= limit
-    emitBytes(OP_GET_LOCAL, var_index, p);
-    emitBytes(OP_GET_LOCAL, limit_index, p);
-    emitBytes(OP_GREATER, OP_NOT, p);
-
-    // patch andJump
-    patchJump(andJump1, p);
-
-    size_t orNextJump = emitJump(OP_JUMP_IF_FALSE, p);
-    size_t orEndJump = emitJump(OP_JUMP, p);
-
-    patchJump(orNextJump, p);
-    emitByte(OP_POP, p);
-
-    // step <= 0
-    emitBytes(OP_GET_LOCAL, step_index, p);
-    emitBytes(OP_CONSTANT, (uint8_t)zero_constant, p);
-    emitBytes(OP_GREATER, OP_NOT, p);
-
-    // and
-    size_t andJump2 = emitJump(OP_JUMP_IF_FALSE, p);
-    emitByte(OP_POP, p);
-
-    // var >= limit
-    emitBytes(OP_GET_LOCAL, var_index, p);
-    emitBytes(OP_GET_LOCAL, limit_index, p);
-    emitBytes(OP_NOT, OP_LESS, p);
-
-    // patch andJump
-    patchJump(andJump2, p);
-
-    // patch or jump
-    patchJump(orEndJump, p);
-
-    /* end condition */
-
-    /* start body */
-
-    size_t endLoopJump = emitJump(OP_JUMP_IF_FALSE, p);
-    emitByte(OP_POP, p);
-
-    consume(TOKEN_DO, "Error, expect token 'do' after for initializations.", p);
-    beginScope(p);
-
-    // load loop_var
-    emitBytes(OP_GET_LOCAL, var_index, p);
-    size_t loop_var_index = defineLocalVar(loop_var, p);
-    emitBytes(OP_SET_LOCAL, loop_var_index, p);
-    markInitialized(loop_var_index, p);
-
-    block("Error, missing token 'end' to close for statement.", p);
-
-    // increment var via assignment expression
-    emitBytes(OP_GET_LOCAL, var_index, p);
-    emitBytes(OP_GET_LOCAL, step_index, p);
-    emitByte(OP_ADD, p);
-    emitBytes(OP_SET_LOCAL, var_index, p);
-    emitByte(OP_POP, p);
-
-    endScope(p);
-
-    /* end body */
-
-    emitBackJump(OP_LOOP, loopStart, p);
-
-    patchJump(endLoopJump, p);
-    emitByte(OP_POP, p);
-    endLoop(p);
-
-    /* end loop*/
-
-    endScope(p);
-}
-
-static void forStatement(Parser* p)
-{
-    consume(TOKEN_IDENTIFIER, "Error, identifier needs to follow 'for' statement.", p);
-    Token loop_var = p->prev;
-
-    if (match(TOKEN_EQUAL, p))
-    {
-        numericalFor(&loop_var, p);
-    }
-    else if (match(TOKEN_IN, p))
-    {
-        // TODO: implement generic for
-    }
-    else
-    {
-        error("Error, unknown keyword found after 'for'.", p);
-    }
-}
-
 static void breakStatement(Parser* p)
 {
     if (p->compiler->currentLoopScope == 0)
@@ -1689,6 +1560,223 @@ static void returnStatement(Parser* p)
     }
 
     emitBytes(OP_RETURN, nexprs, p);
+}
+
+static void numericalFor(Token* loop_var, Parser* p)
+{
+    ExpDesc e;
+    initExpDesc(&e);
+
+    beginScope(p);
+
+    // initializer
+    expression(&e, p);
+    consume(TOKEN_COMMA, "Error, no comma to separate between iniitializer, limit and step.", p);
+
+    // limit
+    expression(&e, p);
+
+    // step
+    if (match(TOKEN_COMMA, p))
+    {
+        expression(&e, p);
+    }
+    else
+    {
+        emitConstant(NUM_VAL(1), p);
+    }
+
+    /* define temporary variables */
+    uint8_t varIdx = defineReservedVar(RESERVED_VAR, p);
+    uint8_t limIdx = defineReservedVar(RESERVED_LIMIT, p);
+    uint8_t stepIdx = defineReservedVar(RESERVED_STEP, p);
+    markInitialized(varIdx, p);
+    markInitialized(limIdx, p);
+    markInitialized(stepIdx, p);
+
+    size_t zeroConstant = addConstant(currentChunk(p), NUM_VAL(0));
+
+    beginLoop(p);
+    size_t loopStart = getBytePos(p);
+
+    // start condition
+
+    /*
+       (step > 0 and var <= limit)
+    */
+    emitBytes(OP_GET_LOCAL, stepIdx, p);
+    emitBytes(OP_CONSTANT, (uint8_t)zeroConstant, p);
+    emitByte(OP_GREATER, p);
+    size_t andJump1 = emitJump(OP_JUMP_IF_FALSE, p);
+    emitByte(OP_POP, p);
+    emitBytes(OP_GET_LOCAL, varIdx, p);
+    emitBytes(OP_GET_LOCAL, limIdx, p);
+    emitBytes(OP_GREATER, OP_NOT, p);
+    patchJump(andJump1, p);
+
+    /*
+       or
+    */
+    size_t orNextJump = emitJump(OP_JUMP_IF_FALSE, p);
+    size_t orEndJump = emitJump(OP_JUMP, p);
+
+    patchJump(orNextJump, p);
+    emitByte(OP_POP, p);
+
+    /*
+       (step <= 0 and var >= limit)
+    */
+    emitBytes(OP_GET_LOCAL, stepIdx, p);
+    emitBytes(OP_CONSTANT, (uint8_t)zeroConstant, p);
+    emitBytes(OP_GREATER, OP_NOT, p);
+    size_t andJump2 = emitJump(OP_JUMP_IF_FALSE, p);
+    emitByte(OP_POP, p);
+    emitBytes(OP_GET_LOCAL, varIdx, p);
+    emitBytes(OP_GET_LOCAL, limIdx, p);
+    emitBytes(OP_NOT, OP_LESS, p);
+    patchJump(andJump2, p);
+    patchJump(orEndJump, p);
+
+    // end condition
+
+    // start body
+
+    size_t endLoopJump = emitJump(OP_JUMP_IF_FALSE, p);
+    emitByte(OP_POP, p);
+
+    consume(TOKEN_DO, "Error, expect 'do' after initializations.", p);
+    beginScope(p);
+
+    /*
+       local v = var
+    */
+    uint8_t loopVarIdx = defineLocalVar(loop_var, p);
+    emitBytes(OP_GET_LOCAL, varIdx, p);
+    markInitialized(loopVarIdx, p);
+
+    block("Error, missing 'end' to close for statement.", p);
+
+    /*
+       var = var + step
+    */
+    emitBytes(OP_GET_LOCAL, varIdx, p);
+    emitBytes(OP_GET_LOCAL, stepIdx, p);
+    emitByte(OP_ADD, p);
+    emitBytes(OP_CACHE, 1, p);
+    emitBytes(OP_SET_LOCAL, varIdx, p);
+
+    endScope(p);
+
+    // end body
+
+    emitBackJump(OP_LOOP, loopStart, p);
+
+    patchJump(endLoopJump, p);
+    emitByte(OP_POP, p);
+    endLoop(p);
+
+    /* end loop*/
+
+    endScope(p);
+}
+
+static void genericFor(Token* initial, Parser* p)
+{
+    beginScope(p);
+
+    ExpDesc e;
+    initExpDesc(&e);
+
+    // declare reserved var
+    uint8_t fIdx = defineReservedVar(RESERVED_FUNCTION, p);
+    uint8_t sIdx = defineReservedVar(RESERVED_STATE, p);
+    uint8_t varIdx = defineReservedVar(RESERVED_VAR, p);
+
+    // declare local variables
+    uint8_t var1Idx = defineLocalVar(initial, p);
+    uint8_t length = 1;
+    while (match(TOKEN_COMMA, p))
+    {
+        Token name = p->current;
+        advance(p);
+        defineLocalVar(&name, p);
+        length++;
+    }
+
+    /*
+       local f, s, var = explist
+    */
+    consume(TOKEN_IN, "Error, 'in' expected after name list.", p);
+    uint8_t resnexprs = expressionList(&e, p);
+    adjustAssign(&e, resnexprs, 3, p);
+    markInitialized(fIdx, p);
+    markInitialized(sIdx, p);
+    markInitialized(varIdx, p);
+
+    /* start of loop */
+    beginLoop(p);
+    beginScope(p);
+    size_t loopStart = getBytePos(p);
+
+    /*
+       local var_1 ... var_n = f(s, var)
+    */
+    emitBytes(OP_GET_LOCAL, fIdx, p);
+    emitBytes(OP_GET_LOCAL, sIdx, p);
+    emitBytes(OP_GET_LOCAL, varIdx, p);
+    emitBytesABC(OP_CALL, 2, MAKE_RET(length), p);
+
+    /*
+       var = var1
+    */
+    emitBytes(OP_GET_LOCAL, var1Idx, p);
+    emitBytes(OP_CACHE, 1, p);
+    emitBytes(OP_SET_LOCAL, varIdx, p);
+    for (uint8_t i = 0; i < length; i++)
+    {
+        markInitialized(var1Idx + i, p);
+    }
+
+    /*
+       if var == nil then break end
+    */
+    emitBytes(OP_GET_LOCAL, varIdx, p);
+    emitConstant(NIL_CONSTANT, p);
+    emitByte(OP_EQUAL, p);
+    size_t elseJump = emitJump(OP_JUMP_IF_FALSE, p);
+    emitByte(OP_POP, p);
+    breakStatement(p);
+    patchJump(elseJump, p);
+    emitByte(OP_POP, p);
+
+    // body
+    consume(TOKEN_DO, "Error, expect 'do' after initializations.", p);
+    block("Error, missing 'end' to close for statement.", p);
+    endScope(p);
+
+    emitBackJump(OP_LOOP, loopStart, p);
+
+    endLoop(p);
+    endScope(p);
+}
+
+static void forStatement(Parser* p)
+{
+    consume(TOKEN_IDENTIFIER, "Error, identifier needs to follow 'for' statement.", p);
+    Token loop_var = p->prev;
+
+    if (match(TOKEN_EQUAL, p))
+    {
+        numericalFor(&loop_var, p);
+    }
+    else if (peek(p) == TOKEN_IN || peek(p) == TOKEN_COMMA)
+    {
+        genericFor(&loop_var, p);
+    }
+    else
+    {
+        error("Error, unknown keyword found after 'for'.", p);
+    }
 }
 
 static bool statements(Parser* p)

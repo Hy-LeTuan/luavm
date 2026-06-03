@@ -621,7 +621,7 @@ InterpretResult run(VM* vm)
             case OP_SET_UPVALUE:
             {
                 uint8_t index = READ_BYTE();
-                *frame->closure->upvalues[index]->location = peek(0, vm);
+                *frame->closure->upvalues[index]->location = getAssignValue(vm);
                 break;
             }
             case OP_JUMP_IF_FALSE:

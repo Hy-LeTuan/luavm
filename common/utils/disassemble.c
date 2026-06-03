@@ -201,7 +201,7 @@ int disassembleInstruction(Chunk* chunk, int offset)
         case OP_JUMP:
             return jumpInstruction("OP_JUMP", chunk, offset);
         case OP_JUMP_IF_FALSE:
-            return jumpInstruction("OP_JUMP_IF_ELSE", chunk, offset);
+            return jumpInstruction("OP_JUMP_IF_FALSE", chunk, offset);
         case OP_LOOP:
             return jumpInstruction("OP_LOOP", chunk, offset);
         case OP_FUNCTION:
@@ -225,7 +225,7 @@ int disassembleInstruction(Chunk* chunk, int offset)
         case OP_POP:
             return simpleInstruction("OP_POP", offset);
         case OP_RETURN:
-            return constantInstruction("OP_RETURN", chunk, offset, "nrets: ", false);
+            return constantInstruction("OP_RETURN", chunk, offset, "nexprs: ", false);
     }
 
     return offset;

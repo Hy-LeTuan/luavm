@@ -7,6 +7,8 @@ typedef enum
     RESERVED_STEP,
     RESERVED_LIMIT,
     RESERVED_ARG,
+    RESERVED_FUNCTION,
+    RESERVED_STATE,
 } ReservedVarType;
 
 typedef struct
