@@ -10,7 +10,20 @@
 #define STACK_MAX 256
 #define CACHE_MAX 128
 
+#define C_CALL 0
+#define LUA_CALL 1
+#define CALL_ERROR 2
+
 #define IS_MULTRET(status) (status == 0)
+
+#define stackidxat(vm, x) (vm->stackTop - (x))
+#define reducestack(vm, x) (vm->stackTop -= (x))
+#define setstacktop(vm, newSlot) (vm->stackTop = newSlot)
+
+#define nextframe(vm) (&vm->frames[vm->frameCount++])
+#define currframe(vm) (&vm->frames[vm->frameCount - 1])
+#define prevframe(vm) (&vm->frames[(--vm->frameCount) - 1])
+#define finalframe(vm) (vm->frameCount - 1 == 0)
 
 typedef enum
 {
@@ -23,12 +36,14 @@ typedef struct
     ObjClosure* closure;
     uint8_t* ip;
     Value* slots;
+    Value* callee;
 
     /* expected number of return value */
     uint8_t expected;
 
-    /* the number of extra arguments hidden in a vararg function */
-    uint8_t extras;
+    /* the number of extra arguments hidden in a vararg function in Lua call OR the number of return
+     * values from a C function */
+    uint8_t info;
 } CallFrame;
 
 typedef struct
@@ -49,9 +64,11 @@ typedef struct
 } VM;
 
 void initVM(VM* vm);
-InterpretResult interpret(const char* source);
 InterpretResult run(VM* vm);
 void linkObject(Object* obj, VM* vm);
 void freeVM(VM* vm);
+uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm);
+void pushStack(Value value, VM* vm);
+Value popStack(VM* vm);
 
 #endif

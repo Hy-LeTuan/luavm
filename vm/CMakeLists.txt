@@ -19,7 +19,5 @@ endif()
 
 target_link_libraries(vm PRIVATE m)
 target_link_libraries(vm PRIVATE common)
-target_link_libraries(vm PRIVATE compiler)
-target_link_libraries(vm PRIVATE lexer)
 
 target_include_directories(vm PUBLIC include)

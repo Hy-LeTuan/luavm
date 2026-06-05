@@ -7,7 +7,9 @@
 #define IS_NATIVE(value) (IS_OBJ(value) && AS_OBJ(value)->type == OBJ_NATIVE)
 #define AS_NATIVE(value) ((ObjNativeFunction*)(AS_OBJ(value)))
 
-typedef Value (*NativeFn)(Value* args);
+#include <stdint.h>
+
+typedef uint8_t (*NativeFn)(uint8_t nargs, Value* args);
 
 typedef struct
 {

@@ -7,6 +7,9 @@
 #define IS_NUM(value) ((value).type == NUMBER)
 #define IS_NIL(value) ((value).type == NIL)
 
+#define MAKE_RET(actual) (actual + 1)
+#define GET_RET(status) (status - 1)
+
 #define AS_BOOL(value) ((value).as.boolean)
 #define AS_NUM(value) ((value).as.number)
 

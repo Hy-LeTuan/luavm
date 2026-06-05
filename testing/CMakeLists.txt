@@ -5,7 +5,7 @@ include(CTest)
 # test token production from lexer
 add_executable(TokenLexTest lexer/token_test.c)
 add_test(NAME TokenLexTest COMMAND TokenLexTest ${CMAKE_SOURCE_DIR}/testing/data/token_test_input.lua)
-target_link_libraries(TokenLexTest PRIVATE lexer)
+target_link_libraries(TokenLexTest PRIVATE compiler)
 target_link_libraries(TokenLexTest PRIVATE common)
 
 # test operations on chunk
@@ -35,10 +35,7 @@ target_link_libraries(StringTest PRIVATE vm)
 
 # test objtable basic operations
 add_executable(ObjtableTest function/objtable_test.c)
-target_link_libraries(ObjtableTest PRIVATE common)
-target_link_libraries(ObjtableTest PRIVATE lexer)
-target_link_libraries(ObjtableTest PRIVATE compiler)
-target_link_libraries(ObjtableTest PRIVATE vm)
+target_link_libraries(ObjtableTest PRIVATE luavmapi)
 add_test(NAME ObjtableTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ObjtableTest>"
@@ -50,10 +47,7 @@ add_test(NAME ObjtableTest
 
 # test expressions
 add_executable(ExpressionTest function/expression_test.c)
-target_link_libraries(ExpressionTest PRIVATE common)
-target_link_libraries(ExpressionTest PRIVATE lexer)
-target_link_libraries(ExpressionTest PRIVATE compiler)
-target_link_libraries(ExpressionTest PRIVATE vm)
+target_link_libraries(ExpressionTest PRIVATE luavmapi)
 add_test(NAME ExpressionTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ExpressionTest>"
@@ -65,10 +59,7 @@ add_test(NAME ExpressionTest
 
 # test goto statements
 add_executable(JumpTest function/jump_test.c)
-target_link_libraries(JumpTest PRIVATE common)
-target_link_libraries(JumpTest PRIVATE lexer)
-target_link_libraries(JumpTest PRIVATE compiler)
-target_link_libraries(JumpTest PRIVATE vm)
+target_link_libraries(JumpTest PRIVATE luavmapi)
 add_test(NAME JumpTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:JumpTest>"
@@ -79,11 +70,8 @@ add_test(NAME JumpTest
 )
 
 # test assignment statements in local and in varlist
-add_executable(AssignTest function/jump_test.c)
-target_link_libraries(AssignTest PRIVATE common)
-target_link_libraries(AssignTest PRIVATE lexer)
-target_link_libraries(AssignTest PRIVATE compiler)
-target_link_libraries(AssignTest PRIVATE vm)
+add_executable(AssignTest function/assign_test.c)
+target_link_libraries(AssignTest PRIVATE luavmapi)
 add_test(NAME AssignTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:AssignTest>"
@@ -95,10 +83,7 @@ add_test(NAME AssignTest
 
 # test function definitions and calls
 add_executable(FunctionTest function/function_test.c)
-target_link_libraries(FunctionTest PRIVATE common)
-target_link_libraries(FunctionTest PRIVATE lexer)
-target_link_libraries(FunctionTest PRIVATE compiler)
-target_link_libraries(FunctionTest PRIVATE vm)
+target_link_libraries(FunctionTest PRIVATE luavmapi)
 add_test(NAME FunctionTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:FunctionTest>"
@@ -110,10 +95,7 @@ add_test(NAME FunctionTest
 
 # test recursive function and upvalues
 add_executable(ClosureAndIterTest function/closure_and_iter_test.c)
-target_link_libraries(ClosureAndIterTest PRIVATE common)
-target_link_libraries(ClosureAndIterTest PRIVATE lexer)
-target_link_libraries(ClosureAndIterTest PRIVATE compiler)
-target_link_libraries(ClosureAndIterTest PRIVATE vm)
+target_link_libraries(ClosureAndIterTest PRIVATE luavmapi)
 add_test(NAME ClosureAndIterTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ClosureAndIterTest>"
@@ -125,10 +107,7 @@ add_test(NAME ClosureAndIterTest
 
 # test multret expressions and multret adjustment
 add_executable(MultretTest function/multret_test.c)
-target_link_libraries(MultretTest PRIVATE common)
-target_link_libraries(MultretTest PRIVATE lexer)
-target_link_libraries(MultretTest PRIVATE compiler)
-target_link_libraries(MultretTest PRIVATE vm)
+target_link_libraries(MultretTest PRIVATE luavmapi)
 add_test(NAME MultretTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:MultretTest>"

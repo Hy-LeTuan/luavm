@@ -1,11 +1,11 @@
-#include <native_functions.h>
+#include <baselib.h>
 
 #include <objstring.h>
 
 #include <stdio.h>
 #include <math.h>
 
-Value print(Value* start)
+uint8_t print(uint8_t narg, Value* start)
 {
     if (IS_NUM(*start))
     {
@@ -34,5 +34,5 @@ Value print(Value* start)
         fprintf(stdout, "\n");
     }
 
-    return NIL_CONSTANT;
+    return 0;
 }

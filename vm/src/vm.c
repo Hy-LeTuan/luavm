@@ -1,15 +1,14 @@
 #include <vm.h>
 
-#include <compiler.h>
 #include <disassemble.h>
 #include <memory.h>
 #include <gc.h>
 #include <objstring.h>
 #include <objnativefunction.h>
-#include <native_functions.h>
 #include <objtable.h>
 #include <utils.h>
 
+#include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
 #include <stdio.h>
@@ -59,7 +58,7 @@ void linkObject(Object* obj, VM* vm)
     vm->objectStack = obj;
 }
 
-static void push(Value value, VM* vm)
+void pushStack(Value value, VM* vm)
 {
     if (vm->stackTop - vm->stack == STACK_MAX)
     {
@@ -76,20 +75,10 @@ static Value peek(int index, VM* vm)
     return vm->stackTop[-1 - index];
 }
 
-static Value pop(VM* vm)
+Value popStack(VM* vm)
 {
     vm->stackTop--;
     return *vm->stackTop;
-}
-
-static void reduceStack(uint8_t amount, VM* vm)
-{
-    if (vm->stackTop - vm->stack < amount)
-    {
-        runtimeError(vm, "Internal Error, stack is reduced past the limit.");
-    }
-
-    vm->stackTop -= amount;
 }
 
 static void setnvals(uint8_t val, VM* vm)
@@ -118,24 +107,24 @@ static Value getAssignValue(VM* vm)
         return v;
     }
 
-    return pop(vm);
+    return popStack(vm);
 }
 
 static void concatenate(VM* vm)
 {
-    ObjString* b = AS_STRING(pop(vm));
-    ObjString* a = AS_STRING(pop(vm));
+    ObjString* b = AS_STRING(popStack(vm));
+    ObjString* a = AS_STRING(popStack(vm));
     ObjString* result = concatenateString(a, b, &vm->strings);
 
     linkObject((Object*)result, vm);
-    push(OBJ_VAL((Object*)result), vm);
+    pushStack(OBJ_VAL((Object*)result), vm);
 }
 
 /*
    Adjust parameter list to match argument count. For vararg functions, an arg table will be
    generated (if permitted) and all extra arguments are lifted into cache
 */
-static uint8_t adjustParamters(uint8_t callArity, uint8_t functionArity, FunctionType type, VM* vm)
+static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionType type, VM* vm)
 {
     uint8_t diff = abs(callArity - functionArity);
 
@@ -143,7 +132,7 @@ static uint8_t adjustParamters(uint8_t callArity, uint8_t functionArity, Functio
     {
         for (uint8_t i = 0; i < diff; i++)
         {
-            push(NIL_CONSTANT, vm);
+            pushStack(NIL_CONSTANT, vm);
         }
         return 0;
     }
@@ -155,7 +144,7 @@ static uint8_t adjustParamters(uint8_t callArity, uint8_t functionArity, Functio
         }
         else
         {
-            reduceStack(diff, vm);
+            reducestack(vm, diff);
         }
     }
     else
@@ -179,7 +168,7 @@ static uint8_t adjustParamters(uint8_t callArity, uint8_t functionArity, Functio
 
         for (uint8_t i = 0; i < diff; i++)
         {
-            Value v = pop(vm);
+            Value v = popStack(vm);
 
             // keep stack order consistent
             vm->cache[vm->cacheSize - i - 1] = v;
@@ -195,18 +184,25 @@ static uint8_t adjustParamters(uint8_t callArity, uint8_t functionArity, Functio
             ObjString* length = copyString("n", 1, &vm->strings);
 
             tableInsertOrSet(OBJ_VAL((Object*)length), NUM_VAL(diff), &table->content);
-            push(OBJ_VAL((Object*)table), vm);
+            pushStack(OBJ_VAL((Object*)table), vm);
         }
         else
         {
-            push(NIL_CONSTANT, vm);
+            pushStack(NIL_CONSTANT, vm);
         }
     }
 
     return diff;
 }
 
-static bool call(uint8_t nexprs, uint8_t expected, VM* vm)
+/*
+   Set up call frame for function call.
+
+   If it's a C call, call the function and write its number of return values to frame.
+
+   If it's a Lua call, set up call frame information.
+*/
+uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm)
 {
     if (vm->frameCount > STACK_MAX)
     {
@@ -217,75 +213,39 @@ static bool call(uint8_t nexprs, uint8_t expected, VM* vm)
     uint8_t callArity = getnexprs(nexprs, vm);
     Value caller = peek(callArity, vm);
 
+    CallFrame* newFrame = nextframe(vm);
+    newFrame->callee = stackidxat(vm, callArity + 1);
+    newFrame->expected = status;
+    newFrame->slots = newFrame->callee + 1;
+
     if (IS_CLOSURE(caller))
     {
         // load a new frame
         ObjClosure* closure = AS_CLOSURE(caller);
 
         uint8_t extras =
-          adjustParamters(callArity, closure->function->arity, closure->function->type, vm);
-
-        CallFrame* newFrame = &vm->frames[vm->frameCount];
-        vm->frameCount++;
+          adjustParams(callArity, closure->function->arity, closure->function->type, vm);
 
         newFrame->closure = closure;
         newFrame->ip = closure->function->chunk.code;
-        newFrame->slots = vm->stackTop - closure->function->arity;
-        newFrame->expected = expected;
+        newFrame->info = extras;
 
-        if (closure->function->type == TYPE_FUNCTION)
-        {
-            newFrame->extras = 0;
-        }
-        else
-        {
-            newFrame->extras = extras;
-        }
-
-        return true;
+        return LUA_CALL;
     }
     else if (IS_NATIVE(caller))
     {
         ObjNativeFunction* native = AS_NATIVE(caller);
-        Value result = native->function(vm->stackTop - callArity);
-        expected = GET_RET(expected);
+        uint8_t nrets = native->function(callArity, vm->stackTop - callArity);
 
-        reduceStack(callArity + 1, vm);
+        newFrame->info = nrets;
 
-        if (expected > 0)
-        {
-            push(result, vm);
-            expected--;
-        }
-
-        for (int i = 0; i < expected; i++)
-        {
-            push(NIL_CONSTANT, vm);
-        }
-
-        return true;
+        return C_CALL;
     }
     else
     {
-        runtimeError(vm, "Error, cannot call a value that is not a function.");
-        return false;
+        runtimeError(vm, "Error, object is not callable.");
+        exit(1);
     }
-}
-
-static void defineNativeFunction(const char* name, int length, NativeFn function, VM* vm)
-{
-    ObjString* key = copyString(name, length, &vm->strings);
-    ObjNativeFunction* native = newNativeFunction(function);
-
-    linkObject((Object*)key, vm);
-    linkObject((Object*)native, vm);
-
-    tableInsertOrSet(OBJ_VAL((Object*)key), OBJ_VAL((Object*)native), &vm->globals);
-}
-
-static void defineNativeFunctions(VM* vm)
-{
-    defineNativeFunction("print", 5, print, vm);
 }
 
 static ObjUpvalue* captureUpvalue(Value* location, VM* vm)
@@ -339,7 +299,7 @@ static void resolveMultret(uint8_t status, uint8_t maxnrets, Value* vals, VM* vm
     {
         for (uint8_t i = 0; i < maxnrets; i++)
         {
-            push(vals[i], vm);
+            pushStack(vals[i], vm);
         }
 
         setnvals(maxnrets, vm);
@@ -351,14 +311,14 @@ static void resolveMultret(uint8_t status, uint8_t maxnrets, Value* vals, VM* vm
 
         for (uint8_t i = 0; i < n; i++)
         {
-            push(vals[i], vm);
+            pushStack(vals[i], vm);
             expected--;
         }
 
         // nil padding
         while (expected)
         {
-            push(NIL_CONSTANT, vm);
+            pushStack(NIL_CONSTANT, vm);
             expected--;
         }
 
@@ -368,7 +328,7 @@ static void resolveMultret(uint8_t status, uint8_t maxnrets, Value* vals, VM* vm
 
 InterpretResult run(VM* vm)
 {
-    CallFrame* frame = &vm->frames[vm->frameCount - 1];
+    CallFrame* frame = currframe(vm);
 
 #define READ_BYTE() (*frame->ip++)
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
@@ -376,9 +336,9 @@ InterpretResult run(VM* vm)
 #define EXECUTE_BINARY(op, f, f_inv, vm)                                                           \
     do                                                                                             \
     {                                                                                              \
-        Value b = pop(vm);                                                                         \
-        Value a = pop(vm);                                                                         \
-        push(f_inv(f(a) op f(b)), vm);                                                             \
+        Value b = popStack(vm);                                                                    \
+        Value a = popStack(vm);                                                                    \
+        pushStack(f_inv(f(a) op f(b)), vm);                                                        \
     } while (false)
 
 #ifdef DEBUG_DISASSEMBLE_CHUNK
@@ -422,13 +382,13 @@ InterpretResult run(VM* vm)
                     linkObject(AS_OBJ(constant), vm);
                 }
 
-                push(constant, vm);
+                pushStack(constant, vm);
                 break;
             }
             case OP_LENGTH:
             {
-                ObjString* s = AS_STRING(pop(vm));
-                push(NUM_VAL(s->length), vm);
+                ObjString* s = AS_STRING(popStack(vm));
+                pushStack(NUM_VAL(s->length), vm);
                 break;
             }
             case OP_ADD:
@@ -474,8 +434,8 @@ InterpretResult run(VM* vm)
                 break;
             case OP_EXPONENT:
             {
-                Value b = pop(vm);
-                Value a = pop(vm);
+                Value b = popStack(vm);
+                Value a = popStack(vm);
 
                 if (!IS_NUM(a) || !IS_NUM(b))
                 {
@@ -485,7 +445,7 @@ InterpretResult run(VM* vm)
                 }
 
                 Value c = NUM_VAL(pow(AS_NUM(a), AS_NUM(b)));
-                push(c, vm);
+                pushStack(c, vm);
                 break;
             }
             case OP_MODULO:
@@ -547,18 +507,18 @@ InterpretResult run(VM* vm)
             }
             case OP_EQUAL:
             {
-                Value b = pop(vm);
-                Value a = pop(vm);
-                push(BOOL_VAL(compareValue(a, b)), vm);
+                Value b = popStack(vm);
+                Value a = popStack(vm);
+                pushStack(BOOL_VAL(compareValue(a, b)), vm);
                 break;
             }
             case OP_NEGATE:
             {
-                Value a = pop(vm);
+                Value a = popStack(vm);
 
                 if (IS_NUM(a))
                 {
-                    push(NUM_VAL(-AS_NUM(a)), vm);
+                    pushStack(NUM_VAL(-AS_NUM(a)), vm);
                 }
                 else
                 {
@@ -569,11 +529,11 @@ InterpretResult run(VM* vm)
             }
             case OP_NOT:
             {
-                Value a = pop(vm);
+                Value a = popStack(vm);
 
                 if (IS_BOOL(a))
                 {
-                    push(BOOL_VAL(!AS_BOOL(a)), vm);
+                    pushStack(BOOL_VAL(!AS_BOOL(a)), vm);
                 }
                 else
                 {
@@ -589,7 +549,7 @@ InterpretResult run(VM* vm)
                 Value v = tableGet(key, &vm->globals);
 
                 // accept a global variable with nil
-                push(v, vm);
+                pushStack(v, vm);
                 break;
             }
             case OP_SET_GLOBAL:
@@ -602,7 +562,7 @@ InterpretResult run(VM* vm)
             case OP_GET_LOCAL:
             {
                 uint8_t index = READ_BYTE();
-                push(frame->slots[index], vm);
+                pushStack(frame->slots[index], vm);
                 break;
             }
             case OP_SET_LOCAL:
@@ -615,7 +575,7 @@ InterpretResult run(VM* vm)
             {
                 // the index of the upvalue in the function's upvalue array
                 uint8_t index = READ_BYTE();
-                push(*frame->closure->upvalues[index]->location, vm);
+                pushStack(*frame->closure->upvalues[index]->location, vm);
                 break;
             }
             case OP_SET_UPVALUE:
@@ -668,27 +628,40 @@ InterpretResult run(VM* vm)
                     }
                 }
 
-                push(OBJ_VAL((Object*)closure), vm);
+                pushStack(OBJ_VAL((Object*)closure), vm);
                 break;
             }
             case OP_CALL:
             {
                 uint8_t nexprs = READ_BYTE();
-                uint8_t expected = READ_BYTE();
+                uint8_t retStatus = READ_BYTE();
 
-                if (!call(nexprs, expected, vm))
+                uint8_t callStatus;
+                if ((callStatus = precall(nexprs, retStatus, vm)) == C_CALL)
+                {
+                    frame = currframe(vm);
+                    uint8_t nrets = frame->info;
+                    Value* returns = stackidxat(vm, nrets);
+
+                    setstacktop(vm, frame->callee);
+                    resolveMultret(retStatus, nrets, returns, vm);
+
+                    frame = prevframe(vm);
+                }
+                else if (callStatus == LUA_CALL)
+                {
+                    frame = currframe(vm);
+                }
+                else
                 {
                     return INTERPRET_ERROR;
                 }
-
-                frame = &vm->frames[vm->frameCount - 1];
                 break;
             }
             case OP_VARARG:
             {
-                uint8_t retStatus = READ_BYTE();
-                resolveMultret(
-                  retStatus, frame->extras, vm->cache + vm->cacheSize - frame->extras, vm);
+                uint8_t status = READ_BYTE();
+                resolveMultret(status, frame->info, vm->cache + vm->cacheSize - frame->info, vm);
                 break;
             }
             case OP_CONSTRUCT:
@@ -701,29 +674,29 @@ InterpretResult run(VM* vm)
 
                 for (int i = 0; i < fields; i++)
                 {
-                    Value value = pop(vm);
-                    Value key = pop(vm);
+                    Value value = popStack(vm);
+                    Value key = popStack(vm);
 
                     tableInsertOrSet(key, value, &table->content);
                 }
 
-                push(OBJ_VAL((Object*)table), vm);
+                pushStack(OBJ_VAL((Object*)table), vm);
                 break;
             }
             case OP_GET_FIELD:
             {
-                Value key = pop(vm);
-                Value tableVal = pop(vm);
+                Value key = popStack(vm);
+                Value tableVal = popStack(vm);
                 ObjTable* table = AS_TABLE(tableVal);
 
                 Value val = tableGet(key, &table->content);
-                push(val, vm);
+                pushStack(val, vm);
                 break;
             }
             case OP_SET_FIELD:
             {
-                Value key = pop(vm);
-                Value tableVal = pop(vm);
+                Value key = popStack(vm);
+                Value tableVal = popStack(vm);
 
                 if (!IS_TABLE(tableVal))
                 {
@@ -740,7 +713,7 @@ InterpretResult run(VM* vm)
             case OP_CLOSE_UPVALUE:
             {
                 closeUpvalues(vm->stackTop - 1, vm);
-                pop(vm);
+                popStack(vm);
                 break;
             }
             case OP_CACHE:
@@ -758,39 +731,32 @@ InterpretResult run(VM* vm)
                 // reverse the order of the insertion
                 for (int i = 0; i < n; i++)
                 {
-                    Value v = pop(vm);
+                    Value v = popStack(vm);
                     vm->cache[vm->cacheSize - i - 1] = v;
                 }
                 break;
             }
             case OP_POP:
-                pop(vm);
+                popStack(vm);
                 break;
             case OP_RETURN:
             {
-                uint8_t nexprs = READ_BYTE();
-                uint8_t nrets = getnexprs(nexprs, vm);
-
-                uint8_t retStatus = frame->expected;
-
-                Value* returns = vm->stackTop - nrets;
-
                 closeUpvalues(frame->slots, vm);
-                vm->frameCount--;
-
-                if (vm->frameCount == 0)
+                vm->cacheSize -= frame->info;
+                if (finalframe(vm))
                 {
                     return INTERPRET_SUCCESS;
                 }
 
-                vm->cacheSize -= frame->extras;
+                uint8_t nexprs = READ_BYTE();
+                uint8_t nrets = getnexprs(nexprs, vm);
+                uint8_t retStatus = frame->expected;
 
-                /* slots at first argument; move 1 step back to reach the caller */
-                vm->stackTop = frame->slots - 1;
-
-                frame = &vm->frames[vm->frameCount - 1];
-
+                Value* returns = stackidxat(vm, nrets);
+                setstacktop(vm, frame->callee);
                 resolveMultret(retStatus, nrets, returns, vm);
+
+                frame = prevframe(vm);
                 break;
             }
             default:
@@ -803,27 +769,6 @@ InterpretResult run(VM* vm)
 #undef READ_CONSTANT
 #undef READ_SHORT
 #undef EXECUTE_BINARY
-}
-
-InterpretResult interpret(const char* source)
-{
-    VM vm;
-
-    initVM(&vm);
-    defineNativeFunctions(&vm);
-
-    ObjFunction* function = compile(source, &vm.strings);
-    ObjClosure* closure = newClosure(function);
-
-    push(OBJ_VAL((Object*)closure), &vm);
-    call(0, 1, &vm);
-
-    // the main run loop
-    InterpretResult result = run(&vm);
-
-    freeVM(&vm);
-
-    return result;
 }
 
 void freeVM(VM* vm)

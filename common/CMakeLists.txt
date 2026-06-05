@@ -24,9 +24,6 @@ add_library(common
     # var
     var/locals.c
     var/reserved_var.c
-
-    # native functions
-    native/native_functions.c
 )
 
 target_link_libraries(common PRIVATE m)
@@ -37,4 +34,3 @@ target_include_directories(common PUBLIC memory)
 target_include_directories(common PUBLIC object)
 target_include_directories(common PUBLIC table)
 target_include_directories(common PUBLIC var)
-target_include_directories(common PUBLIC native)
