@@ -6,7 +6,7 @@
 #include <objstring.h>
 #include <baselib.h>
 
-static void defineNativeFunction(const char* name, int length, NativeFn function, VM* vm)
+static void defineNativeFunc(const char* name, int length, NativeFn function, VM* vm)
 {
     ObjString* key = copyString(name, length, &vm->strings);
     ObjNativeFunction* native = newNativeFunction(function);
@@ -17,15 +17,16 @@ static void defineNativeFunction(const char* name, int length, NativeFn function
     tableInsertOrSet(OBJ_VAL((Object*)key), OBJ_VAL((Object*)native), &vm->globals);
 }
 
-static void defineNativeFunctions(VM* vm)
+static void defineBaseLib(VM* vm)
 {
-    defineNativeFunction("print", 5, print, vm);
+    defineNativeFunc("print", 5, lib_print, vm);
+    defineNativeFunc("ipairs", 6, lib_ipairs, vm);
 }
 
 void setupSingleChunkVM(const char* source, VM* vm)
 {
     initVM(vm);
-    defineNativeFunctions(vm);
+    defineBaseLib(vm);
 
     ObjFunction* function = compile(source, &vm->strings);
     ObjClosure* closure = newClosure(function);

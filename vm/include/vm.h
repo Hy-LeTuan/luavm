@@ -16,7 +16,7 @@
 
 #define IS_MULTRET(status) (status == 0)
 
-#define stackidxat(vm, x) (vm->stackTop - (x))
+#define stackprev(vm, x) (vm->stackTop - (x))
 #define reducestack(vm, x) (vm->stackTop -= (x))
 #define setstacktop(vm, newSlot) (vm->stackTop = newSlot)
 
@@ -67,6 +67,7 @@ void initVM(VM* vm);
 InterpretResult run(VM* vm);
 void linkObject(Object* obj, VM* vm);
 void freeVM(VM* vm);
+void runtimeError(VM* vm, const char* format, ...);
 uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm);
 void pushStack(Value value, VM* vm);
 Value popStack(VM* vm);

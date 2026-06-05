@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 
-typedef uint8_t (*NativeFn)(uint8_t nargs, Value* args);
+typedef uint8_t (*NativeFn)(uint8_t nargs, void* args);
 
 typedef struct
 {

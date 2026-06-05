@@ -1,38 +1,116 @@
 #include <baselib.h>
 
 #include <objstring.h>
+#include <objtable.h>
+#include <objnativefunction.h>
 
 #include <stdio.h>
 #include <math.h>
 
-uint8_t print(uint8_t narg, Value* start)
+static void printAux(Value arg)
 {
-    if (IS_NUM(*start))
+    if (IS_NUM(arg))
     {
-        float num = AS_NUM(*start);
+        float num = AS_NUM(arg);
 
         if (floor(num) == num)
         {
-            fprintf(stdout, "%d\n", (int)num);
+            fprintf(stdout, "%d", (int)num);
         }
         else
         {
-            fprintf(stdout, "%.2f\n", AS_NUM(*start));
+            fprintf(stdout, "%.2f", AS_NUM(arg));
         }
     }
-    else if (IS_BOOL(*start))
+    else if (IS_BOOL(arg))
     {
-        fprintf(stdout, "%s\n", AS_BOOL(*start) ? "true" : "false");
+        fprintf(stdout, "%s", AS_BOOL(arg) ? "true" : "false");
     }
-    else if (IS_NIL(*start))
+    else if (IS_NIL(arg))
     {
-        fprintf(stdout, "nil\n");
+        fprintf(stdout, "nil");
     }
-    else if (IS_OBJ(*start))
+    else if (IS_OBJ(arg))
     {
-        printObject(AS_OBJ(*start));
-        fprintf(stdout, "\n");
+        printObject(AS_OBJ(arg));
+    }
+}
+
+uint8_t lib_print(uint8_t narg, void* info)
+{
+    VM* vm = castvm(info);
+    CallFrame* frame = currframe(vm);
+
+    for (uint8_t i = 0; i < narg; i++)
+    {
+        printAux(frame->slots[i]);
+
+        if (i != narg - 1)
+        {
+            printf("\t");
+        }
     }
 
+    printf("\n");
+
     return 0;
+}
+
+static uint8_t ipairsAux(uint8_t arg, void* info)
+{
+    VM* vm = castvm(info);
+    CallFrame* frame = currframe(vm);
+
+    Value state = frame->slots[0];
+    Value var = frame->slots[1];
+
+    if (!IS_TABLE(state))
+    {
+        runtimeError(vm, "Error, object is not a table.");
+        return 0;
+    }
+    else if (!IS_NUM(var))
+    {
+        runtimeError(vm, "Error, index is not a number.");
+        return 0;
+    }
+
+    ObjTable* table = AS_TABLE(state);
+    Value idx = NUM_VAL(AS_NUM(var) + 1);
+    Value result = tableGet(idx, &table->content);
+
+    if (IS_NIL(result))
+    {
+        pushStack(NIL_CONSTANT, vm);
+        pushStack(NIL_CONSTANT, vm);
+        return 2;
+    }
+    else
+    {
+        pushStack(idx, vm);
+        pushStack(result, vm);
+        return 2;
+    }
+}
+
+uint8_t lib_ipairs(uint8_t narg, void* info)
+{
+    VM* vm = castvm(info);
+    CallFrame* frame = currframe(vm);
+
+    Value table = *frame->slots;
+
+    if (!IS_TABLE(table))
+    {
+        runtimeError(vm, "Error, object is not a table.");
+        return 0;
+    }
+
+    ObjNativeFunction* iter = newNativeFunction(ipairsAux);
+
+    pushStack(OBJ_VAL(iter), vm);
+    pushStack(table, vm);
+    pushStack(NUM_VAL(0), vm);
+
+    return 3;
 }

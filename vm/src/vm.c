@@ -31,7 +31,7 @@ void initVM(VM* vm)
     initTable(&vm->globals);
 }
 
-static void runtimeError(VM* vm, const char* format, ...)
+void runtimeError(VM* vm, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -117,7 +117,7 @@ static void concatenate(VM* vm)
     ObjString* result = concatenateString(a, b, &vm->strings);
 
     linkObject((Object*)result, vm);
-    pushStack(OBJ_VAL((Object*)result), vm);
+    pushStack(OBJ_VAL(result), vm);
 }
 
 /*
@@ -183,8 +183,8 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
         {
             ObjString* length = copyString("n", 1, &vm->strings);
 
-            tableInsertOrSet(OBJ_VAL((Object*)length), NUM_VAL(diff), &table->content);
-            pushStack(OBJ_VAL((Object*)table), vm);
+            tableInsertOrSet(OBJ_VAL(length), NUM_VAL(diff), &table->content);
+            pushStack(OBJ_VAL(table), vm);
         }
         else
         {
@@ -214,9 +214,9 @@ uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm)
     Value caller = peek(callArity, vm);
 
     CallFrame* newFrame = nextframe(vm);
-    newFrame->callee = stackidxat(vm, callArity + 1);
+    newFrame->slots = stackprev(vm, callArity);
+    newFrame->callee = stackprev(vm, callArity + 1);
     newFrame->expected = status;
-    newFrame->slots = newFrame->callee + 1;
 
     if (IS_CLOSURE(caller))
     {
@@ -235,7 +235,7 @@ uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm)
     else if (IS_NATIVE(caller))
     {
         ObjNativeFunction* native = AS_NATIVE(caller);
-        uint8_t nrets = native->function(callArity, vm->stackTop - callArity);
+        uint8_t nrets = native->function(callArity, vm);
 
         newFrame->info = nrets;
 
@@ -628,7 +628,7 @@ InterpretResult run(VM* vm)
                     }
                 }
 
-                pushStack(OBJ_VAL((Object*)closure), vm);
+                pushStack(OBJ_VAL(closure), vm);
                 break;
             }
             case OP_CALL:
@@ -641,7 +641,7 @@ InterpretResult run(VM* vm)
                 {
                     frame = currframe(vm);
                     uint8_t nrets = frame->info;
-                    Value* returns = stackidxat(vm, nrets);
+                    Value* returns = stackprev(vm, nrets);
 
                     setstacktop(vm, frame->callee);
                     resolveMultret(retStatus, nrets, returns, vm);
@@ -680,7 +680,7 @@ InterpretResult run(VM* vm)
                     tableInsertOrSet(key, value, &table->content);
                 }
 
-                pushStack(OBJ_VAL((Object*)table), vm);
+                pushStack(OBJ_VAL(table), vm);
                 break;
             }
             case OP_GET_FIELD:
@@ -752,7 +752,7 @@ InterpretResult run(VM* vm)
                 uint8_t nrets = getnexprs(nexprs, vm);
                 uint8_t retStatus = frame->expected;
 
-                Value* returns = stackidxat(vm, nrets);
+                Value* returns = stackprev(vm, nrets);
                 setstacktop(vm, frame->callee);
                 resolveMultret(retStatus, nrets, returns, vm);
 

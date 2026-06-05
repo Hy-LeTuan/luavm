@@ -3,7 +3,7 @@
 
 #define IS_OBJ(value) ((value).type == OBJECT)
 #define AS_OBJ(value) ((value).as.object)
-#define OBJ_VAL(obj) ((Value){ OBJECT, { .object = obj } })
+#define OBJ_VAL(obj) ((Value){ OBJECT, { .object = (Object*)(obj) } })
 
 #define ALLOCATE_OBJ(objType, objStruct) ((objStruct*)allocateObj(objType, sizeof(objStruct)))
 
