@@ -40,7 +40,7 @@ add_test(NAME ObjtableTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ObjtableTest>"
     -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/objtable_test_input.lua"
-    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/objtable_test.expected"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/objtable_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/objtable_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
@@ -52,7 +52,7 @@ add_test(NAME ExpressionTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ExpressionTest>"
     -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/expression_test_input.lua"
-    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/expression_test.expected"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/expression_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/expression_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
@@ -64,7 +64,7 @@ add_test(NAME JumpTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:JumpTest>"
     -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/jump_test_input.lua"
-    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/jump_test.expected"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/jump_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/jump_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
@@ -76,7 +76,7 @@ add_test(NAME AssignTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:AssignTest>"
     -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/assign_test_input.lua"
-    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/assign_test.expected"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/assign_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/assign_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
@@ -88,7 +88,7 @@ add_test(NAME FunctionTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:FunctionTest>"
     -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/function_test_input.lua"
-    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/function_test.expected"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/function_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/function_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
@@ -100,7 +100,7 @@ add_test(NAME ClosureAndIterTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ClosureAndIterTest>"
     -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/closure_and_iter_test_input.lua"
-    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/closure_and_iter_test.expected"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/closure_and_iter_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/closure_and_iter_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
@@ -112,7 +112,7 @@ add_test(NAME MultretTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:MultretTest>"
     -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/multret_test_input.lua"
-    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/unit/multret_test.expected"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/multret_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/multret_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
