@@ -1,8 +1,6 @@
 #include <baselib.h>
 
-#include <objstring.h>
-#include <objtable.h>
-#include <objnativefunction.h>
+#include <object.h>
 
 #include <stdio.h>
 #include <math.h>
@@ -30,9 +28,30 @@ static void printAux(Value arg)
     {
         fprintf(stdout, "nil");
     }
-    else if (IS_OBJ(arg))
+    else if (IS_STRING(arg))
     {
-        printObject(AS_OBJ(arg));
+        ObjString* string = v2obj(ObjString, arg);
+        fprintf(stdout, "%s", string->chars);
+    }
+    else if (IS_TABLE(arg))
+    {
+        fprintf(stdout, "table");
+    }
+    else if (IS_FUNCTION(arg))
+    {
+        fprintf(stdout, "function");
+    }
+    else if (IS_CLOSURE(arg))
+    {
+        fprintf(stdout, "closure");
+    }
+    else if (IS_NATIVE(arg))
+    {
+        fprintf(stdout, "native_fn");
+    }
+    else if (IS_UPVALUE(arg))
+    {
+        fprintf(stdout, "upvalue");
     }
 }
 
@@ -106,7 +125,7 @@ uint8_t lib_ipairs(uint8_t narg, VM* vm)
     ObjNativeFunction* iter = newNativeFunction(ipairsAux);
     linkObject((Object*)iter, vm);
 
-    pushStack(OBJ_VAL(iter), vm);
+    pushStack(NATIVE_VAL(iter), vm);
     pushStack(table, vm);
     pushStack(NUM_VAL(0), vm);
 

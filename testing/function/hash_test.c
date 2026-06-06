@@ -1,9 +1,7 @@
+#include <object.h>
 #include <table.h>
 #include <hash.h>
 #include <value.h>
-#include <objstring.h>
-#include <objfunction.h>
-#include <objclosure.h>
 
 #include <stdio.h>
 #include <assert.h>
@@ -50,17 +48,16 @@ int main(int argc, char* argv[])
     fprintf(stdout, "Test for booleans passed.\n");
 
     // strings
-    COMPARE(OBJ_VAL((Object*)copyString("hello", 5, &strings)), fnv1a_32);
-    COMPARE(
-      OBJ_VAL((Object*)copyString("this is a very long string for a key", 36, &strings)), fnv1a_32);
+    COMPARE(STRING_VAL(copyString("hello", 5, &strings)), fnv1a_32);
+    COMPARE(STRING_VAL(copyString("this is a very long string for a key", 36, &strings)), fnv1a_32);
 
     fprintf(stdout, "Test for strings passed.\n");
 
     // functions
-    COMPARE(OBJ_VAL((Object*)newFunction()), fnv1a_32);
+    COMPARE(FUNCTION_VAL(newFunction()), fnv1a_32);
 
     ObjFunction* function = newFunction();
-    COMPARE(OBJ_VAL((Object*)newClosure(function)), fnv1a_32);
+    COMPARE(FUNCTION_VAL(newClosure(function)), fnv1a_32);
 
     fprintf(stdout, "Test for functions and closures passed.\n");
 

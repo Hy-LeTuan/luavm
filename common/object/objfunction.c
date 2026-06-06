@@ -1,4 +1,4 @@
-#include <objfunction.h>
+#include <object.h>
 
 ObjFunction* newFunction()
 {

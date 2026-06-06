@@ -4,10 +4,6 @@
 #include <memory.h>
 #include <string.h>
 #include <object.h>
-#include <objstring.h>
-#include <objfunction.h>
-#include <objclosure.h>
-#include <objnativefunction.h>
 
 #define TABLE_MAX_LOAD 0.75
 

@@ -1,6 +1,6 @@
+#include <object.h>
 #include <table.h>
 #include <hash.h>
-#include <objstring.h>
 
 #include <stdlib.h>
 #include <string.h>

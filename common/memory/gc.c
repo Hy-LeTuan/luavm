@@ -1,11 +1,7 @@
 #include <gc.h>
 
 #include <memory.h>
-#include <objstring.h>
-#include <objfunction.h>
-#include <objclosure.h>
-#include <objnativefunction.h>
-#include <objtable.h>
+#include <object.h>
 
 #include <stdio.h>
 
@@ -16,11 +12,11 @@ void freeObject(Object* obj)
         return;
     }
 
-    switch (obj->type)
+    switch (otype(obj))
     {
         case OBJ_STRING:
         {
-            ObjString* string = (ObjString*)obj;
+            ObjString* string = castobjto(ObjString, obj);
             FREE_ARRAY(string->chars, string->length + 1, char);
             FREE(string, ObjString);
             break;
@@ -56,6 +52,8 @@ void freeObject(Object* obj)
             FREE(table, ObjTable);
             break;
         }
+        default:
+            return;
     }
 }
 

@@ -1,4 +1,4 @@
-#include <objupvalue.h>
+#include <object.h>
 
 ObjUpvalue* newUpvalue(Value* location)
 {

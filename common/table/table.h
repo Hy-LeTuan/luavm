@@ -2,7 +2,6 @@
 #define common_table_table_h
 
 #include <value.h>
-#include <object.h>
 #include <stdint.h>
 
 typedef enum

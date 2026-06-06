@@ -4,8 +4,6 @@
 #include <chunk.h>
 #include <value.h>
 #include <object.h>
-#include <table.h>
-#include <objclosure.h>
 
 #define STACK_MAX 256
 #define CACHE_MAX 128
@@ -46,7 +44,7 @@ typedef struct
     uint8_t info;
 } CallFrame;
 
-typedef struct
+typedef struct VM
 {
     Value stack[STACK_MAX];
     Value cache[CACHE_MAX];

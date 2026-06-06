@@ -1,13 +1,10 @@
-#include <table.h>
 #include <object.h>
-#include <objstring.h>
-#include <objfunction.h>
-#include <objclosure.h>
+#include <table.h>
 
 #include <stdio.h>
 #include <assert.h>
 
-#define CREATE_STRING(str, length, strings) (OBJ_VAL(copyString(str, length, &strings)))
+#define CREATE_STRING(str, length, strings) (STRING_VAL(copyString(str, length, &strings)))
 
 int main(int argc, char* argv[])
 {
@@ -24,17 +21,17 @@ int main(int argc, char* argv[])
     tableInsert(CREATE_STRING("a very long key", 15, strings), NUM_VAL(122.2), &test_table);
 
     ObjFunction* function = newFunction();
-    tableInsert(OBJ_VAL(function), NUM_VAL(1), &test_table);
+    tableInsert(FUNCTION_VAL(function), NUM_VAL(1), &test_table);
 
     ObjClosure* closure = newClosure(function);
-    tableInsert(OBJ_VAL(closure), NUM_VAL(2), &test_table);
+    tableInsert(CLOSURE_VAL(closure), NUM_VAL(2), &test_table);
 
     assert(AS_NUM(tableGet(CREATE_STRING("hello", 5, strings), &test_table)) == 1.0);
     assert(AS_NUM(tableGet(CREATE_STRING("key", 3, strings), &test_table)) == 2.0);
     assert(AS_NUM(tableGet(CREATE_STRING("normal", 6, strings), &test_table)) == 3.0);
     assert(AS_NUM(tableGet(CREATE_STRING("a very long key", 15, strings), &test_table)) == 122.2);
-    assert(AS_NUM(tableGet(OBJ_VAL(function), &test_table)) == 1.0);
-    assert(AS_NUM(tableGet(OBJ_VAL(closure), &test_table)) == 2.0);
+    assert(AS_NUM(tableGet(FUNCTION_VAL(function), &test_table)) == 1.0);
+    assert(AS_NUM(tableGet(CLOSURE_VAL(closure), &test_table)) == 2.0);
 
     fprintf(stdout, "Insertion test passed successfully.\n");
 

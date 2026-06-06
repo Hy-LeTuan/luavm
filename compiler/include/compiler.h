@@ -4,10 +4,10 @@
 #include <lexer.h>
 #include <token.h>
 #include <chunk.h>
+#include <object.h>
 #include <table.h>
 #include <locals.h>
 #include <upvalues.h>
-#include <objfunction.h>
 
 #define MULTRET 0
 #define ZERORET 1

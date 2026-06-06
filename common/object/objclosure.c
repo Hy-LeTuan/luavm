@@ -1,5 +1,4 @@
-#include <objclosure.h>
-
+#include <object.h>
 #include <memory.h>
 
 ObjClosure* newClosure(ObjFunction* function)

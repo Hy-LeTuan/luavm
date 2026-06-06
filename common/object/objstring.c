@@ -1,4 +1,4 @@
-#include <objstring.h>
+#include <object.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -13,7 +13,7 @@ static ObjString* newString(char* chars, size_t length, Table* strings)
     string->length = length;
     string->chars = chars;
 
-    tableInsert(OBJ_VAL((Object*)string), BOOL_VAL(true), strings);
+    tableInsert(STRING_VAL(string), TRUE_VAL(), strings);
 
     return string;
 }

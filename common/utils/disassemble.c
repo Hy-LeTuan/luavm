@@ -1,7 +1,8 @@
 #include <disassemble.h>
 
+#include <object.h>
+
 #include <stdio.h>
-#include <objclosure.h>
 
 static bool DISASSEMBLE_CLOSURE_CHUNK = false;
 

@@ -1,4 +1,4 @@
-#include <objnativefunction.h>
+#include <object.h>
 
 ObjNativeFunction* newNativeFunction(NativeFn function)
 {

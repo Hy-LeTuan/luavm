@@ -1,11 +1,6 @@
 #include <hash.h>
 
 #include <object.h>
-#include <objstring.h>
-#include <objfunction.h>
-#include <objclosure.h>
-#include <objnativefunction.h>
-#include <objtable.h>
 
 const uint32_t FnvDefaultPrime = 0x01000193U;
 const uint32_t FnvDefaultOffsetBasis = 0x811C9DC5U;
@@ -38,52 +33,44 @@ void* valueToByte(const Value value, int* byte_length)
             bytes = (void*)(&value.as.boolean);
             *byte_length = sizeof(value.as.boolean);
             break;
-        case OBJECT:
+        case OBJ_STRING:
         {
-            Object* obj = value.as.object;
-            switch (obj->type)
-            {
-                case OBJ_STRING:
-                {
-                    ObjString* string = AS_STRING(value);
-                    bytes = (void*)string->chars;
-                    *byte_length = string->length;
-                    break;
-                }
-                case OBJ_FUNCTION:
-                {
-                    ObjFunction* function = (ObjFunction*)obj;
-                    bytes = (void*)function;
-                    *byte_length = (int)sizeof(ObjFunction*);
-                    break;
-                }
-                case OBJ_CLOSURE:
-                {
-                    ObjClosure* closure = (ObjClosure*)obj;
-                    bytes = (void*)closure;
-                    *byte_length = (int)sizeof(ObjClosure*);
-                    break;
-                }
-                case OBJ_NATIVE:
-                {
-                    ObjNativeFunction* native = (ObjNativeFunction*)obj;
-                    bytes = (void*)native;
-                    *byte_length = (int)sizeof(ObjNativeFunction*);
-                    break;
-                }
-                case OBJ_TABLE:
-                {
-                    ObjTable* table = (ObjTable*)obj;
-                    bytes = (void*)table;
-                    *byte_length = (int)sizeof(ObjTable*);
-                    break;
-                }
-                case OBJ_UPVALUE:
-                    *byte_length = 0;
-                    break;
-            }
+            ObjString* string = AS_STRING(value);
+            bytes = (void*)string->chars;
+            *byte_length = string->length;
             break;
         }
+        case OBJ_FUNCTION:
+        {
+            ObjFunction* function = AS_FUNCTION(value);
+            bytes = (void*)function;
+            *byte_length = (int)sizeof(ObjFunction*);
+            break;
+        }
+        case OBJ_CLOSURE:
+        {
+            ObjClosure* closure = AS_CLOSURE(value);
+            bytes = (void*)closure;
+            *byte_length = (int)sizeof(ObjClosure*);
+            break;
+        }
+        case OBJ_NATIVE:
+        {
+            ObjNativeFunction* native = AS_NATIVE(value);
+            bytes = (void*)native;
+            *byte_length = (int)sizeof(ObjNativeFunction*);
+            break;
+        }
+        case OBJ_TABLE:
+        {
+            ObjTable* table = AS_TABLE(value);
+            bytes = (void*)table;
+            *byte_length = (int)sizeof(ObjTable*);
+            break;
+        }
+        case OBJ_UPVALUE:
+            *byte_length = 0;
+            break;
         case NIL:
             *byte_length = 0;
             break;

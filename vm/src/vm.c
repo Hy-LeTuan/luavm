@@ -3,9 +3,6 @@
 #include <disassemble.h>
 #include <memory.h>
 #include <gc.h>
-#include <objstring.h>
-#include <objnativefunction.h>
-#include <objtable.h>
 #include <utils.h>
 
 #include <stdlib.h>
@@ -117,7 +114,7 @@ static void concatenate(VM* vm)
     ObjString* result = concatenateString(a, b, &vm->strings);
 
     linkObject((Object*)result, vm);
-    pushStack(OBJ_VAL(result), vm);
+    pushStack(STRING_VAL(result), vm);
 }
 
 /*
@@ -183,8 +180,8 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
         {
             ObjString* length = copyString("n", 1, &vm->strings);
 
-            tableInsertOrSet(OBJ_VAL(length), NUM_VAL(diff), &table->content);
-            pushStack(OBJ_VAL(table), vm);
+            tableInsertOrSet(STRING_VAL(length), NUM_VAL(diff), &table->content);
+            pushStack(TABLE_VAL(table), vm);
         }
         else
         {
@@ -377,7 +374,7 @@ InterpretResult run(VM* vm)
             {
                 Value constant = READ_CONSTANT();
 
-                if (constant.type == OBJECT)
+                if (CAN_GC(constant))
                 {
                     linkObject(AS_OBJ(constant), vm);
                 }
@@ -628,7 +625,7 @@ InterpretResult run(VM* vm)
                     }
                 }
 
-                pushStack(OBJ_VAL(closure), vm);
+                pushStack(CLOSURE_VAL(closure), vm);
                 break;
             }
             case OP_CALL:
@@ -680,7 +677,7 @@ InterpretResult run(VM* vm)
                     tableInsertOrSet(key, value, &table->content);
                 }
 
-                pushStack(OBJ_VAL(table), vm);
+                pushStack(TABLE_VAL(table), vm);
                 break;
             }
             case OP_GET_FIELD:

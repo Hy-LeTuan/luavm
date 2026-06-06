@@ -1,7 +1,6 @@
 #include <value.h>
 #include <memory.h>
 #include <object.h>
-#include <objstring.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -41,8 +40,26 @@ void printValue(Value value)
         case NIL:
             fprintf(stdout, "nil");
             break;
-        case OBJECT:
-            printObject(AS_OBJ(value));
+        case OBJ_STRING:
+        {
+            ObjString* string = (ObjString*)AS_OBJ(value);
+            fprintf(stdout, "%s", string->chars);
+            break;
+        }
+        case OBJ_TABLE:
+            fprintf(stdout, "table");
+            break;
+        case OBJ_FUNCTION:
+            fprintf(stdout, "function");
+            break;
+        case OBJ_CLOSURE:
+            fprintf(stdout, "closure");
+            break;
+        case OBJ_NATIVE:
+            fprintf(stdout, "native_fn");
+            break;
+        case OBJ_UPVALUE:
+            fprintf(stdout, "upvalue");
             break;
     }
 }

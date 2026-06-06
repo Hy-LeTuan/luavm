@@ -1,7 +1,6 @@
 add_library(common
     #chunks
     chunk/chunk.c;
-    chunk/value.c;
 
     memory/memory.c;
     memory/gc.c
@@ -9,6 +8,7 @@ add_library(common
     utils/disassemble.c;
 
     # objects
+    object/value.c
     object/object.c;
     object/objstring.c;
     object/objfunction.c

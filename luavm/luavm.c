@@ -11,6 +11,7 @@ static uint8_t execute(const char* source)
     setupSingleChunkVM(source, &vm);
     InterpretResult result = run(&vm);
     freeVM(&vm);
+
     if (result == INTERPRET_SUCCESS)
     {
         return 0;
