@@ -3,6 +3,7 @@
 
 #include <object.h>
 
+void freeObject(Object* obj);
 void freeObjects(Object* objects);
 
 #endif

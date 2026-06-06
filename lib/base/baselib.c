@@ -36,9 +36,8 @@ static void printAux(Value arg)
     }
 }
 
-uint8_t lib_print(uint8_t narg, void* info)
+uint8_t lib_print(uint8_t narg, VM* vm)
 {
-    VM* vm = castvm(info);
     CallFrame* frame = currframe(vm);
 
     for (uint8_t i = 0; i < narg; i++)
@@ -56,9 +55,8 @@ uint8_t lib_print(uint8_t narg, void* info)
     return 0;
 }
 
-static uint8_t ipairsAux(uint8_t arg, void* info)
+static uint8_t ipairsAux(uint8_t arg, VM* vm)
 {
-    VM* vm = castvm(info);
     CallFrame* frame = currframe(vm);
 
     Value state = frame->slots[0];
@@ -93,9 +91,8 @@ static uint8_t ipairsAux(uint8_t arg, void* info)
     }
 }
 
-uint8_t lib_ipairs(uint8_t narg, void* info)
+uint8_t lib_ipairs(uint8_t narg, VM* vm)
 {
-    VM* vm = castvm(info);
     CallFrame* frame = currframe(vm);
 
     Value table = *frame->slots;
@@ -107,6 +104,7 @@ uint8_t lib_ipairs(uint8_t narg, void* info)
     }
 
     ObjNativeFunction* iter = newNativeFunction(ipairsAux);
+    linkObject((Object*)iter, vm);
 
     pushStack(OBJ_VAL(iter), vm);
     pushStack(table, vm);

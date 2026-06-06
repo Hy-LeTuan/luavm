@@ -6,9 +6,7 @@
 
 #include <stdint.h>
 
-#define castvm(ptr) ((VM*)ptr)
-
-uint8_t lib_print(uint8_t narg, void* info);
-uint8_t lib_ipairs(uint8_t narg, void* info);
+uint8_t lib_print(uint8_t narg, VM* vm);
+uint8_t lib_ipairs(uint8_t narg, VM* vm);
 
 #endif

@@ -14,7 +14,7 @@ static void defineNativeFunc(const char* name, int length, NativeFn function, VM
     linkObject((Object*)key, vm);
     linkObject((Object*)native, vm);
 
-    tableInsertOrSet(OBJ_VAL((Object*)key), OBJ_VAL((Object*)native), &vm->globals);
+    tableInsertOrSet(OBJ_VAL(key), OBJ_VAL(native), &vm->globals);
 }
 
 static void defineBaseLib(VM* vm)
@@ -31,7 +31,7 @@ void setupSingleChunkVM(const char* source, VM* vm)
     ObjFunction* function = compile(source, &vm->strings);
     ObjClosure* closure = newClosure(function);
 
-    pushStack(OBJ_VAL((Object*)closure), vm);
+    pushStack(OBJ_VAL(closure), vm);
     precall(0, 1, vm);
 }
 

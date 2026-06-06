@@ -198,7 +198,7 @@ static void emitConstant(Value value, Parser* p)
 
 static size_t identifierConstant(Token* name, Parser* p)
 {
-    Value name_obj = OBJ_VAL((Object*)copyString(name->start, name->length, p->strings));
+    Value name_obj = OBJ_VAL(copyString(name->start, name->length, p->strings));
 
     size_t pos = addConstant(currentChunk(p), name_obj);
     return pos;
@@ -565,7 +565,7 @@ static void str(ExpDesc* e, Parser* p)
     size_t length = p->prev.length - 2;
 
     ObjString* string = copyString(text, length, p->strings);
-    emitConstant(OBJ_VAL((Object*)string), p);
+    emitConstant(OBJ_VAL(string), p);
     e->kind = EXP_STR;
 }
 
@@ -1315,7 +1315,7 @@ static void functionBody(Parser* p)
 
     ObjClosure* closure = newClosure(function);
 
-    size_t constant = addConstant(currentChunk(p), OBJ_VAL((Object*)function));
+    size_t constant = addConstant(currentChunk(p), OBJ_VAL(function));
 
     emitBytes(OP_CLOSURE, constant, p);
 

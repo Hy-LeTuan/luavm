@@ -9,8 +9,13 @@
 
 #include <stdio.h>
 
-static void freeObject(Object* obj)
+void freeObject(Object* obj)
 {
+    if (obj == NULL)
+    {
+        return;
+    }
+
     switch (obj->type)
     {
         case OBJ_STRING:
