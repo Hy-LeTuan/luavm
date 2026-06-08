@@ -116,3 +116,16 @@ add_test(NAME MultretTest
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/multret_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
+
+# LIBRARY TESTING
+
+add_executable(StringLibTest lib/string_lib_test.c)
+target_link_libraries(StringLibTest PRIVATE luavmapi)
+add_test(NAME StringLibTest
+    COMMAND ${CMAKE_COMMAND}
+    -D "TEST_EXECUTABLE=$<TARGET_FILE:StringLibTest>"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/string_lib_test_input.lua"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/string_lib_test.expected"
+    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/string_lib_test.actual"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
+)
