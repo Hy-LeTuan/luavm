@@ -134,7 +134,7 @@ static int tableGrow(Table* table, size_t newCapacity)
     return 0;
 }
 
-void tableInsert(Value key, Value value, Table* table)
+void tableSet(Value key, Value value, Table* table)
 {
     if (table->count + 1 > table->capacity * TABLE_MAX_LOAD)
     {
@@ -163,7 +163,7 @@ void tableInsertOrSet(Value key, Value value, Table* table)
     }
     else
     {
-        tableInsert(key, value, table);
+        tableSet(key, value, table);
     }
 }
 

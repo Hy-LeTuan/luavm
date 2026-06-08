@@ -15,16 +15,16 @@ int main(int argc, char* argv[])
     initTable(&strings);
 
     // test insertion
-    tableInsert(CREATE_STRING("hello", 5, strings), NUM_VAL(1), &test_table);
-    tableInsert(CREATE_STRING("key", 3, strings), NUM_VAL(2), &test_table);
-    tableInsert(CREATE_STRING("normal", 6, strings), NUM_VAL(3), &test_table);
-    tableInsert(CREATE_STRING("a very long key", 15, strings), NUM_VAL(122.2), &test_table);
+    tableSet(CREATE_STRING("hello", 5, strings), NUM_VAL(1), &test_table);
+    tableSet(CREATE_STRING("key", 3, strings), NUM_VAL(2), &test_table);
+    tableSet(CREATE_STRING("normal", 6, strings), NUM_VAL(3), &test_table);
+    tableSet(CREATE_STRING("a very long key", 15, strings), NUM_VAL(122.2), &test_table);
 
     ObjFunction* function = newFunction();
-    tableInsert(FUNCTION_VAL(function), NUM_VAL(1), &test_table);
+    tableSet(FUNCTION_VAL(function), NUM_VAL(1), &test_table);
 
     ObjClosure* closure = newClosure(function);
-    tableInsert(CLOSURE_VAL(closure), NUM_VAL(2), &test_table);
+    tableSet(CLOSURE_VAL(closure), NUM_VAL(2), &test_table);
 
     assert(AS_NUM(tableGet(CREATE_STRING("hello", 5, strings), &test_table)) == 1.0);
     assert(AS_NUM(tableGet(CREATE_STRING("key", 3, strings), &test_table)) == 2.0);

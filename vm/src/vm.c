@@ -1,3 +1,4 @@
+#include "table.h"
 #include <vm.h>
 
 #include <disassemble.h>
@@ -9,6 +10,14 @@
 #include <stdarg.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
+
+#define createevent(e, ename, vm)                                                                  \
+    {                                                                                              \
+        ObjString* name = copyString(ename, strlen(ename), &vm->strings);                          \
+        linkObject(baseobj(name), vm);                                                             \
+        vm->events[e] = name;                                                                      \
+    }
 
 static void resetStack(VM* vm)
 {
@@ -26,6 +35,25 @@ void initVM(VM* vm)
     resetStack(vm);
     initTable(&vm->strings);
     initTable(&vm->globals);
+
+    for (uint8_t i = 0; i < MT_SIZE; i++)
+    {
+        vm->mts[i] = NULL;
+    }
+
+    // setup event keys
+    createevent(EVENT_ADD, "add", vm);
+    createevent(EVENT_SUB, "sub", vm);
+    createevent(EVENT_MUL, "mul", vm);
+    createevent(EVENT_DIV, "div", vm);
+    createevent(EVENT_MOD, "mod", vm);
+    createevent(EVENT_CONCAT, "concat", vm);
+    createevent(EVENT_LEN, "len", vm);
+    createevent(EVENT_EQ, "eq", vm);
+    createevent(EVENT_LT, "lt", vm);
+    createevent(EVENT_LE, "le", vm);
+    createevent(EVENT_INDEX, "index", vm);
+    createevent(EVENT_NEWINDEX, "newindex", vm);
 }
 
 void runtimeError(VM* vm, const char* format, ...)
@@ -768,10 +796,33 @@ InterpretResult run(VM* vm)
 #undef EXECUTE_BINARY
 }
 
+Value getEventFromValue(uint8_t t, uint8_t e, VM* vm)
+{
+    ObjTable* table = vm->mts[t];
+
+    if (table == NULL)
+    {
+        return NIL_CONSTANT;
+    }
+
+    return tableGet(STRING_VAL(vm->events[e]), &table->content);
+}
+
+void setEventFromValue(Value v, uint8_t t, uint8_t e, VM* vm)
+{
+    ObjTable* table = vm->mts[t];
+    tableInsertOrSet(v, STRING_VAL(vm->events[e]), &table->content);
+}
+
 void freeVM(VM* vm)
 {
     resetStack(vm);
     freeTable(&vm->strings);
     freeTable(&vm->globals);
     freeObjects(vm->objectStack);
+
+    for (uint8_t i = 0; i < MT_SIZE; i++)
+    {
+        freeObject(baseobj(vm->mts[i]));
+    }
 }

@@ -1,8 +1,11 @@
 add_library(lib
     base/baselib.c
+    string/stringlib.c
 )
 
 target_link_libraries(lib PRIVATE common)
 target_link_libraries(lib PRIVATE vm)
 
 target_include_directories(lib PUBLIC base)
+target_include_directories(lib PUBLIC string)
+target_include_directories(lib PUBLIC utils)

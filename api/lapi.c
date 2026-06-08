@@ -3,28 +3,79 @@
 #include <object.h>
 #include <compiler.h>
 #include <baselib.h>
+#include <stringlib.h>
 
-static void defineNativeFunc(const char* name, int length, NativeFn function, VM* vm)
+#include <string.h>
+
+#define setvmmetatable(type, value) (vm->mts[type] = value)
+
+/*
+   @param lib: The library that matches the function name with the actual function
+*/
+static void defineLib(LibExport* libExport, Table* lib, VM* vm)
 {
-    ObjString* key = copyString(name, length, &vm->strings);
-    ObjNativeFunction* native = newNativeFunction(function);
+    for (;;libExport++)
+    {
+        const char* name = libExport->name;
+        NativeFn func = libExport->f;
 
-    linkObject(baseobj(key), vm);
-    linkObject(baseobj(native), vm);
+        if (name == NULL || func == NULL)
+        {
+            return;
+        }
 
-    tableInsertOrSet(STRING_VAL(key), NATIVE_VAL(native), &vm->globals);
+        ObjString* key = copyString(name, strlen(name), &vm->strings);
+        ObjNativeFunction* native = newNativeFunction(func);
+        linkObject(baseobj(key), vm);
+        linkObject(baseobj(native), vm);
+        tableInsertOrSet(STRING_VAL(key), NATIVE_VAL(native), lib);
+    }
 }
 
-static void defineBaseLib(VM* vm)
+static void insertToGlobal(const char* name, Value v, VM* vm)
 {
-    defineNativeFunc("print", 5, lib_print, vm);
-    defineNativeFunc("ipairs", 6, lib_ipairs, vm);
+    ObjString* objname = copyString("string", 6, &vm->strings);
+    linkObject(baseobj(objname), vm);
+    tableInsertOrSet(STRING_VAL(objname), v, &vm->globals);
+}
+
+static ObjTable* createStandardMetatable(VM* vm)
+{
+    ObjTable* table = newTable();
+
+    for (uint8_t i = 0; i < EVENT_SIZE; i++)
+    {
+        ObjString* event = vm->events[i];
+        tableInsertOrSet(STRING_VAL(event), NIL_CONSTANT, TABLE(table));
+    }
+
+    return table;
+}
+
+static void defineMtsAndEnvs(VM* vm)
+{
+    /*
+       define all libraries
+    */
+    defineLib(BASE_LIB, &vm->globals, vm);
+
+    ObjTable* stringlib = newTable();
+    defineLib(STRING_LIB, TABLE(stringlib), vm);
+    insertToGlobal("string", TABLE_VAL(stringlib), vm);
+
+    /*
+       define metatables
+    */
+    ObjTable* stringmt = createStandardMetatable(vm);
+    tableSet(STRING_VAL(vm->events[EVENT_INDEX]), TABLE_VAL(stringlib), &stringmt->content);
+
+    setvmmetatable(OBJ_STRING, stringmt);
 }
 
 void setupSingleChunkVM(const char* source, VM* vm)
 {
     initVM(vm);
-    defineBaseLib(vm);
+    defineMtsAndEnvs(vm);
 
     ObjFunction* function = compile(source, &vm->strings);
     ObjClosure* closure = newClosure(function);

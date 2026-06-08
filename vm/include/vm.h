@@ -4,6 +4,9 @@
 #include <chunk.h>
 #include <value.h>
 #include <object.h>
+#include <metatable.h>
+
+#define MT_SIZE 8
 
 #define STACK_MAX 256
 #define CACHE_MAX 128
@@ -22,6 +25,8 @@
 #define currframe(vm) (&vm->frames[vm->frameCount - 1])
 #define prevframe(vm) (&vm->frames[(--vm->frameCount) - 1])
 #define finalframe(vm) (vm->frameCount - 1 == 0)
+
+#define getmtdirect(vm, type) (vm->mts[type])
 
 typedef enum
 {
@@ -59,6 +64,9 @@ typedef struct VM
 
     /* this field is used to keep track of how many values are generated from multret expressions */
     uint8_t nvals;
+
+    ObjTable* mts[MT_SIZE];
+    ObjString* events[EVENT_SIZE];
 } VM;
 
 void initVM(VM* vm);
@@ -69,5 +77,8 @@ void runtimeError(VM* vm, const char* format, ...);
 uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm);
 void pushStack(Value value, VM* vm);
 Value popStack(VM* vm);
+
+Value getEventFromValue(uint8_t t, uint8_t e, VM* vm);
+void setEventFromValue(Value v, uint8_t t, uint8_t e, VM* vm);
 
 #endif

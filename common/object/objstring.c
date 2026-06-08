@@ -13,7 +13,7 @@ static ObjString* newString(char* chars, size_t length, Table* strings)
     string->length = length;
     string->chars = chars;
 
-    tableInsert(STRING_VAL(string), TRUE_VAL(), strings);
+    tableSet(STRING_VAL(string), TRUE_VAL(), strings);
 
     return string;
 }

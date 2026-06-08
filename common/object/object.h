@@ -3,6 +3,8 @@
 
 #define ALLOCATE_OBJ(valueType, objStruct) ((objStruct*)allocateObj(valueType, sizeof(objStruct)))
 
+#define TABLE(t) (&t->content)
+
 #define baseobj(obj) ((Object*)obj)
 #define castobjto(type, obj) ((type*)(obj))
 

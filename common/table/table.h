@@ -26,7 +26,7 @@ typedef struct
 } Table;
 
 void initTable(Table* table);
-void tableInsert(Value key, Value value, Table* table);
+void tableSet(Value key, Value value, Table* table);
 void tableInsertOrSet(Value key, Value value, Table* table);
 Value tableGet(Value key, Table* table);
 bool tableErase(Value key, Table* table);

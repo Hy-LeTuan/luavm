@@ -131,3 +131,5 @@ uint8_t lib_ipairs(uint8_t narg, VM* vm)
 
     return 3;
 }
+
+LibExport BASE_LIB[] = { { "print", lib_print }, { "ipairs", lib_ipairs }, { NULL, NULL } };
