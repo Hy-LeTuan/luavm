@@ -42,18 +42,18 @@ void initVM(VM* vm)
     }
 
     // setup event keys
-    createevent(EVENT_ADD, "add", vm);
-    createevent(EVENT_SUB, "sub", vm);
-    createevent(EVENT_MUL, "mul", vm);
-    createevent(EVENT_DIV, "div", vm);
-    createevent(EVENT_MOD, "mod", vm);
-    createevent(EVENT_CONCAT, "concat", vm);
-    createevent(EVENT_LEN, "len", vm);
-    createevent(EVENT_EQ, "eq", vm);
-    createevent(EVENT_LT, "lt", vm);
-    createevent(EVENT_LE, "le", vm);
-    createevent(EVENT_INDEX, "index", vm);
-    createevent(EVENT_NEWINDEX, "newindex", vm);
+    createevent(EVENT_ADD, "__add", vm);
+    createevent(EVENT_SUB, "__sub", vm);
+    createevent(EVENT_MUL, "__mul", vm);
+    createevent(EVENT_DIV, "__div", vm);
+    createevent(EVENT_MOD, "__mod", vm);
+    createevent(EVENT_CONCAT, "__concat", vm);
+    createevent(EVENT_LEN, "__len", vm);
+    createevent(EVENT_EQ, "__eq", vm);
+    createevent(EVENT_LT, "__lt", vm);
+    createevent(EVENT_LE, "__le", vm);
+    createevent(EVENT_INDEX, "__index", vm);
+    createevent(EVENT_NEWINDEX, "__newindex", vm);
 }
 
 void runtimeError(VM* vm, const char* format, ...)
@@ -349,6 +349,28 @@ static void resolveMultret(uint8_t status, uint8_t maxnrets, Value* vals, VM* vm
 
         setnvals(expected, vm);
     }
+}
+
+static void resovleNativeCall(uint8_t retStatus, VM* vm)
+{
+    CallFrame* frame = currframe(vm);
+    uint8_t nrets = frame->info;
+    Value* returns = stackprev(vm, nrets);
+
+    setstacktop(vm, frame->callee);
+    resolveMultret(retStatus, nrets, returns, vm);
+}
+
+Value getEventFromValue(uint8_t t, uint8_t e, VM* vm)
+{
+    ObjTable* table = vm->mts[t];
+
+    if (table == NULL)
+    {
+        return NIL_CONSTANT;
+    }
+
+    return tableGet(STRING_VAL(vm->events[e]), &table->content);
 }
 
 InterpretResult run(VM* vm)
@@ -661,25 +683,14 @@ InterpretResult run(VM* vm)
                 uint8_t nexprs = READ_BYTE();
                 uint8_t retStatus = READ_BYTE();
 
-                uint8_t callStatus;
-                if ((callStatus = precall(nexprs, retStatus, vm)) == C_CALL)
+                if (precall(nexprs, retStatus, vm) == C_CALL)
                 {
-                    frame = currframe(vm);
-                    uint8_t nrets = frame->info;
-                    Value* returns = stackprev(vm, nrets);
-
-                    setstacktop(vm, frame->callee);
-                    resolveMultret(retStatus, nrets, returns, vm);
-
+                    resovleNativeCall(retStatus, vm);
                     frame = prevframe(vm);
-                }
-                else if (callStatus == LUA_CALL)
-                {
-                    frame = currframe(vm);
                 }
                 else
                 {
-                    return INTERPRET_ERROR;
+                    frame = currframe(vm);
                 }
                 break;
             }
@@ -687,6 +698,11 @@ InterpretResult run(VM* vm)
             {
                 uint8_t status = READ_BYTE();
                 resolveMultret(status, frame->info, vm->cache + vm->cacheSize - frame->info, vm);
+                break;
+            }
+            case OP_SELF:
+            {
+                // TODO: handle OP_SELF
                 break;
             }
             case OP_CONSTRUCT:
@@ -712,10 +728,45 @@ InterpretResult run(VM* vm)
             {
                 Value key = popStack(vm);
                 Value tableVal = popStack(vm);
-                ObjTable* table = AS_TABLE(tableVal);
 
-                Value val = tableGet(key, &table->content);
-                pushStack(val, vm);
+                if (IS_TABLE(tableVal))
+                {
+                    ObjTable* table = AS_TABLE(tableVal);
+                    Value val = tableGet(key, &table->content);
+                    if (!IS_NIL(val))
+                    {
+                        pushStack(val, vm);
+                        break;
+                    }
+                }
+
+                // attempt to get value from metatable
+                Value indexed = getEventFromValue(vtype(tableVal), EVENT_INDEX, vm);
+
+                if (IS_NIL(indexed))
+                {
+                    pushStack(NIL_CONSTANT, vm);
+                }
+                else if (IS_FUNCTION(indexed))
+                {
+                    pushStack(indexed, vm);
+
+                    if (precall(2, MAKE_RET(1), vm) == C_CALL)
+                    {
+                        resovleNativeCall(MAKE_RET(1), vm);
+                        frame = prevframe(vm);
+                    }
+                    else
+                    {
+                        frame = currframe(vm);
+                    }
+                }
+                else
+                {
+                    ObjTable* mt = AS_TABLE(indexed);
+                    Value val = tableGet(key, TABLE(mt));
+                    pushStack(val, vm);
+                }
                 break;
             }
             case OP_SET_FIELD:
@@ -794,24 +845,6 @@ InterpretResult run(VM* vm)
 #undef READ_CONSTANT
 #undef READ_SHORT
 #undef EXECUTE_BINARY
-}
-
-Value getEventFromValue(uint8_t t, uint8_t e, VM* vm)
-{
-    ObjTable* table = vm->mts[t];
-
-    if (table == NULL)
-    {
-        return NIL_CONSTANT;
-    }
-
-    return tableGet(STRING_VAL(vm->events[e]), &table->content);
-}
-
-void setEventFromValue(Value v, uint8_t t, uint8_t e, VM* vm)
-{
-    ObjTable* table = vm->mts[t];
-    tableInsertOrSet(v, STRING_VAL(vm->events[e]), &table->content);
 }
 
 void freeVM(VM* vm)

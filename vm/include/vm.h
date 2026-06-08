@@ -79,6 +79,5 @@ void pushStack(Value value, VM* vm);
 Value popStack(VM* vm);
 
 Value getEventFromValue(uint8_t t, uint8_t e, VM* vm);
-void setEventFromValue(Value v, uint8_t t, uint8_t e, VM* vm);
 
 #endif

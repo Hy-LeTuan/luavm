@@ -802,7 +802,10 @@ static uint8_t functionArguments(ExpDesc* e, Parser* p)
     return arity;
 }
 
-static void call(ExpDesc* e, Parser* p)
+/*
+    args ::=  `(´ [explist] `)´ | tableconstructor | String
+*/
+static uint8_t args(ExpDesc* e, Parser* p)
 {
     uint8_t arity;
 
@@ -826,6 +829,13 @@ static void call(ExpDesc* e, Parser* p)
             arity = 0;
             break;
     }
+
+    return arity;
+}
+
+static void call(ExpDesc* e, Parser* p)
+{
+    uint8_t arity = args(e, p);
 
     // all functions will be restricted to returning only 1 value at first.
     // if a function is permitted to have more than 1 return value, the return value will be patched
@@ -925,8 +935,25 @@ static void prefixExpression(ExpDesc* e, LhsAssign* lhs, Parser* p)
 
 static void primaryExpression(ExpDesc* e, LhsAssign* lhs, bool def, Parser* p)
 {
-    // prefixExp ::= var | functioncall
-    prefixExpression(e, lhs, p);
+    LhsAssign self;
+    self.fieldCount = 0;
+    initExpDesc(&self.e);
+
+    if (lhs == NULL)
+    {
+        prefixExpression(e, &self, p);
+
+        /*
+           self is only used in method call, which always require the inital caller to be on stack
+           regardless
+        */
+        evaluateAssign(&self, false, p);
+    }
+    else
+    {
+        // prefixExp ::= var | functioncall
+        prefixExpression(e, lhs, p);
+    }
 
     while (true)
     {
@@ -997,8 +1024,26 @@ static void primaryExpression(ExpDesc* e, LhsAssign* lhs, bool def, Parser* p)
             }
             // `:` Name args
             case TOKEN_COLON:
-                // TODO: implement colon for function expr
+            {
+                advance(p);
+
+                evaluateAssign(lhs, false, p);
+
+                consume(TOKEN_IDENTIFIER, "Error, expect a name after ':'.", p);
+                Token name = p->prev;
+                size_t nameConstant = identifierConstant(&name, p);
+                emitBytes(OP_CONSTANT, nameConstant, p);
+
+                emitByte(OP_GET_FIELD, p);
+
+                evaluateAssign(&self, false, p);
+                uint8_t arity = args(e, p);
+                emitBytesABC(OP_CALL, arity + 1, SINGLERET, p);
+
+                e->kind = EXP_CALL;
+                e->patch = getBytePos(p) - 1;
                 break;
+            }
             default:
                 return;
         }

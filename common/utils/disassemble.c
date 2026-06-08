@@ -213,6 +213,8 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return callInstruction("OP_CALL", chunk, offset, false);
         case OP_VARARG:
             return varargInstruction("OP_VARARG", chunk, offset);
+        case OP_SELF:
+            return simpleInstruction("OP_SELF", offset);
         case OP_CONSTRUCT:
             return constantInstruction("OP_CONSTRUCT", chunk, offset, "fields: ", false);
         case OP_GET_FIELD:
