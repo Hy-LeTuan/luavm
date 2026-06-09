@@ -49,7 +49,10 @@ void freeObject(Object* obj)
         {
             ObjTable* table = (ObjTable*)obj;
             freeTable(&table->content);
+            freeValueArray(&table->array);
             FREE(table, ObjTable);
+
+            freeObject(baseobj(table->mt));
             break;
         }
         default:

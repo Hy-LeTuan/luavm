@@ -17,6 +17,7 @@
 
 #define IS_MULTRET(status) (status == 0)
 
+#define stackat(vm, x) (*(vm->stackTop - (x)))
 #define stackprev(vm, x) (vm->stackTop - (x))
 #define reducestack(vm, x) (vm->stackTop -= (x))
 #define setstacktop(vm, newSlot) (vm->stackTop = newSlot)

@@ -5,6 +5,7 @@
 #include <memory.h>
 #include <gc.h>
 #include <utils.h>
+#include <objtable.h>
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -187,7 +188,7 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
         // shift 1 to include all argument for `...`
         diff++;
 
-        ObjTable* table = type == TYPE_VARARG ? newTable() : NULL;
+        ObjTable* table = type == TYPE_VARARG ? newObjTable() : NULL;
 
         vm->cacheSize += diff;
 
@@ -370,7 +371,7 @@ Value getEventFromValue(uint8_t t, uint8_t e, VM* vm)
         return NIL_CONSTANT;
     }
 
-    return tableGet(STRING_VAL(vm->events[e]), &table->content);
+    return otGetRaw(STRING_VAL(vm->events[e]), table);
 }
 
 InterpretResult run(VM* vm)
@@ -707,19 +708,21 @@ InterpretResult run(VM* vm)
             }
             case OP_CONSTRUCT:
             {
-                ObjTable* table = newTable();
+                ObjTable* table = newObjTable();
 
-                linkObject((Object*)table, vm);
+                linkObject(baseobj(table), vm);
 
                 uint8_t fields = READ_BYTE();
 
                 for (int i = 0; i < fields; i++)
                 {
-                    Value value = popStack(vm);
-                    Value key = popStack(vm);
+                    Value key = stackat(vm, (fields - i) * 2);
+                    Value value = stackat(vm, (fields - i) * 2 - 1);
 
-                    tableInsertOrSet(key, value, &table->content);
+                    otSet(key, value, table);
                 }
+
+                setstacktop(vm, vm->stackTop - fields * 2);
 
                 pushStack(TABLE_VAL(table), vm);
                 break;
@@ -732,7 +735,7 @@ InterpretResult run(VM* vm)
                 if (IS_TABLE(tableVal))
                 {
                     ObjTable* table = AS_TABLE(tableVal);
-                    Value val = tableGet(key, &table->content);
+                    Value val = otGet(key, table);
                     if (!IS_NIL(val))
                     {
                         pushStack(val, vm);
@@ -764,7 +767,7 @@ InterpretResult run(VM* vm)
                 else
                 {
                     ObjTable* mt = AS_TABLE(indexed);
-                    Value val = tableGet(key, TABLE(mt));
+                    Value val = otGet(key, mt);
                     pushStack(val, vm);
                 }
                 break;
@@ -783,7 +786,7 @@ InterpretResult run(VM* vm)
                 ObjTable* table = AS_TABLE(tableVal);
 
                 Value val = getAssignValue(vm);
-                tableInsertOrSet(key, val, &table->content);
+                otSet(key, val, table);
                 break;
             }
             case OP_CLOSE_UPVALUE:

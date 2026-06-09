@@ -57,9 +57,22 @@ typedef struct
     FunctionType type;
 } ObjFunction;
 
-typedef struct
+/*
+   Lua tables are split into:
+
+   1. An array part for dense positive integer keys.
+   2. A hash part for all other keys and sparse integer keys.
+
+   Integer keys that fit efficiently into the array region are stored
+   in the array part; everything else is stored in the hash part.
+
+   The length operation also has to follow the boundary search in Lua
+*/
+typedef struct ObjTable
 {
     Object obj;
+    struct ObjTable* mt;
+    ValueArray array;
     Table content;
 } ObjTable;
 
@@ -91,7 +104,7 @@ ObjString* takeString(char* chars, int length, Table* strings);
 ObjString* concatenateString(ObjString* a, ObjString* b, Table* strings);
 
 /* table functions */
-ObjTable* newTable();
+ObjTable* newObjTable();
 
 /* functions and closures */
 ObjNativeFunction* newNativeFunction(NativeFn function);

@@ -4,6 +4,7 @@
 #include <compiler.h>
 #include <baselib.h>
 #include <stringlib.h>
+#include <objtable.h>
 
 #include <string.h>
 
@@ -14,7 +15,7 @@
 */
 static void defineLib(LibExport* libExport, Table* lib, VM* vm)
 {
-    for (;;libExport++)
+    for (;; libExport++)
     {
         const char* name = libExport->name;
         NativeFn func = libExport->f;
@@ -41,12 +42,12 @@ static void insertToGlobal(const char* name, Value v, VM* vm)
 
 static ObjTable* createStandardMetatable(VM* vm)
 {
-    ObjTable* table = newTable();
+    ObjTable* table = newObjTable();
 
     for (uint8_t i = 0; i < EVENT_SIZE; i++)
     {
         ObjString* event = vm->events[i];
-        tableInsertOrSet(STRING_VAL(event), NIL_CONSTANT, TABLE(table));
+        otSetRaw(STRING_VAL(event), NIL_CONSTANT, table);
     }
 
     return table;
@@ -59,7 +60,7 @@ static void defineMtsAndEnvs(VM* vm)
     */
     defineLib(BASE_LIB, &vm->globals, vm);
 
-    ObjTable* stringlib = newTable();
+    ObjTable* stringlib = newObjTable();
     defineLib(STRING_LIB, TABLE(stringlib), vm);
     insertToGlobal("string", TABLE_VAL(stringlib), vm);
 
@@ -67,7 +68,7 @@ static void defineMtsAndEnvs(VM* vm)
        define metatables
     */
     ObjTable* stringmt = createStandardMetatable(vm);
-    tableSet(STRING_VAL(vm->events[EVENT_INDEX]), TABLE_VAL(stringlib), &stringmt->content);
+    otSetRaw(STRING_VAL(vm->events[EVENT_INDEX]), TABLE_VAL(stringlib), stringmt);
 
     setvmmetatable(OBJ_STRING, stringmt);
 }
