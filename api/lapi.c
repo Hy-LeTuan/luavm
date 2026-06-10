@@ -6,6 +6,7 @@
 #include <stringlib.h>
 #include <tablelib.h>
 #include <objtable.h>
+#include <mathlib.h>
 
 #include <string.h>
 
@@ -68,6 +69,10 @@ static void defineMtsAndEnvs(VM* vm)
     ObjTable* tablelib = newObjTable();
     defineLib(TABLE_LIB, TABLE(tablelib), vm);
     insertToGlobal("table", TABLE_VAL(tablelib), vm);
+
+    ObjTable* mathlib = newObjTable();
+    defineLib(MATH_LIB, TABLE(mathlib), vm);
+    insertToGlobal("math", TABLE_VAL(mathlib), vm);
 
     /*
        define metatables

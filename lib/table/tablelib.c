@@ -21,7 +21,7 @@ static void sortAux(int l, int r, ObjTable* t, Value compare)
 
     while (l < r)
     {
-        int pivot = AS_NUM(t->array.values[r - 1]);
+        LuaNum pivot = AS_NUM(t->array.values[r - 1]);
 
         int i = l;
 
@@ -43,8 +43,8 @@ static void sortAux(int l, int r, ObjTable* t, Value compare)
         }
         else
         {
-            r = i;
             sortAux(i + 1, r, t, compare);
+            r = i;
         }
     }
 }

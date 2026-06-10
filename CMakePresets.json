@@ -29,6 +29,18 @@
         "LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION": "OFF",
         "LUAVM_DEBUG_DISASSEMBLE_CHUNK": "OFF"
       }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/release",
+      "displayName": "Release (Silent)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "LUAVM_DEBUG_STACK_TRACE": "OFF",
+        "LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION": "OFF",
+        "LUAVM_DEBUG_DISASSEMBLE_CHUNK": "OFF"
+      }
     }
   ]
 }

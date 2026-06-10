@@ -43,6 +43,7 @@
 
 #define v2obj(type, obj) ((type*)AS_OBJ(obj))
 
+typedef double LuaNum;
 typedef struct Object Object;
 
 typedef enum
@@ -63,7 +64,7 @@ typedef struct
     ValueType type;
     union
     {
-        double number;
+        LuaNum number;
         bool boolean;
         Object* object;
     } as;
