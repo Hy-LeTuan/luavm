@@ -7,6 +7,15 @@
 
 #define TABLE_MAX_LOAD 0.75
 
+#define HANDLE_ENTRY(entry)                                                                        \
+    (((entry) != NULL && (entry)->type == ENTRY_OCCUPIED) ? (entry)->value : NIL_CONSTANT)
+
+#define PROBE_METHOD(index, iteration, capacity)                                                   \
+    {                                                                                              \
+        index = (index + iteration * iteration) % capacity;                                        \
+        iteration++;                                                                               \
+    }
+
 void initTable(Table* table)
 {
     table->capacity = 0;
@@ -52,24 +61,52 @@ static bool compareKey(Value a, Value b)
     return false;
 }
 
-/*
- * Find either the occupied entry or the closest empty entry based on the provided key.
- * Returns: NULL when capacity is 0, an Entry otherwise.
- * */
-static Entry* findEntry(Entry* entries, size_t capacity, Value key)
+static Entry* findEntryWithChar(const char* c, int l, Table* t)
 {
-    if (capacity == 0)
+    if (t->count == 0)
     {
         return NULL;
     }
 
-    uint32_t hash = generateHash(key, fnv1a_32);
+    uint32_t hash = fnv1a_32(c, l);
+    int index = hash % t->capacity;
+    int iteration = 0;
+
+    Entry* tombstone = NULL;
+
+    for (;;)
+    {
+        Entry* entry = &t->entries[index];
+
+        if (entry->type == ENTRY_EMPTY)
+        {
+            return tombstone == NULL ? entry : tombstone;
+        }
+        else if (entry->type == ENTRY_TOMBSTONE)
+        {
+            tombstone = entry;
+        }
+        else if (entry->type == ENTRY_OCCUPIED && IS_STRING(entry->key))
+        {
+            ObjString* key = AS_STRING(entry->key);
+            if (key->length == l && memcmp(c, key->chars, l) == 0)
+            {
+                return entry;
+            }
+        }
+
+        PROBE_METHOD(index, iteration, t->capacity);
+    }
+}
+
+static Entry* findEntryWithHash(Entry* entries, size_t capacity, uint32_t hash, Value key)
+{
     int index = hash % capacity;
 
     int iteration = 0;
     Entry* tombstone = NULL;
 
-    while (1)
+    for (;;)
     {
         Entry* entry = &entries[index];
 
@@ -86,12 +123,25 @@ static Entry* findEntry(Entry* entries, size_t capacity, Value key)
             return entry;
         }
 
-        // mid square probing
-        index = (index + iteration * iteration) % capacity;
-        iteration++;
+        PROBE_METHOD(index, iteration, capacity);
     }
 
     return NULL;
+}
+
+/*
+ * Find either the occupied entry or the closest empty entry based on the provided key.
+ * Returns: NULL when capacity is 0, an Entry otherwise.
+ * */
+static Entry* findEntry(Entry* entries, size_t capacity, Value key)
+{
+    if (capacity == 0)
+    {
+        return NULL;
+    }
+
+    uint32_t hash = IS_STRING(key) ? AS_STRING(key)->hash : generateHash(key, fnv1a_32);
+    return findEntryWithHash(entries, capacity, hash, key);
 }
 
 static int tableGrow(Table* table, size_t newCapacity)
@@ -170,13 +220,7 @@ void tableInsertOrSet(Value key, Value value, Table* table)
 Value tableGet(Value key, Table* table)
 {
     Entry* entry = findEntry(table->entries, table->capacity, key);
-
-    if (entry != NULL && entry->type == ENTRY_OCCUPIED)
-    {
-        return entry->value;
-    }
-
-    return NIL_CONSTANT;
+    return HANDLE_ENTRY(entry);
 }
 
 bool tableErase(Value key, Table* table)
@@ -199,45 +243,24 @@ bool tableErase(Value key, Table* table)
     return true;
 }
 
-Value tableFindString(const char* chars, int length, Table* table)
-{
-    if (table->count == 0)
-    {
-        return NIL_CONSTANT;
-    }
-
-    uint32_t hash = fnv1a_32(chars, length);
-    int index = hash % table->capacity;
-    int iteration = 0;
-
-    while (1)
-    {
-        Entry* entry = &table->entries[index];
-
-        if (entry->type == ENTRY_EMPTY)
-        {
-            return NIL_CONSTANT;
-        }
-        else if (entry->type == ENTRY_OCCUPIED && IS_STRING(entry->key))
-        {
-            ObjString* key = AS_STRING(entry->key);
-            if (key->length == length && memcmp(chars, key->chars, length) == 0)
-            {
-                return entry->key;
-            }
-        }
-
-        // mid square probing
-        index = (index + iteration * iteration) % table->capacity;
-        iteration++;
-    }
-
-    return NIL_CONSTANT;
-}
-
 void freeTable(Table* table)
 {
     FREE_ARRAY(table->entries, table->capacity, Entry);
     table->count = 0;
     table->capacity = 0;
+}
+
+/* operations on raw string */
+
+Value tableGetWithPtr(const char* c, int l, Table* t)
+{
+    Entry* entry = findEntryWithChar(c, l, t);
+    return HANDLE_ENTRY(entry);
+}
+
+Value tableFindString(const char* c, int l, Table* t)
+{
+    // assuming that this table is never erased, it would never have tombstones
+    Entry* entry = findEntryWithChar(c, l, t);
+    return entry == NULL ? NIL_CONSTANT : entry->key;
 }

@@ -1,6 +1,7 @@
 #include <baselib.h>
 
 #include <object.h>
+#include <objtable.h>
 
 #include <stdio.h>
 #include <math.h>
@@ -93,8 +94,8 @@ static uint8_t ipairsAux(uint8_t arg, VM* vm)
     }
 
     ObjTable* table = AS_TABLE(state);
-    Value idx = NUM_VAL(AS_NUM(var) + 1);
-    Value result = tableGet(idx, &table->content);
+    int idx = AS_NUM(var) + 1;
+    Value result = otGeti(idx, table);
 
     if (IS_NIL(result))
     {
@@ -104,7 +105,7 @@ static uint8_t ipairsAux(uint8_t arg, VM* vm)
     }
     else
     {
-        pushStack(idx, vm);
+        pushStack(NUM_VAL(idx), vm);
         pushStack(result, vm);
         return 2;
     }

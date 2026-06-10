@@ -4,6 +4,7 @@
 #include <compiler.h>
 #include <baselib.h>
 #include <stringlib.h>
+#include <tablelib.h>
 #include <objtable.h>
 
 #include <string.h>
@@ -35,7 +36,7 @@ static void defineLib(LibExport* libExport, Table* lib, VM* vm)
 
 static void insertToGlobal(const char* name, Value v, VM* vm)
 {
-    ObjString* objname = copyString("string", 6, &vm->strings);
+    ObjString* objname = copyString(name, strlen(name), &vm->strings);
     linkObject(baseobj(objname), vm);
     tableInsertOrSet(STRING_VAL(objname), v, &vm->globals);
 }
@@ -63,6 +64,10 @@ static void defineMtsAndEnvs(VM* vm)
     ObjTable* stringlib = newObjTable();
     defineLib(STRING_LIB, TABLE(stringlib), vm);
     insertToGlobal("string", TABLE_VAL(stringlib), vm);
+
+    ObjTable* tablelib = newObjTable();
+    defineLib(TABLE_LIB, TABLE(tablelib), vm);
+    insertToGlobal("table", TABLE_VAL(tablelib), vm);
 
     /*
        define metatables

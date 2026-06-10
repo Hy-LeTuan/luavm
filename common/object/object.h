@@ -33,6 +33,7 @@ typedef struct
 {
     Object obj;
     size_t length;
+    uint32_t hash;
     char* chars;
 } ObjString;
 

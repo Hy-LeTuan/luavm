@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #define otype(o) (o->type)
-#define vtype(v) (v.type)
+#define vtype(v) ((v).type)
 
 #define IS_BOOL(v) (vtype(v) == BOOL)
 #define IS_NUM(v) (vtype(v) == NUMBER)

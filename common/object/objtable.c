@@ -1,5 +1,7 @@
 #include <objtable.h>
 
+#include <limits.h>
+
 ObjTable* newObjTable()
 {
     ObjTable* table = ALLOCATE_OBJ(OBJ_TABLE, ObjTable);
@@ -74,8 +76,87 @@ Value otGetRaw(Value k, ObjTable* t)
     return tableGet(k, TABLE(t));
 }
 
-uint8_t otGetLen(ObjTable* t)
+Value otGetWithPtr(const char* c, int l, ObjTable* t)
+{
+    return tableGetWithPtr(c, l, TABLE(t));
+}
+
+static int unboundSearch(unsigned int idx, ObjTable* t)
+{
+    unsigned int i = idx;
+    unsigned int j = idx + 1;
+
+    while (!IS_NIL(otGet(NUM_VAL(j), t)))
+    {
+        i = j;
+        j *= 2;
+
+        if (j > INT_MAX)
+        {
+            i = 1;
+            while (!IS_NIL(otGet(NUM_VAL(i), t)))
+            {
+                i++;
+            }
+            return i;
+        }
+    }
+
+    while (i + 1 < j)
+    {
+        unsigned int m = (i + j) / 2;
+        if (IS_NIL(otGet(NUM_VAL(m), t)))
+        {
+            j = m;
+        }
+        else
+        {
+            i = m;
+        }
+    }
+    return i;
+}
+
+int otGetLen(ObjTable* t)
 {
     // TODO: implement length for table
-    return t->array.count;
+    // default: have a table to set size
+    // if failed: look for a field `n` in the current array
+    Value v = otGetWithPtr("n", 1, t);
+
+    if (IS_NUM(v))
+    {
+        return AS_NUM(v);
+    }
+    // else: find the first element that is nil next to an element that is not nil
+    else
+    {
+        unsigned int j = t->array.count;
+        if (j > 0 && IS_NIL(t->array.values[j - 1]))
+        {
+            unsigned int i = 0;
+            while (i + 1 < j)
+            {
+                unsigned int m = (i + j) / 2;
+                if (IS_NIL(t->array.values[m - 1]))
+                {
+                    j = m;
+                }
+                else
+                {
+                    i = m;
+                }
+            }
+            return i;
+        }
+        /* hash part is empty? */
+        else if (t->content.count == 0)
+        {
+            return j;
+        }
+        else
+        {
+            return unboundSearch(j, t);
+        }
+    }
 }

@@ -10,9 +10,10 @@ void otSetRaw(Value k, Value v, ObjTable* t);
 Value otGeti(int i, ObjTable* t);
 Value otGet(Value k, ObjTable* t);
 Value otGetRaw(Value k, ObjTable* t);
+Value otGetWithPtr(const char* c, int l, ObjTable* t);
 
 Value otRemove(Value k, ObjTable* t);
 
-uint8_t otGetLen(ObjTable* t);
+int otGetLen(ObjTable* t);
 
 #endif

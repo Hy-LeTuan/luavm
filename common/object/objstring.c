@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <memory.h>
+#include <hash.h>
 
 /*
  * Called when a new string is found. New string will be interned
@@ -12,6 +13,7 @@ static ObjString* newString(char* chars, size_t length, Table* strings)
     ObjString* string = ALLOCATE_OBJ(OBJ_STRING, ObjString);
     string->length = length;
     string->chars = chars;
+    string->hash = hashString(chars, length, fnv1a_32);
 
     tableSet(STRING_VAL(string), TRUE_VAL(), strings);
 

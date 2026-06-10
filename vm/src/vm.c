@@ -435,8 +435,23 @@ InterpretResult run(VM* vm)
             }
             case OP_LENGTH:
             {
-                ObjString* s = AS_STRING(popStack(vm));
-                pushStack(NUM_VAL(s->length), vm);
+                Value v = popStack(vm);
+
+                if (IS_TABLE(v))
+                {
+                    ObjTable* t = AS_TABLE(v);
+                    int n = otGetLen(t);
+                    pushStack(NUM_VAL(n), vm);
+                }
+                else if (IS_STRING(v))
+                {
+                    ObjString* s = AS_STRING(v);
+                    pushStack(NUM_VAL(s->length), vm);
+                }
+                else
+                {
+                    runtimeError(vm, "Error, cannot get length of current object.");
+                }
                 break;
             }
             case OP_ADD:

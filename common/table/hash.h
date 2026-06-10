@@ -10,7 +10,8 @@ extern const uint32_t FnvDefaultPrime;
 extern const uint32_t FnvDefaultOffsetBasis;
 
 uint32_t fnv1a_32(const void* bytes, int length);
-void* valueToByte(const Value value, int* byte_length);
+void* valueToByte(const Value* value, int* byte_length);
 uint32_t generateHash(const Value value, HashFn hashFunc);
+uint32_t hashString(const char* str, int l, HashFn f);
 
 #endif
