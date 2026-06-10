@@ -119,13 +119,36 @@ add_test(NAME MultretTest
 
 # LIBRARY TESTING
 
-add_executable(StringLibTest lib/string_lib_test.c)
+
+add_executable(BaseLibTest lib/baselib_test.c)
+target_link_libraries(BaseLibTest PRIVATE luavmapi)
+add_test(NAME BaseLibTest
+    COMMAND ${CMAKE_COMMAND}
+    -D "TEST_EXECUTABLE=$<TARGET_FILE:BaseLibTest>"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/baselib_test_input.lua"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/baselib_test.expected"
+    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/baselib_test.actual"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
+)
+
+add_executable(StringLibTest lib/stringlib_test.c)
 target_link_libraries(StringLibTest PRIVATE luavmapi)
 add_test(NAME StringLibTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:StringLibTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/string_lib_test_input.lua"
-    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/string_lib_test.expected"
-    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/string_lib_test.actual"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/stringlib_test_input.lua"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/stringlib_test.expected"
+    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/stringlib_test.actual"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
+)
+
+add_executable(TableLibTest lib/tablelib_test.c)
+target_link_libraries(TableLibTest PRIVATE luavmapi)
+add_test(NAME TableLibTest
+    COMMAND ${CMAKE_COMMAND}
+    -D "TEST_EXECUTABLE=$<TARGET_FILE:TableLibTest>"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/tablelib_test_input.lua"
+    -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/tablelib_test.expected"
+    -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/tablelib_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
 )
