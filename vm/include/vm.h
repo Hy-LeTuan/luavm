@@ -8,7 +8,7 @@
 
 #define MT_SIZE 8
 
-#define STACK_MAX 256
+#define STACK_MAX 512
 #define CACHE_MAX 128
 
 #define C_CALL 0

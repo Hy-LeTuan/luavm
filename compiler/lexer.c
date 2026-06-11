@@ -48,7 +48,7 @@ static Token error(const char* message, Lexer* lexer)
     return makeToken(TOKEN_ERROR, lexer);
 }
 
-bool isAtEnd(Lexer* lexer)
+static bool isAtEnd(Lexer* lexer)
 {
     return *lexer->current == '\0';
 }
