@@ -17,9 +17,10 @@
 
 #define IS_MULTRET(status) (status == 0)
 
-#define stackat(vm, x) (*(vm->stackTop - (x)))
+#define stackat(vm, x) ((vm->stackTop - (x)))
 #define stackprev(vm, x) (vm->stackTop - (x))
 #define reducestack(vm, x) (vm->stackTop -= (x))
+#define setstackat(stack, idx, v) (stack[(idx)] = (*v));
 #define setstacktop(vm, newSlot) (vm->stackTop = newSlot)
 
 #define nextframe(vm) (&vm->frames[vm->frameCount++])
@@ -77,7 +78,7 @@ void freeVM(VM* vm);
 void runtimeError(VM* vm, const char* format, ...);
 uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm);
 void pushStack(Value value, VM* vm);
-Value popStack(VM* vm);
+Value* popStack(VM* vm);
 
 Value getEventFromValue(uint8_t t, uint8_t e, VM* vm);
 

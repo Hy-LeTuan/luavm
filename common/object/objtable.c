@@ -33,9 +33,9 @@ void otSeti(int i, Value v, ObjTable* t)
 
 void otSet(Value k, Value v, ObjTable* t)
 {
-    if (IS_NUM(k))
+    if (IS_NUM(&k))
     {
-        otSeti(AS_NUM(k), v, t);
+        otSeti(AS_NUM(&k), v, t);
     }
     else
     {
@@ -58,10 +58,11 @@ Value otGeti(int i, ObjTable* t)
         return t->array.values[i];
     }
 
-    return tableGet(NUM_VAL(i + 1), TABLE(t));
+    Value key = NUM_VAL(i + 1);
+    return tableGet(&key, TABLE(t));
 }
 
-Value otGet(Value k, ObjTable* t)
+Value otGet(Value* k, ObjTable* t)
 {
     if (IS_NUM(k))
     {
@@ -71,7 +72,7 @@ Value otGet(Value k, ObjTable* t)
     return tableGet(k, TABLE(t));
 }
 
-Value otGetRaw(Value k, ObjTable* t)
+Value otGetRaw(Value* k, ObjTable* t)
 {
     return tableGet(k, TABLE(t));
 }
@@ -86,7 +87,7 @@ static int unboundSearch(unsigned int idx, ObjTable* t)
     unsigned int i = idx;
     unsigned int j = idx + 1;
 
-    while (!IS_NIL(otGet(NUM_VAL(j), t)))
+    while (otGeti(j, t).type != NIL)
     {
         i = j;
         j *= 2;
@@ -94,7 +95,7 @@ static int unboundSearch(unsigned int idx, ObjTable* t)
         if (j > INT_MAX)
         {
             i = 1;
-            while (!IS_NIL(otGet(NUM_VAL(i), t)))
+            while (otGeti(i, t).type != NIL)
             {
                 i++;
             }
@@ -105,7 +106,7 @@ static int unboundSearch(unsigned int idx, ObjTable* t)
     while (i + 1 < j)
     {
         unsigned int m = (i + j) / 2;
-        if (IS_NIL(otGet(NUM_VAL(m), t)))
+        if (otGeti(m, t).type != NIL)
         {
             j = m;
         }
@@ -124,21 +125,21 @@ int otGetLen(ObjTable* t)
     // if failed: look for a field `n` in the current array
     Value v = otGetWithPtr("n", 1, t);
 
-    if (IS_NUM(v))
+    if (IS_NUM(&v))
     {
-        return AS_NUM(v);
+        return AS_NUM(&v);
     }
     // else: find the first element that is nil next to an element that is not nil
     else
     {
         unsigned int j = t->array.count;
-        if (j > 0 && IS_NIL(t->array.values[j - 1]))
+        if (j > 0 && IS_NIL(&t->array.values[j - 1]))
         {
             unsigned int i = 0;
             while (i + 1 < j)
             {
                 unsigned int m = (i + j) / 2;
-                if (IS_NIL(t->array.values[m - 1]))
+                if (IS_NIL(&t->array.values[m - 1]))
                 {
                     j = m;
                 }

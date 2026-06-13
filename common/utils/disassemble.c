@@ -44,7 +44,7 @@ static int constantInstruction(
     if (isConstant)
     {
         fprintf(stdout, "%04d -> ", chunk->code[offset + 1]);
-        printValue(constant);
+        printValue(&constant);
     }
     else
     {
@@ -123,7 +123,7 @@ static int closureInstruction(const char* code, Chunk* chunk, int offset)
     fprintf(stdout, "%-8s", "");
     fprintf(stdout, "%04d: ", constant);
 
-    ObjFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
+    ObjFunction* function = AS_FUNCTION(&chunk->constants.values[constant]);
     for (int j = 0; j < function->upvalueCount; j++)
     {
         int isLocal = chunk->code[offset++];

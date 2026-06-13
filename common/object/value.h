@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #define otype(o) (o->type)
-#define vtype(v) ((v).type)
+#define vtype(v) ((v)->type)
 
 #define IS_BOOL(v) (vtype(v) == BOOL)
 #define IS_NUM(v) (vtype(v) == NUMBER)
@@ -16,9 +16,9 @@
 #define IS_TABLE(v) (vtype(v) == OBJ_TABLE)
 #define IS_UPVALUE(v) (vtype(v) == OBJ_UPVALUE)
 
-#define AS_BOOL(value) ((value).as.boolean)
-#define AS_NUM(value) ((value).as.number)
-#define AS_OBJ(value) ((value).as.object)
+#define AS_BOOL(value) ((value)->as.boolean)
+#define AS_NUM(value) ((value)->as.number)
+#define AS_OBJ(value) ((value)->as.object)
 #define AS_CLOSURE(value) ((ObjClosure*)(AS_OBJ(value)))
 #define AS_UPVALUE(value) ((ObjUpvalue*)(AS_OBJ(value)))
 #define AS_TABLE(value) ((ObjTable*)(AS_OBJ(value)))
@@ -72,10 +72,10 @@ typedef struct
 
 extern const Value NIL_CONSTANT;
 
-void printValue(Value value);
-void printValueNewLine(Value value);
-bool compareValue(Value a, Value b);
-bool isFalsey(Value value);
+void printValue(Value* value);
+void printValueNewLine(Value* value);
+bool compareValue(Value* a, Value* b);
+bool isFalsey(Value* value);
 
 typedef struct
 {

@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-const Value NIL_CONSTANT = ((Value){ NIL });
+const Value NIL_CONSTANT = { NIL };
 
 void initValueArray(ValueArray* array)
 {
@@ -27,9 +27,9 @@ void writeValueArray(ValueArray* array, Value value)
     array->count++;
 }
 
-void printValue(Value value)
+void printValue(Value* value)
 {
-    switch (value.type)
+    switch (vtype(value))
     {
         case NUMBER:
             fprintf(stdout, "%.2f", AS_NUM(value));
@@ -64,15 +64,15 @@ void printValue(Value value)
     }
 }
 
-void printValueNewLine(Value value)
+void printValueNewLine(Value* value)
 {
     printValue(value);
     fprintf(stdout, "\n");
 }
 
-bool compareValue(Value a, Value b)
+bool compareValue(Value* a, Value* b)
 {
-    if (a.type != b.type)
+    if (vtype(a) != vtype(b))
     {
         return false;
     }
@@ -102,7 +102,7 @@ bool compareValue(Value a, Value b)
 /*
  * Only `nil` and the boolean `false` are evaulated as false
  * */
-bool isFalsey(Value value)
+bool isFalsey(Value* value)
 {
     if (IS_NIL(value))
     {

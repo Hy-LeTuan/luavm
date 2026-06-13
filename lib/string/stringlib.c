@@ -8,7 +8,7 @@
 uint8_t lib_len(uint8_t narg, VM* vm)
 {
     CallFrame* frame = currframe(vm);
-    Value v = frame->slots[0];
+    Value* v = &frame->slots[0];
 
     if (!IS_STRING(v))
     {
@@ -24,7 +24,7 @@ uint8_t lib_len(uint8_t narg, VM* vm)
 uint8_t lib_lower(uint8_t narg, VM* vm)
 {
     CallFrame* frame = currframe(vm);
-    Value v = frame->slots[0];
+    Value* v = &frame->slots[0];
 
     if (!IS_STRING(v))
     {
@@ -58,7 +58,7 @@ uint8_t lib_lower(uint8_t narg, VM* vm)
 uint8_t lib_upper(uint8_t narg, VM* vm)
 {
     CallFrame* frame = currframe(vm);
-    Value v = frame->slots[0];
+    Value* v = &frame->slots[0];
 
     if (!IS_STRING(v))
     {
@@ -92,8 +92,8 @@ uint8_t lib_upper(uint8_t narg, VM* vm)
 uint8_t lib_rep(uint8_t narg, VM* vm)
 {
     CallFrame* frame = currframe(vm);
-    Value arg1 = frame->slots[0];
-    Value arg2 = frame->slots[1];
+    Value* arg1 = &frame->slots[0];
+    Value* arg2 = &frame->slots[1];
 
     if (!IS_STRING(arg1) || !IS_NUM(arg2))
     {
@@ -123,7 +123,7 @@ uint8_t lib_rep(uint8_t narg, VM* vm)
 uint8_t lib_reverse(uint8_t narg, VM* vm)
 {
     CallFrame* frame = currframe(vm);
-    Value v = frame->slots[0];
+    Value* v = &frame->slots[0];
 
     if (!IS_STRING(v))
     {
@@ -147,11 +147,5 @@ uint8_t lib_reverse(uint8_t narg, VM* vm)
     return 1;
 }
 
-LibExport STRING_LIB[] = {
-    { "len", lib_len },
-    { "lower", lib_lower },
-    { "upper", lib_upper },
-    { "reverse", lib_reverse },
-    { "rep", lib_rep },
-    { NULL, NULL }
-};
+LibExport STRING_LIB[] = { { "len", lib_len }, { "lower", lib_lower }, { "upper", lib_upper },
+    { "reverse", lib_reverse }, { "rep", lib_rep }, { NULL, NULL } };

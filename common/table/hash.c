@@ -29,7 +29,7 @@ void* valueToByte(const Value* value, int* byte_length)
 #define TO_OBJ(type, v) ((type*)((v)->as.object))
     void* bytes = NULL;
 
-    switch (vtype(*value))
+    switch (vtype(value))
     {
         case NUMBER:
             bytes = (void*)(&value->as.number);
@@ -91,10 +91,10 @@ void* valueToByte(const Value* value, int* byte_length)
 #undef TO_OBJ
 }
 
-uint32_t generateHash(const Value value, HashFn hashFunc)
+uint32_t generateHash(const Value *value, HashFn hashFunc)
 {
     int value_length;
-    void* value_bytes = valueToByte(&value, &value_length);
+    void* value_bytes = valueToByte(value, &value_length);
     uint32_t hash = hashFunc(value_bytes, value_length);
 
     return hash;

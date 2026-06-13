@@ -14,41 +14,49 @@ int main(int argc, char* argv[])
     initTable(&test_table);
     initTable(&strings);
 
+    // create all keys
+
+    Value functionKey = FUNCTION_VAL(newFunction());
+    Value closureKey = CLOSURE_VAL(newClosure(newFunction()));
+
+    Value helloKey = CREATE_STRING("hello", 5, strings);
+    Value keyKey = CREATE_STRING("key", 3, strings);
+    Value normalKey = CREATE_STRING("normal", 6, strings);
+    Value longKey = CREATE_STRING("a very long key", 15, strings);
+
     // test insertion
-    tableSet(CREATE_STRING("hello", 5, strings), NUM_VAL(1), &test_table);
-    tableSet(CREATE_STRING("key", 3, strings), NUM_VAL(2), &test_table);
-    tableSet(CREATE_STRING("normal", 6, strings), NUM_VAL(3), &test_table);
-    tableSet(CREATE_STRING("a very long key", 15, strings), NUM_VAL(122.2), &test_table);
+    tableSet(helloKey, NUM_VAL(1), &test_table);
+    tableSet(keyKey, NUM_VAL(2), &test_table);
+    tableSet(normalKey, NUM_VAL(3), &test_table);
+    tableSet(longKey, NUM_VAL(122.2), &test_table);
+    tableSet(functionKey, NUM_VAL(1), &test_table);
+    tableSet(closureKey, NUM_VAL(2), &test_table);
 
-    ObjFunction* function = newFunction();
-    tableSet(FUNCTION_VAL(function), NUM_VAL(1), &test_table);
-
-    ObjClosure* closure = newClosure(function);
-    tableSet(CLOSURE_VAL(closure), NUM_VAL(2), &test_table);
-
-    assert(AS_NUM(tableGet(CREATE_STRING("hello", 5, strings), &test_table)) == 1.0);
-    assert(AS_NUM(tableGet(CREATE_STRING("key", 3, strings), &test_table)) == 2.0);
-    assert(AS_NUM(tableGet(CREATE_STRING("normal", 6, strings), &test_table)) == 3.0);
-    assert(AS_NUM(tableGet(CREATE_STRING("a very long key", 15, strings), &test_table)) == 122.2);
-    assert(AS_NUM(tableGet(FUNCTION_VAL(function), &test_table)) == 1.0);
-    assert(AS_NUM(tableGet(CLOSURE_VAL(closure), &test_table)) == 2.0);
+    assert(tableGet(&helloKey, &test_table).as.number == 1.0);
+    assert(tableGet(&keyKey, &test_table).as.number == 2.0);
+    assert(tableGet(&normalKey, &test_table).as.number == 3.0);
+    assert(tableGet(&longKey, &test_table).as.number == 122.2);
+    assert(tableGet(&functionKey, &test_table).as.number == 1.0);
+    assert(tableGet(&closureKey, &test_table).as.number == 2.0);
 
     fprintf(stdout, "Insertion test passed successfully.\n");
 
     // test deletion
-    assert(tableErase(CREATE_STRING("hello", 5, strings), &test_table));
-    assert(AS_NUM(tableGet(CREATE_STRING("key", 3, strings), &test_table)) == 2.0);
-    assert(AS_NUM(tableGet(CREATE_STRING("normal", 6, strings), &test_table)) == 3.0);
-    assert(AS_NUM(tableGet(CREATE_STRING("a very long key", 15, strings), &test_table)) == 122.2);
+    assert(tableErase(&helloKey, &test_table));
+    assert(tableGet(&keyKey, &test_table).as.number == 2.0);
+    assert(tableGet(&normalKey, &test_table).as.number == 3.0);
+    assert(tableGet(&longKey, &test_table).as.number == 122.2);
+    assert(tableGet(&functionKey, &test_table).as.number == 1.0);
+    assert(tableGet(&closureKey, &test_table).as.number == 2.0);
 
     fprintf(stdout, "Deletion test passed successfully.\n");
 
     // testing set
-    tableInsertOrSet(CREATE_STRING("normal", 6, strings), NUM_VAL(12), &test_table);
-    assert(AS_NUM(tableGet(CREATE_STRING("normal", 6, strings), &test_table)) == 12.0);
+    tableInsertOrSet(normalKey, NUM_VAL(12), &test_table);
+    assert(tableGet(&normalKey, &test_table).as.number == 12.0);
 
-    tableInsertOrSet(CREATE_STRING("a very long key", 15, strings), NUM_VAL(122.5), &test_table);
-    assert(AS_NUM(tableGet(CREATE_STRING("a very long key", 15, strings), &test_table)) == 122.5);
+    tableInsertOrSet(longKey, NUM_VAL(122.5), &test_table);
+    assert(tableGet(&longKey, &test_table).as.number == 122.5);
 
     fprintf(stdout, "Set/Insert test passed successfully.\n");
 

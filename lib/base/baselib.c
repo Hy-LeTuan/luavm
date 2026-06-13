@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <math.h>
 
-static void printAux(Value arg)
+static void printAux(Value* arg)
 {
     if (IS_NUM(arg))
     {
@@ -62,7 +62,7 @@ uint8_t lib_print(uint8_t narg, VM* vm)
 
     for (uint8_t i = 0; i < narg; i++)
     {
-        printAux(frame->slots[i]);
+        printAux(&frame->slots[i]);
 
         if (i != narg - 1)
         {
@@ -79,8 +79,8 @@ static uint8_t ipairsAux(uint8_t arg, VM* vm)
 {
     CallFrame* frame = currframe(vm);
 
-    Value state = frame->slots[0];
-    Value var = frame->slots[1];
+    Value* state = &frame->slots[0];
+    Value* var = &frame->slots[1];
 
     if (!IS_TABLE(state))
     {
@@ -97,7 +97,7 @@ static uint8_t ipairsAux(uint8_t arg, VM* vm)
     int idx = AS_NUM(var) + 1;
     Value result = otGeti(idx, table);
 
-    if (IS_NIL(result))
+    if (IS_NIL(&result))
     {
         pushStack(NIL_CONSTANT, vm);
         pushStack(NIL_CONSTANT, vm);
@@ -115,7 +115,7 @@ uint8_t lib_ipairs(uint8_t narg, VM* vm)
 {
     CallFrame* frame = currframe(vm);
 
-    Value table = *frame->slots;
+    Value* table = &frame->slots[0];
 
     if (!IS_TABLE(table))
     {
@@ -127,7 +127,7 @@ uint8_t lib_ipairs(uint8_t narg, VM* vm)
     linkObject((Object*)iter, vm);
 
     pushStack(NATIVE_VAL(iter), vm);
-    pushStack(table, vm);
+    pushStack(*table, vm);
     pushStack(NUM_VAL(0), vm);
 
     return 3;

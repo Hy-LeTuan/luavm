@@ -1,4 +1,3 @@
-#include "table.h"
 #include <vm.h>
 
 #include <disassemble.h>
@@ -18,6 +17,19 @@
         ObjString* name = copyString(ename, strlen(ename), &vm->strings);                          \
         linkObject(baseobj(name), vm);                                                             \
         vm->events[e] = name;                                                                      \
+    }
+
+#define Arith(vm, op, inv, event)                                                                  \
+    {                                                                                              \
+        Value* b = stackat(vm, 1);                                                                 \
+        Value* a = stackat(vm, 2);                                                                 \
+        if (IS_NUM(a) && IS_NUM(b))                                                                \
+        {                                                                                          \
+            reducestack(vm, 2);                                                                    \
+            pushStack(inv(AS_NUM(a) op AS_NUM(b)), vm);                                            \
+        }                                                                                          \
+        else                                                                                       \
+            arith(event, vm);                                                                      \
     }
 
 static void resetStack(VM* vm)
@@ -48,6 +60,8 @@ void initVM(VM* vm)
     createevent(EVENT_MUL, "__mul", vm);
     createevent(EVENT_DIV, "__div", vm);
     createevent(EVENT_MOD, "__mod", vm);
+    createevent(EVENT_POW, "__pow", vm);
+    createevent(EVENT_UNM, "__unm", vm);
     createevent(EVENT_CONCAT, "__concat", vm);
     createevent(EVENT_LEN, "__len", vm);
     createevent(EVENT_EQ, "__eq", vm);
@@ -55,6 +69,7 @@ void initVM(VM* vm)
     createevent(EVENT_LE, "__le", vm);
     createevent(EVENT_INDEX, "__index", vm);
     createevent(EVENT_NEWINDEX, "__newindex", vm);
+    createevent(EVENT_CALL, "__call", vm);
 }
 
 void runtimeError(VM* vm, const char* format, ...)
@@ -96,15 +111,15 @@ void pushStack(Value value, VM* vm)
     vm->stackTop++;
 }
 
-static Value peek(int index, VM* vm)
+static Value* peek(int index, VM* vm)
 {
-    return vm->stackTop[-1 - index];
+    return &vm->stackTop[-1 - index];
 }
 
-Value popStack(VM* vm)
+Value* popStack(VM* vm)
 {
     vm->stackTop--;
-    return *vm->stackTop;
+    return vm->stackTop;
 }
 
 static void setnvals(uint8_t val, VM* vm)
@@ -124,25 +139,22 @@ static uint8_t getnexprs(uint8_t nexprs, VM* vm)
     return final;
 }
 
-static Value getAssignValue(VM* vm)
+static Value* getAssignValue(VM* vm)
 {
-    if (vm->cacheSize > 0)
-    {
-        Value v = vm->cache[vm->cacheSize - 1];
-        vm->cacheSize--;
-        return v;
-    }
-
-    return popStack(vm);
+    Value* v = &vm->cache[vm->cacheSize - 1];
+    vm->cacheSize--;
+    return v;
 }
 
 static void concatenate(VM* vm)
 {
-    ObjString* b = AS_STRING(popStack(vm));
-    ObjString* a = AS_STRING(popStack(vm));
-    ObjString* result = concatenateString(a, b, &vm->strings);
+    ObjString* b = AS_STRING(stackat(vm, 1));
+    ObjString* a = AS_STRING(stackat(vm, 2));
 
-    linkObject((Object*)result, vm);
+    ObjString* result = concatenateString(a, b, &vm->strings);
+    linkObject(baseobj(result), vm);
+
+    reducestack(vm, 2);
     pushStack(STRING_VAL(result), vm);
 }
 
@@ -194,16 +206,18 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
 
         for (uint8_t i = 0; i < diff; i++)
         {
-            Value v = popStack(vm);
+            Value* v = stackat(vm, i + 1);
 
             // keep stack order consistent
-            vm->cache[vm->cacheSize - i - 1] = v;
+            setstackat(vm->cache, vm->cacheSize - i - 1, v);
 
             if (table != NULL)
             {
-                tableInsertOrSet(NUM_VAL(diff - i), v, &table->content);
+                tableInsertOrSet(NUM_VAL(diff - i), *v, &table->content);
             }
         }
+
+        reducestack(vm, diff);
 
         if (table != NULL)
         {
@@ -237,7 +251,7 @@ uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm)
     }
 
     uint8_t callArity = getnexprs(nexprs, vm);
-    Value caller = peek(callArity, vm);
+    Value* caller = peek(callArity, vm);
 
     CallFrame* newFrame = nextframe(vm);
     newFrame->slots = stackprev(vm, callArity);
@@ -371,7 +385,19 @@ Value getEventFromValue(uint8_t t, uint8_t e, VM* vm)
         return NIL_CONSTANT;
     }
 
-    return otGetRaw(STRING_VAL(vm->events[e]), table);
+    Value eventKey = STRING_VAL(vm->events[e]);
+    return otGetRaw(&eventKey, table);
+}
+
+static void arith(int event, VM* vm)
+{
+    // TODO: complete arith operation
+    Value* b = stackat(vm, 1);
+    Value* a = stackat(vm, 2);
+    reducestack(vm, 2);
+    pushStack(NIL_CONSTANT, vm);
+
+    runtimeError(vm, "Error, cannot carry out binary operation.");
 }
 
 InterpretResult run(VM* vm)
@@ -379,16 +405,8 @@ InterpretResult run(VM* vm)
     CallFrame* frame = currframe(vm);
 
 #define READ_BYTE() (*frame->ip++)
-#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT() (&frame->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
-#define EXECUTE_BINARY(op, f, f_inv, vm)                                                           \
-    do                                                                                             \
-    {                                                                                              \
-        Value b = popStack(vm);                                                                    \
-        Value a = popStack(vm);                                                                    \
-        pushStack(f_inv(f(a) op f(b)), vm);                                                        \
-    } while (false)
-
 #ifdef DEBUG_DISASSEMBLE_CHUNK
     disassembleChunk(&frame->closure->function->chunk, "Disassemble Chunk");
 #endif
@@ -406,7 +424,7 @@ InterpretResult run(VM* vm)
             for (Value* slot = vm->stack; slot < vm->stackTop; slot++)
             {
                 printf("[ ");
-                printValue(*slot);
+                printValue(slot);
                 printf(" ]");
             }
         }
@@ -423,19 +441,19 @@ InterpretResult run(VM* vm)
         {
             case OP_CONSTANT:
             {
-                Value constant = READ_CONSTANT();
+                Value* constant = READ_CONSTANT();
 
                 if (CAN_GC(constant))
                 {
                     linkObject(AS_OBJ(constant), vm);
                 }
 
-                pushStack(constant, vm);
+                pushStack(*constant, vm);
                 break;
             }
             case OP_LENGTH:
             {
-                Value v = popStack(vm);
+                Value* v = popStack(vm);
 
                 if (IS_TABLE(v))
                 {
@@ -455,71 +473,49 @@ InterpretResult run(VM* vm)
                 break;
             }
             case OP_ADD:
-                if (IS_NUM(peek(0, vm)) && IS_NUM(peek(1, vm)))
-                {
-                    EXECUTE_BINARY(+, AS_NUM, NUM_VAL, vm);
-                }
-                else
-                {
-                    runtimeError(
-                      vm, "RuntimeError: Cannot add values that are not numbers or strings.");
-                }
+                Arith(vm, +, NUM_VAL, EVENT_ADD);
                 break;
             case OP_MINUS:
-                if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
-                {
-                    runtimeError(
-                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '-');
-                    break;
-                }
-
-                EXECUTE_BINARY(-, AS_NUM, NUM_VAL, vm);
+                Arith(vm, -, NUM_VAL, EVENT_SUB);
                 break;
             case OP_MUL:
-                if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
-                {
-                    runtimeError(
-                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '*');
-                    break;
-                }
-
-                EXECUTE_BINARY(*, AS_NUM, NUM_VAL, vm);
+                Arith(vm, *, NUM_VAL, EVENT_MUL);
                 break;
             case OP_DIV:
-                if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
-                {
-                    runtimeError(
-                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '/');
-                    break;
-                }
-
-                EXECUTE_BINARY(/, AS_NUM, NUM_VAL, vm);
+                Arith(vm, /, NUM_VAL, EVENT_DIV);
                 break;
             case OP_EXPONENT:
             {
-                Value b = popStack(vm);
-                Value a = popStack(vm);
+                Value* b = stackat(vm, 1);
+                Value* a = stackat(vm, 2);
 
-                if (!IS_NUM(a) || !IS_NUM(b))
+                if (IS_NUM(a) && IS_NUM(b))
                 {
-                    runtimeError(
-                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '^');
-                    break;
+                    reducestack(vm, 2);
+                    Value c = NUM_VAL(pow(AS_NUM(a), AS_NUM(b)));
+                    pushStack(c, vm);
+                }
+                else
+                {
+                    arith(EVENT_POW, vm);
                 }
 
-                Value c = NUM_VAL(pow(AS_NUM(a), AS_NUM(b)));
-                pushStack(c, vm);
                 break;
             }
             case OP_MODULO:
-                if (!IS_NUM(peek(0, vm)) || !IS_NUM(peek(1, vm)))
+                if (IS_NUM(stackat(vm, 1)) && IS_NUM(stackat(vm, 2)))
                 {
-                    runtimeError(
-                      vm, "RuntimeError: Operation '%c' only permitted between 2 numbers.", '%');
-                    break;
-                }
+                    LuaNum b = AS_NUM(stackat(vm, 1));
+                    LuaNum a = AS_NUM(stackat(vm, 2));
+                    reducestack(vm, 2);
 
-                EXECUTE_BINARY(%, (int)AS_NUM, NUM_VAL, vm);
+                    Value c = NUM_VAL(a - floor(a / b) * b);
+                    pushStack(c, vm);
+                }
+                else
+                {
+                    arith(EVENT_POW, vm);
+                }
                 break;
             case OP_JOIN:
             {
@@ -536,48 +532,40 @@ InterpretResult run(VM* vm)
             }
             case OP_LESS:
             {
-                Value b = peek(0, vm);
-                Value a = peek(1, vm);
-
-                if (a.type != b.type)
-                {
-                    runtimeError(vm,
-                      "RuntimeError: Cannot compare a value of type %d with type %d.", a.type,
-                      b.type);
-                }
-                else
-                {
-                    EXECUTE_BINARY(<, AS_NUM, BOOL_VAL, vm);
-                }
+                Arith(vm, <, BOOL_VAL, EVENT_LE);
                 break;
             }
             case OP_GREATER:
             {
-                Value b = peek(0, vm);
-                Value a = peek(1, vm);
+                bool standard = IS_NUM(stackat(vm, 1)) && IS_NUM(stackat(vm, 2));
 
-                if (a.type != b.type)
+                Arith(vm, >, BOOL_VAL, EVENT_LE);
+
+                if (!standard)
                 {
-                    runtimeError(vm,
-                      "RuntimeError: Cannot compare a value of type %d with type %d.", a.type,
-                      b.type);
-                }
-                else
-                {
-                    EXECUTE_BINARY(>, AS_NUM, BOOL_VAL, vm);
+                    Value* top = popStack(vm);
+                    if (isFalsey(top))
+                    {
+                        pushStack(TRUE_VAL(), vm);
+                    }
+                    else
+                    {
+                        pushStack(FALSE_VAL(), vm);
+                    }
                 }
                 break;
             }
             case OP_EQUAL:
             {
-                Value b = popStack(vm);
-                Value a = popStack(vm);
+                Value* b = stackat(vm, 1);
+                Value* a = stackat(vm, 2);
+                reducestack(vm, 2);
                 pushStack(BOOL_VAL(compareValue(a, b)), vm);
                 break;
             }
             case OP_NEGATE:
             {
-                Value a = popStack(vm);
+                Value* a = popStack(vm);
 
                 if (IS_NUM(a))
                 {
@@ -592,7 +580,7 @@ InterpretResult run(VM* vm)
             }
             case OP_NOT:
             {
-                Value a = popStack(vm);
+                Value* a = popStack(vm);
 
                 if (IS_BOOL(a))
                 {
@@ -608,7 +596,7 @@ InterpretResult run(VM* vm)
             }
             case OP_GET_GLOBAL:
             {
-                Value key = READ_CONSTANT();
+                Value* key = READ_CONSTANT();
                 Value v = tableGet(key, &vm->globals);
 
                 // accept a global variable with nil
@@ -617,9 +605,9 @@ InterpretResult run(VM* vm)
             }
             case OP_SET_GLOBAL:
             {
-                Value key = READ_CONSTANT();
-                Value value = getAssignValue(vm);
-                tableInsertOrSet(key, value, &vm->globals);
+                Value* key = READ_CONSTANT();
+                Value* value = getAssignValue(vm);
+                tableInsertOrSet(*key, *value, &vm->globals);
                 break;
             }
             case OP_GET_LOCAL:
@@ -631,7 +619,7 @@ InterpretResult run(VM* vm)
             case OP_SET_LOCAL:
             {
                 uint8_t index = READ_BYTE();
-                frame->slots[index] = getAssignValue(vm);
+                frame->slots[index] = *getAssignValue(vm);
                 break;
             }
             case OP_GET_UPVALUE:
@@ -644,7 +632,7 @@ InterpretResult run(VM* vm)
             case OP_SET_UPVALUE:
             {
                 uint8_t index = READ_BYTE();
-                *frame->closure->upvalues[index]->location = getAssignValue(vm);
+                *frame->closure->upvalues[index]->location = *getAssignValue(vm);
                 break;
             }
             case OP_JUMP_IF_FALSE:
@@ -670,7 +658,7 @@ InterpretResult run(VM* vm)
             }
             case OP_CLOSURE:
             {
-                Value constant = READ_CONSTANT();
+                Value* constant = READ_CONSTANT();
                 ObjFunction* function = AS_FUNCTION(constant);
                 ObjClosure* closure = newClosure(function);
 
@@ -731,10 +719,10 @@ InterpretResult run(VM* vm)
 
                 for (int i = 0; i < fields; i++)
                 {
-                    Value key = stackat(vm, (fields - i) * 2);
-                    Value value = stackat(vm, (fields - i) * 2 - 1);
+                    Value* key = stackat(vm, (fields - i) * 2);
+                    Value* value = stackat(vm, (fields - i) * 2 - 1);
 
-                    otSet(key, value, table);
+                    otSet(*key, *value, table);
                 }
 
                 setstacktop(vm, vm->stackTop - fields * 2);
@@ -744,14 +732,15 @@ InterpretResult run(VM* vm)
             }
             case OP_GET_FIELD:
             {
-                Value key = popStack(vm);
-                Value tableVal = popStack(vm);
+                Value* key = stackat(vm, 1);
+                Value* tableVal = stackat(vm, 2);
+                reducestack(vm, 2);
 
                 if (IS_TABLE(tableVal))
                 {
                     ObjTable* table = AS_TABLE(tableVal);
                     Value val = otGet(key, table);
-                    if (!IS_NIL(val))
+                    if (!IS_NIL(&val))
                     {
                         pushStack(val, vm);
                         break;
@@ -761,11 +750,11 @@ InterpretResult run(VM* vm)
                 // attempt to get value from metatable
                 Value indexed = getEventFromValue(vtype(tableVal), EVENT_INDEX, vm);
 
-                if (IS_NIL(indexed))
+                if (IS_NIL(&indexed))
                 {
                     pushStack(NIL_CONSTANT, vm);
                 }
-                else if (IS_FUNCTION(indexed))
+                else if (IS_FUNCTION(&indexed))
                 {
                     pushStack(indexed, vm);
 
@@ -781,7 +770,7 @@ InterpretResult run(VM* vm)
                 }
                 else
                 {
-                    ObjTable* mt = AS_TABLE(indexed);
+                    ObjTable* mt = AS_TABLE(&indexed);
                     Value val = otGet(key, mt);
                     pushStack(val, vm);
                 }
@@ -789,8 +778,9 @@ InterpretResult run(VM* vm)
             }
             case OP_SET_FIELD:
             {
-                Value key = popStack(vm);
-                Value tableVal = popStack(vm);
+                Value* key = stackat(vm, 1);
+                Value* tableVal = stackat(vm, 2);
+                reducestack(vm, 2);
 
                 if (!IS_TABLE(tableVal))
                 {
@@ -800,8 +790,8 @@ InterpretResult run(VM* vm)
 
                 ObjTable* table = AS_TABLE(tableVal);
 
-                Value val = getAssignValue(vm);
-                otSet(key, val, table);
+                Value* val = getAssignValue(vm);
+                otSet(*key, *val, table);
                 break;
             }
             case OP_CLOSE_UPVALUE:
@@ -825,9 +815,11 @@ InterpretResult run(VM* vm)
                 // reverse the order of the insertion
                 for (int i = 0; i < n; i++)
                 {
-                    Value v = popStack(vm);
-                    vm->cache[vm->cacheSize - i - 1] = v;
+                    Value* v = stackat(vm, i + 1);
+                    setstackat(vm->cache, vm->cacheSize - i - 1, v)
                 }
+
+                reducestack(vm, n);
                 break;
             }
             case OP_POP:

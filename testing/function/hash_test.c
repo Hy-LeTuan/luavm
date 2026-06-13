@@ -13,8 +13,8 @@ Table strings;
 
 static void compare(Value a, Value b, HashFn hashFunc)
 {
-    int64_t a_hash = generateHash(a, hashFunc);
-    int64_t b_hash = generateHash(b, hashFunc);
+    int64_t a_hash = generateHash(&a, hashFunc);
+    int64_t b_hash = generateHash(&b, hashFunc);
 
     fprintf(stdout, "a hash is: %ld, and b hash is: %ld\n", a_hash, b_hash);
 

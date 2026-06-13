@@ -23,9 +23,9 @@ void initTable(Table* table)
     table->entries = NULL;
 }
 
-static bool compareKey(Value a, Value b)
+static bool compareKey(Value* a, Value* b)
 {
-    if (a.type != b.type)
+    if (vtype(a) != vtype(b))
     {
         return false;
     }
@@ -86,9 +86,9 @@ static Entry* findEntryWithChar(const char* c, int l, Table* t)
         {
             tombstone = entry;
         }
-        else if (entry->type == ENTRY_OCCUPIED && IS_STRING(entry->key))
+        else if (entry->type == ENTRY_OCCUPIED && IS_STRING(&entry->key))
         {
-            ObjString* key = AS_STRING(entry->key);
+            ObjString* key = AS_STRING(&entry->key);
             if (key->length == l && memcmp(c, key->chars, l) == 0)
             {
                 return entry;
@@ -99,7 +99,7 @@ static Entry* findEntryWithChar(const char* c, int l, Table* t)
     }
 }
 
-static Entry* findEntryWithHash(Entry* entries, size_t capacity, uint32_t hash, Value key)
+static Entry* findEntryWithHash(Entry* entries, size_t capacity, uint32_t hash, Value* key)
 {
     int index = hash % capacity;
 
@@ -118,7 +118,7 @@ static Entry* findEntryWithHash(Entry* entries, size_t capacity, uint32_t hash, 
         {
             tombstone = entry;
         }
-        else if (compareKey(entry->key, key))
+        else if (compareKey(&entry->key, key))
         {
             return entry;
         }
@@ -133,7 +133,7 @@ static Entry* findEntryWithHash(Entry* entries, size_t capacity, uint32_t hash, 
  * Find either the occupied entry or the closest empty entry based on the provided key.
  * Returns: NULL when capacity is 0, an Entry otherwise.
  * */
-static Entry* findEntry(Entry* entries, size_t capacity, Value key)
+static Entry* findEntry(Entry* entries, size_t capacity, Value* key)
 {
     if (capacity == 0)
     {
@@ -166,7 +166,7 @@ static int tableGrow(Table* table, size_t newCapacity)
             continue;
         }
 
-        Entry* to = findEntry(newEntries, newCapacity, entry->key);
+        Entry* to = findEntry(newEntries, newCapacity, &entry->key);
 
         if (to != NULL)
         {
@@ -192,7 +192,7 @@ void tableSet(Value key, Value value, Table* table)
         tableGrow(table, newCapacity);
     }
 
-    Entry* entry = findEntry(table->entries, table->capacity, key);
+    Entry* entry = findEntry(table->entries, table->capacity, &key);
 
     if (entry != NULL)
     {
@@ -205,7 +205,7 @@ void tableSet(Value key, Value value, Table* table)
 
 void tableInsertOrSet(Value key, Value value, Table* table)
 {
-    Entry* entry = findEntry(table->entries, table->capacity, key);
+    Entry* entry = findEntry(table->entries, table->capacity, &key);
 
     if (entry != NULL && entry->type == ENTRY_OCCUPIED)
     {
@@ -217,13 +217,13 @@ void tableInsertOrSet(Value key, Value value, Table* table)
     }
 }
 
-Value tableGet(Value key, Table* table)
+Value tableGet(Value* key, Table* table)
 {
     Entry* entry = findEntry(table->entries, table->capacity, key);
     return HANDLE_ENTRY(entry);
 }
 
-bool tableErase(Value key, Table* table)
+bool tableErase(Value* key, Table* table)
 {
     if (IS_NIL(key))
     {

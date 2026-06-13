@@ -23,9 +23,9 @@ static ObjString* newString(char* chars, size_t length, Table* strings)
 ObjString* takeString(char* chars, int length, Table* strings)
 {
     Value key = tableFindString(chars, length, strings);
-    if (IS_STRING(key))
+    if (IS_STRING(&key))
     {
-        return AS_STRING(key);
+        return AS_STRING(&key);
     }
 
     return newString(chars, length, strings);
@@ -34,9 +34,9 @@ ObjString* takeString(char* chars, int length, Table* strings)
 ObjString* copyString(const char* const_chars, int length, Table* strings)
 {
     Value key = tableFindString(const_chars, length, strings);
-    if (IS_STRING(key))
+    if (IS_STRING(&key))
     {
-        return AS_STRING(key);
+        return AS_STRING(&key);
     }
 
     char* chars = ALLOCATE(char, length + 1);

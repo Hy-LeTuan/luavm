@@ -21,13 +21,13 @@ static void sortAux(int l, int r, ObjTable* t, Value compare)
 
     while (l < r)
     {
-        LuaNum pivot = AS_NUM(t->array.values[r - 1]);
+        LuaNum pivot = AS_NUM(&t->array.values[r - 1]);
 
         int i = l;
 
         for (int j = l; j < r - 1; j++)
         {
-            if (AS_NUM(t->array.values[j]) < pivot)
+            if (AS_NUM(&t->array.values[j]) < pivot)
             {
                 swap(t->array.values[i], t->array.values[j]);
                 i++;
@@ -56,12 +56,12 @@ uint8_t sort(uint8_t narg, VM* vm)
     Value arg1 = frame->slots[0];
     Value arg2 = frame->slots[1];
 
-    if (!IS_TABLE(arg1))
+    if (!IS_TABLE(&arg1))
     {
         return 0;
     }
 
-    ObjTable* t = AS_TABLE(arg1);
+    ObjTable* t = AS_TABLE(&arg1);
     if (t->array.count == 0)
     {
         return 0;
