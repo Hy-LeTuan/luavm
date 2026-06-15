@@ -1,3 +1,4 @@
+#include "table.h"
 #include <vm.h>
 
 #include <disassemble.h>
@@ -109,6 +110,11 @@ void pushStack(Value value, VM* vm)
 
     *vm->stackTop = value;
     vm->stackTop++;
+}
+
+void pushStackPtr(Value* value, VM* vm)
+{
+    pushStack(*value, vm);
 }
 
 static Value* peek(int index, VM* vm)
@@ -376,13 +382,14 @@ static void resovleNativeCall(uint8_t retStatus, VM* vm)
     resolveMultret(retStatus, nrets, returns, vm);
 }
 
-Value getEventFromValue(uint8_t t, uint8_t e, VM* vm)
+Value* getEventFromValue(const Value* v, uint8_t e, VM* vm)
 {
+    uint8_t t = vtype(v);
     ObjTable* table = vm->mts[t];
 
     if (table == NULL)
     {
-        return NIL_CONSTANT;
+        return NULL;
     }
 
     Value eventKey = STRING_VAL(vm->events[e]);
@@ -448,7 +455,7 @@ InterpretResult run(VM* vm)
                     linkObject(AS_OBJ(constant), vm);
                 }
 
-                pushStack(*constant, vm);
+                pushStackPtr(constant, vm);
                 break;
             }
             case OP_LENGTH:
@@ -597,10 +604,10 @@ InterpretResult run(VM* vm)
             case OP_GET_GLOBAL:
             {
                 Value* key = READ_CONSTANT();
-                Value v = tableGet(key, &vm->globals);
+                Value* v = tableGet(key, &vm->globals);
 
                 // accept a global variable with nil
-                pushStack(v, vm);
+                pushStackPtr(v, vm);
                 break;
             }
             case OP_SET_GLOBAL:
@@ -626,7 +633,7 @@ InterpretResult run(VM* vm)
             {
                 // the index of the upvalue in the function's upvalue array
                 uint8_t index = READ_BYTE();
-                pushStack(*frame->closure->upvalues[index]->location, vm);
+                pushStackPtr(frame->closure->upvalues[index]->location, vm);
                 break;
             }
             case OP_SET_UPVALUE:
@@ -739,24 +746,24 @@ InterpretResult run(VM* vm)
                 if (IS_TABLE(tableVal))
                 {
                     ObjTable* table = AS_TABLE(tableVal);
-                    Value val = otGet(key, table);
-                    if (!IS_NIL(&val))
+                    Value* val = otGet(key, table);
+                    if (!IS_NIL(val))
                     {
-                        pushStack(val, vm);
+                        pushStackPtr(val, vm);
                         break;
                     }
                 }
 
                 // attempt to get value from metatable
-                Value indexed = getEventFromValue(vtype(tableVal), EVENT_INDEX, vm);
+                Value* indexed = getEventFromValue(tableVal, EVENT_INDEX, vm);
 
-                if (IS_NIL(&indexed))
+                if (IS_NIL(indexed))
                 {
                     pushStack(NIL_CONSTANT, vm);
                 }
-                else if (IS_FUNCTION(&indexed))
+                else if (IS_FUNCTION(indexed))
                 {
-                    pushStack(indexed, vm);
+                    pushStackPtr(indexed, vm);
 
                     if (precall(2, MAKE_RET(1), vm) == C_CALL)
                     {
@@ -770,9 +777,9 @@ InterpretResult run(VM* vm)
                 }
                 else
                 {
-                    ObjTable* mt = AS_TABLE(&indexed);
-                    Value val = otGet(key, mt);
-                    pushStack(val, vm);
+                    ObjTable* mt = AS_TABLE(indexed);
+                    Value* val = otGet(key, mt);
+                    pushStackPtr(val, vm);
                 }
                 break;
             }

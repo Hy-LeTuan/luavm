@@ -8,7 +8,7 @@
 #define TABLE_MAX_LOAD 0.75
 
 #define HANDLE_ENTRY(entry)                                                                        \
-    (((entry) != NULL && (entry)->type == ENTRY_OCCUPIED) ? (entry)->value : NIL_CONSTANT)
+    (((entry) != NULL && (entry)->type == ENTRY_OCCUPIED) ? &((entry)->value) : NULL)
 
 #define PROBE_METHOD(index, iteration, capacity)                                                   \
     {                                                                                              \
@@ -23,7 +23,7 @@ void initTable(Table* table)
     table->entries = NULL;
 }
 
-static bool compareKey(Value* a, Value* b)
+static bool compareKey(const Value* a, const Value* b)
 {
     if (vtype(a) != vtype(b))
     {
@@ -99,7 +99,7 @@ static Entry* findEntryWithChar(const char* c, int l, Table* t)
     }
 }
 
-static Entry* findEntryWithHash(Entry* entries, size_t capacity, uint32_t hash, Value* key)
+static Entry* findEntryWithHash(Entry* entries, size_t capacity, uint32_t hash, const Value* key)
 {
     int index = hash % capacity;
 
@@ -133,7 +133,7 @@ static Entry* findEntryWithHash(Entry* entries, size_t capacity, uint32_t hash, 
  * Find either the occupied entry or the closest empty entry based on the provided key.
  * Returns: NULL when capacity is 0, an Entry otherwise.
  * */
-static Entry* findEntry(Entry* entries, size_t capacity, Value* key)
+static Entry* findEntry(Entry* entries, size_t capacity, const Value* key)
 {
     if (capacity == 0)
     {
@@ -217,7 +217,7 @@ void tableInsertOrSet(Value key, Value value, Table* table)
     }
 }
 
-Value tableGet(Value* key, Table* table)
+Value* tableGet(const Value* key, Table* table)
 {
     Entry* entry = findEntry(table->entries, table->capacity, key);
     return HANDLE_ENTRY(entry);
@@ -252,7 +252,7 @@ void freeTable(Table* table)
 
 /* operations on raw string */
 
-Value tableGetWithPtr(const char* c, int l, Table* t)
+Value* tableGetWithPtr(const char* c, int l, Table* t)
 {
     Entry* entry = findEntryWithChar(c, l, t);
     return HANDLE_ENTRY(entry);

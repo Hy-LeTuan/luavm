@@ -78,8 +78,9 @@ void freeVM(VM* vm);
 void runtimeError(VM* vm, const char* format, ...);
 uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm);
 void pushStack(Value value, VM* vm);
+void pushStackPtr(Value* value, VM* vm);
 Value* popStack(VM* vm);
 
-Value getEventFromValue(uint8_t t, uint8_t e, VM* vm);
+Value* getEventFromValue(const Value* v, uint8_t e, VM* vm);
 
 #endif

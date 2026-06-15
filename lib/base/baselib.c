@@ -95,9 +95,9 @@ static uint8_t ipairsAux(uint8_t arg, VM* vm)
 
     ObjTable* table = AS_TABLE(state);
     int idx = AS_NUM(var) + 1;
-    Value result = otGeti(idx, table);
+    Value* result = otGeti(idx, table);
 
-    if (IS_NIL(&result))
+    if (IS_NIL(result))
     {
         pushStack(NIL_CONSTANT, vm);
         pushStack(NIL_CONSTANT, vm);
@@ -106,7 +106,7 @@ static uint8_t ipairsAux(uint8_t arg, VM* vm)
     else
     {
         pushStack(NUM_VAL(idx), vm);
-        pushStack(result, vm);
+        pushStackPtr(result, vm);
         return 2;
     }
 }
@@ -127,7 +127,7 @@ uint8_t lib_ipairs(uint8_t narg, VM* vm)
     linkObject((Object*)iter, vm);
 
     pushStack(NATIVE_VAL(iter), vm);
-    pushStack(*table, vm);
+    pushStackPtr(table, vm);
     pushStack(NUM_VAL(0), vm);
 
     return 3;

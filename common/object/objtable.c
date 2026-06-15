@@ -49,20 +49,20 @@ void otSetRaw(Value k, Value v, ObjTable* t)
     tableInsertOrSet(k, v, TABLE(t));
 }
 
-Value otGeti(int i, ObjTable* t)
+Value* otGeti(int i, ObjTable* t)
 {
     i--;
 
     if (i >= 0 && i < t->array.count)
     {
-        return t->array.values[i];
+        return &t->array.values[i];
     }
 
     Value key = NUM_VAL(i + 1);
     return tableGet(&key, TABLE(t));
 }
 
-Value otGet(Value* k, ObjTable* t)
+Value* otGet(const Value* k, ObjTable* t)
 {
     if (IS_NUM(k))
     {
@@ -72,12 +72,12 @@ Value otGet(Value* k, ObjTable* t)
     return tableGet(k, TABLE(t));
 }
 
-Value otGetRaw(Value* k, ObjTable* t)
+Value* otGetRaw(const Value* k, ObjTable* t)
 {
     return tableGet(k, TABLE(t));
 }
 
-Value otGetWithPtr(const char* c, int l, ObjTable* t)
+Value* otGetWithPtr(const char* c, int l, ObjTable* t)
 {
     return tableGetWithPtr(c, l, TABLE(t));
 }
@@ -87,7 +87,7 @@ static int unboundSearch(unsigned int idx, ObjTable* t)
     unsigned int i = idx;
     unsigned int j = idx + 1;
 
-    while (otGeti(j, t).type != NIL)
+    while (IS_NIL(otGeti(j, t)))
     {
         i = j;
         j *= 2;
@@ -95,7 +95,7 @@ static int unboundSearch(unsigned int idx, ObjTable* t)
         if (j > INT_MAX)
         {
             i = 1;
-            while (otGeti(i, t).type != NIL)
+            while (IS_NIL(otGeti(i, t)))
             {
                 i++;
             }
@@ -106,7 +106,7 @@ static int unboundSearch(unsigned int idx, ObjTable* t)
     while (i + 1 < j)
     {
         unsigned int m = (i + j) / 2;
-        if (otGeti(m, t).type != NIL)
+        if (IS_NIL(otGeti(m, t)))
         {
             j = m;
         }
@@ -123,11 +123,11 @@ int otGetLen(ObjTable* t)
     // TODO: implement length for table
     // default: have a table to set size
     // if failed: look for a field `n` in the current array
-    Value v = otGetWithPtr("n", 1, t);
+    Value* v = otGetWithPtr("n", 1, t);
 
-    if (IS_NUM(&v))
+    if (IS_NUM(v))
     {
-        return AS_NUM(&v);
+        return AS_NUM(v);
     }
     // else: find the first element that is nil next to an element that is not nil
     else

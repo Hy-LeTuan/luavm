@@ -42,16 +42,16 @@ size_t getOpCodeLine(Chunk* chunk, int offset)
 
 size_t addConstant(Chunk* chunk, Value value)
 {
-    Value index = tableGet(&value, &chunk->lookup);
+    Value* index = tableGet(&value, &chunk->lookup);
 
-    if (IS_NIL(&index))
+    if (IS_NIL(index))
     {
         writeValueArray(&chunk->constants, value);
         tableInsertOrSet(value, NUM_VAL((double)chunk->constants.count - 1), &chunk->lookup);
         return chunk->constants.count - 1;
     }
 
-    return (size_t)AS_NUM(&index);
+    return (size_t)AS_NUM(index);
 }
 
 void freeChunk(Chunk* chunk)

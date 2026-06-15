@@ -28,8 +28,8 @@ typedef struct
 void initTable(Table* table);
 void tableSet(Value key, Value value, Table* table);
 void tableInsertOrSet(Value key, Value value, Table* table);
-Value tableGet(Value* key, Table* table);
-Value tableGetWithPtr(const char* c, int l, Table* t);
+Value* tableGet(const Value* key, Table* table);
+Value* tableGetWithPtr(const char* c, int l, Table* t);
 bool tableErase(Value* key, Table* table);
 void freeTable(Table* table);
 
