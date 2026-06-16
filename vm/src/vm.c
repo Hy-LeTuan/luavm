@@ -1,4 +1,3 @@
-#include "table.h"
 #include <vm.h>
 
 #include <disassemble.h>
@@ -6,6 +5,7 @@
 #include <gc.h>
 #include <utils.h>
 #include <objtable.h>
+#include <table.h>
 
 #include <stdlib.h>
 #include <stdarg.h>

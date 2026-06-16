@@ -24,16 +24,20 @@ uint32_t hashString(const char* str, int l, HashFn f)
     return f(str, l);
 }
 
-void* valueToByte(const Value* value, int* byte_length)
+static const void* valueToByte(const Value* value, int* byte_length)
 {
 #define TO_OBJ(type, v) ((type*)((v)->as.object))
-    void* bytes = NULL;
+    const void* bytes = NULL;
 
     switch (vtype(value))
     {
         case NUMBER:
             bytes = (void*)(&value->as.number);
             *byte_length = sizeof(value->as.number);
+            break;
+        case NIL:
+            bytes = (void*)(&NIL_CONSTANT);
+            *byte_length = sizeof(Value*);
             break;
         case BOOL:
             bytes = (void*)(&value->as.boolean);
@@ -48,53 +52,44 @@ void* valueToByte(const Value* value, int* byte_length)
         }
         case OBJ_FUNCTION:
         {
-            ObjFunction* function = TO_OBJ(ObjFunction, value);
-            bytes = (void*)function;
-            *byte_length = (int)sizeof(ObjFunction*);
+            bytes = &value->as.object;
+            *byte_length = (int)sizeof(Object*);
             break;
         }
         case OBJ_CLOSURE:
         {
-            ObjClosure* closure = TO_OBJ(ObjClosure, value);
-            bytes = (void*)closure;
-            *byte_length = (int)sizeof(ObjClosure*);
+            bytes = &value->as.object;
+            *byte_length = (int)sizeof(Object*);
             break;
         }
         case OBJ_NATIVE:
         {
-            ObjNativeFunction* native = TO_OBJ(ObjNativeFunction, value);
-            bytes = (void*)native;
-            *byte_length = (int)sizeof(ObjNativeFunction*);
+            bytes = &value->as.object;
+            *byte_length = (int)sizeof(Object*);
             break;
         }
         case OBJ_TABLE:
         {
-            ObjTable* table = TO_OBJ(ObjTable, value);
-            bytes = (void*)table;
-            *byte_length = (int)sizeof(ObjTable*);
+            bytes = &value->as.object;
+            *byte_length = (int)sizeof(Object*);
             break;
         }
         case OBJ_UPVALUE:
         {
-            ObjUpvalue* upvalue = TO_OBJ(ObjUpvalue, value);
-            bytes = (void*)upvalue;
-            *byte_length = (int)sizeof(ObjUpvalue*);
+            bytes = &value->as.object;
+            *byte_length = (int)sizeof(Object*);
             break;
         }
-        case NIL:
-            *byte_length = 0;
-            bytes = NULL;
-            break;
     }
 
     return bytes;
 #undef TO_OBJ
 }
 
-uint32_t generateHash(const Value *value, HashFn hashFunc)
+uint32_t generateHash(const Value* value, HashFn hashFunc)
 {
     int value_length;
-    void* value_bytes = valueToByte(value, &value_length);
+    const void* value_bytes = valueToByte(value, &value_length);
     uint32_t hash = hashFunc(value_bytes, value_length);
 
     return hash;

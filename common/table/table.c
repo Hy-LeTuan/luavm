@@ -148,7 +148,7 @@ static int tableGrow(Table* table, size_t newCapacity)
 {
     Entry* newEntries = ALLOCATE(Entry, sizeof(Entry) * newCapacity);
 
-    for (int i = 0; i < newCapacity; i++)
+    for (size_t i = 0; i < newCapacity; i++)
     {
         Entry* entry = &newEntries[i];
         entry->key = NIL_CONSTANT;

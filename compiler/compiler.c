@@ -1337,8 +1337,6 @@ static void functionBody(Parser* p)
     Compiler compiler;
     initCompiler(&compiler, p->compiler);
 
-    beginScope(p);
-
     /* start parsing current function */
     p->compiler = &compiler;
 
@@ -1349,13 +1347,11 @@ static void functionBody(Parser* p)
 
     // endCompiler emits a return that would already reset the stack, no need for endScope
     ObjFunction* function = endCompiler(p);
-    endScope(p);
 
     function->upvalueCount = compiler.upvalueCount;
 
     /* finish parsing current function */
 
-    ObjClosure* closure = newClosure(function);
     size_t constant = addConstant(currentChunk(p), FUNCTION_VAL(function));
 
     emitBytes(OP_CLOSURE, constant, p);
