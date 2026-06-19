@@ -1,9 +1,9 @@
 #ifndef common_chunk_chunk_h
 #define common_chunk_chunk_h
 
-#include <stdint.h>
-#include <value.h>
 #include <table.h>
+#include <object.h>
+#include <vmstate.h>
 
 typedef enum
 {
@@ -44,20 +44,10 @@ typedef enum
     OP_RETURN
 } OPCode;
 
-typedef struct
-{
-    size_t capacity;
-    size_t count;
-    uint8_t* code;
-    size_t* lines;
-    ValueArray constants;
-    Table lookup;
-} Chunk;
-
-void initChunk(Chunk* chunk);
-void writeChunk(Chunk* chunk, uint8_t op, size_t line);
-size_t addConstant(Chunk* chunk, Value value);
-void freeChunk(Chunk* chunk);
-size_t getOpCodeLine(Chunk* chunk, int offset);
+void initChunk(Chunk* c);
+void writeChunk(Chunk* c, uint8_t op, size_t l, VM* vm);
+size_t addConstant(Chunk* c, Value v, VM* vm);
+void freeChunk(Chunk* c, VM* vm);
+size_t getOpCodeLine(Chunk* c, int offset);
 
 #endif

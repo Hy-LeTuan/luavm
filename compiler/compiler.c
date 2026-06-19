@@ -1,14 +1,13 @@
 #include <compiler.h>
 
-#include <lexer.h>
-#include <object.h>
+#include <chunk.h>
 #include <memory.h>
 #include <reserved_var.h>
 
 #include <string.h>
 #include <stdio.h>
 
-static void initCompiler(Compiler* compiler, Compiler* prev)
+static void initCompiler(Compiler* compiler, Compiler* prev, VM* vm)
 {
     compiler->enclosing = prev;
     compiler->function = NULL;
@@ -19,20 +18,18 @@ static void initCompiler(Compiler* compiler, Compiler* prev)
     compiler->breakCount = 0;
     compiler->upvalueCount = 0;
 
-    ObjFunction* function = newFunction();
+    ObjFunction* function = prev == NULL ? NULL : newFunction(prev->function, vm);
     compiler->function = function;
 }
 
-static void initParser(Parser* parser, const char* source, Table* strings, Compiler* compiler)
+static void initParser(Parser* parser, const char* source, Compiler* compiler, VM* vm)
 {
     initLexer(source, &parser->lexer);
-
-    initCompiler(compiler, NULL);
 
     parser->compiler = compiler;
     parser->currentPrec = PREC_NONE;
     parser->hadError = false;
-    parser->strings = strings;
+    parser->vm = vm;
 }
 
 static void initExpDesc(ExpDesc* e)
@@ -142,7 +139,7 @@ static void consume(TokenType token, const char* message, Parser* p)
 
 static void emitByte(uint8_t op, Parser* p)
 {
-    writeChunk(currentChunk(p), op, p->prev.line);
+    writeChunk(currentChunk(p), op, p->prev.line, p->vm);
 }
 
 static void emitBytes(uint8_t op1, uint8_t op2, Parser* p)
@@ -190,14 +187,14 @@ static void patchSingleByte(size_t offset, uint8_t value, Parser* p)
 
 static void emitConstant(Value value, Parser* p)
 {
-    size_t pos = addConstant(currentChunk(p), value);
+    size_t pos = addConstant(currentChunk(p), value, p->vm);
     emitBytes(OP_CONSTANT, pos, p);
 }
 
 static size_t identifierConstant(Token* name, Parser* p)
 {
-    Value name_obj = STRING_VAL(copyString(name->start, name->length, p->strings));
-    size_t pos = addConstant(currentChunk(p), name_obj);
+    Value name_obj = STRING_VAL(copyString(name->start, name->length, p->vm));
+    size_t pos = addConstant(currentChunk(p), name_obj, p->vm);
     return pos;
 }
 
@@ -561,7 +558,7 @@ static void str(ExpDesc* e, Parser* p)
     const char* text = p->prev.start + 1;
     size_t length = p->prev.length - 2;
 
-    ObjString* string = copyString(text, length, p->strings);
+    ObjString* string = copyString(text, length, p->vm);
     emitConstant(STRING_VAL(string), p);
     e->kind = EXP_STR;
 }
@@ -1280,7 +1277,7 @@ static uint8_t defineReservedVar(ReservedVarType type, Parser* p)
     Token var = genReservedVarToken(type);
     uint8_t varIdx = defineLocalVar(&var, p);
 
-    return varIdx;
+   return varIdx;
 }
 
 static void paramList(Parser* p)
@@ -1335,7 +1332,7 @@ static void functionBody(Parser* p)
     consume(TOKEN_LEFT_PAREN, "Error, expect '(' after.", p);
 
     Compiler compiler;
-    initCompiler(&compiler, p->compiler);
+    initCompiler(&compiler, p->compiler, p->vm);
 
     /* start parsing current function */
     p->compiler = &compiler;
@@ -1352,7 +1349,7 @@ static void functionBody(Parser* p)
 
     /* finish parsing current function */
 
-    size_t constant = addConstant(currentChunk(p), FUNCTION_VAL(function));
+    size_t constant = addConstant(currentChunk(p), FUNCTION_VAL(function), p->vm);
 
     emitBytes(OP_CLOSURE, constant, p);
 
@@ -1630,7 +1627,7 @@ static void numericalFor(Token* loop_var, Parser* p)
     markInitialized(limIdx, p);
     markInitialized(stepIdx, p);
 
-    size_t zeroConstant = addConstant(currentChunk(p), NUM_VAL(0));
+    size_t zeroConstant = addConstant(currentChunk(p), NUM_VAL(0), p->vm);
 
     beginLoop(p);
     size_t loopStart = getBytePos(p);
@@ -1891,12 +1888,21 @@ static void chunk(Parser* p)
     }
 }
 
-ObjFunction* compile(const char* source, Table* strings)
+ObjFunction* compile(const char* source, VM* vm)
 {
     Parser parser;
     Compiler compiler;
 
-    initParser(&parser, source, strings, &compiler);
+    // main function
+    ObjFunction* mainFunc = newFunction(NULL, vm);
+
+    // push to keep alive as root
+    pushStack(FUNCTION_VAL(mainFunc), vm);
+
+    initCompiler(&compiler, NULL, vm);
+    compiler.function = mainFunc;
+
+    initParser(&parser, source, &compiler, vm);
 
     // first setup
     advance(&parser);
@@ -1910,6 +1916,7 @@ ObjFunction* compile(const char* source, Table* strings)
         exit(EXIT_FAILURE);
     }
 
-    ObjFunction* function = endCompiler(&parser);
-    return function;
+    endCompiler(&parser);
+
+    return mainFunc;
 }

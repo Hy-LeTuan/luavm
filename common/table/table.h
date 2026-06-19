@@ -2,7 +2,8 @@
 #define common_table_table_h
 
 #include <value.h>
-#include <stdint.h>
+
+typedef struct VM VM;
 
 typedef enum
 {
@@ -25,9 +26,12 @@ typedef struct
     Entry* entries;
 } Table;
 
+// if i include VM here, this would mean that compilers will need the VM taken from the active
+// parser to function
+
 void initTable(Table* table);
-void tableSet(Value key, Value value, Table* table);
-void tableInsertOrSet(Value key, Value value, Table* table);
+void tableSet(Value key, Value value, Table* table, VM* vm);
+void tableInsertOrSet(Value key, Value value, Table* table, VM* vm);
 Value* tableGet(const Value* key, Table* table);
 Value* tableGetWithPtr(const char* c, int l, Table* t);
 bool tableErase(Value* key, Table* table);

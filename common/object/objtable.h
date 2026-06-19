@@ -2,10 +2,11 @@
 #define obj_objtable_h
 
 #include <object.h>
+#include <vmstate.h>
 
-void otSet(Value k, Value v, ObjTable* t);
-void otSeti(int i, Value v, ObjTable* t);
-void otSetRaw(Value k, Value v, ObjTable* t);
+void otSet(Value k, Value v, ObjTable* t, VM* vm);
+void otSeti(int i, Value v, ObjTable* t, VM* vm);
+void otSetRaw(Value k, Value v, ObjTable* t, VM* vm);
 
 Value* otGeti(int i, ObjTable* t);
 Value* otGet(const Value* k, ObjTable* t);

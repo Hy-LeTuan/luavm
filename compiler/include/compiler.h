@@ -3,11 +3,10 @@
 
 #include <lexer.h>
 #include <token.h>
-#include <chunk.h>
 #include <object.h>
-#include <table.h>
 #include <locals.h>
 #include <upvalues.h>
+#include <vmstate.h>
 
 #define MULTRET 0
 #define ZERORET 1
@@ -17,7 +16,7 @@
 #define HAS_ASSIGN(k) (k == EXP_LOCAL || k == EXP_UPVAL || k == EXP_INDEX || k == EXP_GLOBAL)
 #define ALLOW_VARARG(f) (f == TYPE_VARARG || f == TYPE_VARARG_NO_ARG)
 
-ObjFunction* compile(const char* source, Table* strings);
+ObjFunction* compile(const char* source, VM* vm);
 
 typedef enum
 {
@@ -64,8 +63,10 @@ typedef struct
     Token current;
     Precedence currentPrec;
     bool hadError;
-    Table* strings;
     Compiler* compiler;
+
+    // the vm on the current thread
+    VM* vm;
 } Parser;
 
 typedef enum

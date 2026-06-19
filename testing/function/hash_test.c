@@ -2,6 +2,7 @@
 #include <table.h>
 #include <hash.h>
 #include <value.h>
+#include <vmstate.h>
 
 #include <stdio.h>
 #include <assert.h>
@@ -9,7 +10,7 @@
 
 #define COMPARE(expr, func) (compare((expr), (expr), func))
 
-Table strings;
+VM vm;
 
 static void compare(Value a, Value b, HashFn hashFunc)
 {
@@ -25,7 +26,9 @@ static void compare(Value a, Value b, HashFn hashFunc)
 
 int main(int argc, char* argv[])
 {
-    initTable(&strings);
+    vm.objectStack = NULL;
+    vm.openUpvalues = NULL;
+    initTable(&vm.strings);
 
     // numbers
     COMPARE(NUM_VAL(1.0), fnv1a_32);
@@ -48,20 +51,20 @@ int main(int argc, char* argv[])
     fprintf(stdout, "Test for booleans passed.\n");
 
     // strings
-    COMPARE(STRING_VAL(copyString("hello", 5, &strings)), fnv1a_32);
-    COMPARE(STRING_VAL(copyString("this is a very long string for a key", 36, &strings)), fnv1a_32);
+    COMPARE(STRING_VAL(copyString("hello", 5, &vm)), fnv1a_32);
+    COMPARE(STRING_VAL(copyString("this is a very long string for a key", 36, &vm)), fnv1a_32);
 
     fprintf(stdout, "Test for strings passed.\n");
 
     // functions
-    COMPARE(FUNCTION_VAL(newFunction()), fnv1a_32);
+    COMPARE(FUNCTION_VAL(newFunction(NULL, NULL)), fnv1a_32);
 
-    ObjFunction* function = newFunction();
-    COMPARE(FUNCTION_VAL(newClosure(function)), fnv1a_32);
+    ObjFunction* function = newFunction(NULL, NULL);
+    COMPARE(FUNCTION_VAL(newClosure(function, NULL)), fnv1a_32);
 
     fprintf(stdout, "Test for functions and closures passed.\n");
 
-    freeTable(&strings);
+    freeTable(&vm.strings);
 
     return 0;
 }

@@ -1,10 +1,38 @@
 #include <objtable.h>
 
+#include <memory.h>
 #include <limits.h>
 
-ObjTable* newObjTable()
+void initValueArray(ValueArray* array)
 {
-    ObjTable* table = ALLOCATE_OBJ(OBJ_TABLE, ObjTable);
+    array->values = NULL;
+    array->capacity = 0;
+    array->count = 0;
+}
+
+void writeValueArray(ValueArray* array, Value value)
+{
+    if (array->count + 1 >= array->capacity)
+    {
+        int newCapacity = GROW_SIZE(array->capacity);
+        array->values = REALLOCATE(array->values, array->capacity, newCapacity, Value, NULL);
+        array->capacity = newCapacity;
+    }
+
+    array->values[array->count] = value;
+    array->count++;
+}
+
+void freeValueArray(ValueArray* array)
+{
+    FREE_ARRAY(array->values, array->capacity, Value, NULL);
+    array->capacity = 0;
+    array->count = 0;
+}
+
+ObjTable* newObjTable(VM* vm)
+{
+    ObjTable* table = ALLOCATE_OBJ(OBJ_TABLE, ObjTable, vm);
 
     initTable(&table->content);
     initValueArray(&table->array);
@@ -13,7 +41,7 @@ ObjTable* newObjTable()
     return table;
 }
 
-void otSeti(int i, Value v, ObjTable* t)
+void otSeti(int i, Value v, ObjTable* t, VM* vm)
 {
     i--;
 
@@ -27,26 +55,26 @@ void otSeti(int i, Value v, ObjTable* t)
     }
     else
     {
-        tableInsertOrSet(NUM_VAL(i + 1), v, TABLE(t));
+        tableInsertOrSet(NUM_VAL(i + 1), v, TABLE(t), vm);
     }
 }
 
-void otSet(Value k, Value v, ObjTable* t)
+void otSet(Value k, Value v, ObjTable* t, VM* vm)
 {
     if (IS_NUM(&k))
     {
-        otSeti(AS_NUM(&k), v, t);
+        otSeti(AS_NUM(&k), v, t, vm);
     }
     else
     {
         // hash that shit
-        tableInsertOrSet(k, v, TABLE(t));
+        tableInsertOrSet(k, v, TABLE(t), vm);
     }
 }
 
-void otSetRaw(Value k, Value v, ObjTable* t)
+void otSetRaw(Value k, Value v, ObjTable* t, VM* vm)
 {
-    tableInsertOrSet(k, v, TABLE(t));
+    tableInsertOrSet(k, v, TABLE(t), vm);
 }
 
 Value* otGeti(int i, ObjTable* t)

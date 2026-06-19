@@ -32,7 +32,7 @@ uint8_t lib_lower(uint8_t narg, VM* vm)
     }
 
     ObjString* str = AS_STRING(v);
-    char* chars = ALLOCATE(char, str->length + 1);
+    char* chars = ALLOCATE(char, str->length + 1, vm);
 
     for (uint8_t i = 0; i < str->length; i++)
     {
@@ -47,7 +47,7 @@ uint8_t lib_lower(uint8_t narg, VM* vm)
     }
     chars[str->length] = '\0';
 
-    ObjString* new = takeString(chars, str->length, &vm->strings);
+    ObjString* new = takeString(chars, str->length, vm);
     linkObject(baseobj(new), vm);
 
     pushStack(STRING_VAL(new), vm);
@@ -66,7 +66,7 @@ uint8_t lib_upper(uint8_t narg, VM* vm)
     }
 
     ObjString* str = AS_STRING(v);
-    char* chars = ALLOCATE(char, str->length + 1);
+    char* chars = ALLOCATE(char, str->length + 1, vm);
 
     for (uint8_t i = 0; i < str->length; i++)
     {
@@ -81,7 +81,7 @@ uint8_t lib_upper(uint8_t narg, VM* vm)
     }
     chars[str->length] = '\0';
 
-    ObjString* new = takeString(chars, str->length, &vm->strings);
+    ObjString* new = takeString(chars, str->length, vm);
     linkObject(baseobj(new), vm);
 
     pushStack(STRING_VAL(new), vm);
@@ -103,7 +103,7 @@ uint8_t lib_rep(uint8_t narg, VM* vm)
     ObjString* str = AS_STRING(arg1);
     int n = AS_NUM(arg2);
 
-    char* chars = ALLOCATE(char, (str->length) * n + 1);
+    char* chars = ALLOCATE(char, (str->length) * n + 1, vm);
 
     for (uint8_t i = 0; i < n; i++)
     {
@@ -112,7 +112,7 @@ uint8_t lib_rep(uint8_t narg, VM* vm)
 
     chars[str->length * n] = '\0';
 
-    ObjString* new = takeString(chars, str->length * n, &vm->strings);
+    ObjString* new = takeString(chars, str->length * n, vm);
     linkObject(baseobj(new), vm);
 
     pushStack(STRING_VAL(new), vm);
@@ -131,7 +131,7 @@ uint8_t lib_reverse(uint8_t narg, VM* vm)
     }
 
     ObjString* str = AS_STRING(v);
-    char* chars = ALLOCATE(char, str->length + 1);
+    char* chars = ALLOCATE(char, str->length + 1, vm);
 
     for (uint8_t i = 0; i < str->length; i++)
     {
@@ -139,7 +139,7 @@ uint8_t lib_reverse(uint8_t narg, VM* vm)
     }
     chars[str->length] = '\0';
 
-    ObjString* new = takeString(chars, str->length, &vm->strings);
+    ObjString* new = takeString(chars, str->length, vm);
     linkObject(baseobj(new), vm);
 
     pushStack(STRING_VAL(new), vm);

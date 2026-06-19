@@ -18,8 +18,4 @@ typedef struct
     Local* locals;
 } LocalArray;
 
-void initLocalArray(LocalArray* array);
-void writeLocalArray(LocalArray* array, const char* start, int length, int scope);
-void freeLocalArray(LocalArray* array);
-
 #endif

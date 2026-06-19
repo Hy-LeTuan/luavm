@@ -36,7 +36,7 @@ static int simpleInstruction(const char* code, int offset)
 static int constantInstruction(
   const char* code, Chunk* chunk, int offset, const char* constantMessage, bool isConstant)
 {
-    Value constant = chunk->constants.values[chunk->code[offset + 1]];
+    Value constant = chunk->constants[chunk->code[offset + 1]];
     message(code);
 
     fprintf(stdout, "%-8s", "");
@@ -92,7 +92,7 @@ static int jumpInstruction(const char* code, Chunk* chunk, int offset)
 }
 static int varargInstruction(const char* code, Chunk* chunk, int offset)
 {
-    Value constant = chunk->constants.values[chunk->code[offset + 1]];
+    Value constant = chunk->constants[chunk->code[offset + 1]];
     message(code);
 
     fprintf(stdout, "%-8s", "");
@@ -123,7 +123,7 @@ static int closureInstruction(const char* code, Chunk* chunk, int offset)
     fprintf(stdout, "%-8s", "");
     fprintf(stdout, "%04d: ", constant);
 
-    ObjFunction* function = AS_FUNCTION(&chunk->constants.values[constant]);
+    ObjFunction* function = AS_FUNCTION(&chunk->constants[constant]);
     for (int j = 0; j < function->upvalueCount; j++)
     {
         int isLocal = chunk->code[offset++];

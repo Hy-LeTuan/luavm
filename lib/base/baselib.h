@@ -3,7 +3,8 @@
 
 #include <libutils.h>
 #include <value.h>
-#include <vm.h>
+#include <vmstate.h>
+#include <vmdo.h>
 
 #include <stdint.h>
 

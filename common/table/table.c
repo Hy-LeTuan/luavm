@@ -3,7 +3,6 @@
 #include <hash.h>
 #include <memory.h>
 #include <string.h>
-#include <object.h>
 
 #define TABLE_MAX_LOAD 0.75
 
@@ -144,9 +143,9 @@ static Entry* findEntry(Entry* entries, size_t capacity, const Value* key)
     return findEntryWithHash(entries, capacity, hash, key);
 }
 
-static int tableGrow(Table* table, size_t newCapacity)
+static int tableGrow(Table* table, size_t newCapacity, VM* vm)
 {
-    Entry* newEntries = ALLOCATE(Entry, sizeof(Entry) * newCapacity);
+    Entry* newEntries = ALLOCATE(Entry, sizeof(Entry) * newCapacity, vm);
 
     for (size_t i = 0; i < newCapacity; i++)
     {
@@ -177,19 +176,19 @@ static int tableGrow(Table* table, size_t newCapacity)
         }
     }
 
-    FREE_ARRAY(table->entries, table->capacity, Entry);
+    FREE_ARRAY(table->entries, table->capacity, Entry, NULL);
     table->entries = newEntries;
     table->capacity = newCapacity;
 
     return 0;
 }
 
-void tableSet(Value key, Value value, Table* table)
+void tableSet(Value key, Value value, Table* table, VM* vm)
 {
     if (table->count + 1 > table->capacity * TABLE_MAX_LOAD)
     {
         size_t newCapacity = GROW_SIZE(table->capacity);
-        tableGrow(table, newCapacity);
+        tableGrow(table, newCapacity, vm);
     }
 
     Entry* entry = findEntry(table->entries, table->capacity, &key);
@@ -203,7 +202,7 @@ void tableSet(Value key, Value value, Table* table)
     }
 }
 
-void tableInsertOrSet(Value key, Value value, Table* table)
+void tableInsertOrSet(Value key, Value value, Table* table, VM* vm)
 {
     Entry* entry = findEntry(table->entries, table->capacity, &key);
 
@@ -213,7 +212,7 @@ void tableInsertOrSet(Value key, Value value, Table* table)
     }
     else
     {
-        tableSet(key, value, table);
+        tableSet(key, value, table, vm);
     }
 }
 
@@ -245,7 +244,7 @@ bool tableErase(Value* key, Table* table)
 
 void freeTable(Table* table)
 {
-    FREE_ARRAY(table->entries, table->capacity, Entry);
+    FREE_ARRAY(table->entries, table->capacity, Entry, NULL);
     table->count = 0;
     table->capacity = 0;
 }

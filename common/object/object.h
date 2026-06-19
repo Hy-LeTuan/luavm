@@ -1,7 +1,8 @@
 #ifndef common_object_object_h
 #define common_object_object_h
 
-#define ALLOCATE_OBJ(valueType, objStruct) ((objStruct*)allocateObj(valueType, sizeof(objStruct)))
+#define ALLOCATE_OBJ(valueType, objStruct, vm)                                                     \
+    ((objStruct*)allocateObj(valueType, sizeof(objStruct), vm))
 
 #define TABLE(t) (&t->content)
 
@@ -9,12 +10,10 @@
 #define castobjto(type, obj) ((type*)(obj))
 
 #include <table.h>
-#include <chunk.h>
 
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct VM VM;
 typedef uint8_t (*NativeFn)(uint8_t nargs, VM* args);
 
 typedef struct Object
@@ -50,12 +49,33 @@ typedef enum
 
 typedef struct
 {
+    size_t capacity;
+    size_t count;
+    uint8_t* code;
+    size_t* lines;
+    Table lookup;
+
+    // size and count of constants array
+    size_t csize;
+    size_t ccount;
+    Value* constants;
+} Chunk;
+
+typedef struct ObjFunction
+{
     Object obj;
     size_t arity;
     uint8_t* ip;
     Chunk chunk;
     int upvalueCount;
     FunctionType type;
+
+    /*
+       keeping track of all functions defined inside it. this should be marked during the mark and
+       sweep of the GC, and when it finally goes out, everything here should be freed.
+    */
+    struct ObjFunction** enclosed;
+    int esize;
 } ObjFunction;
 
 /*
@@ -69,6 +89,15 @@ typedef struct
 
    The length operation also has to follow the boundary search in Lua
 */
+typedef struct
+{
+    // stores the overall capacity
+    size_t capacity;
+    // stores the index of the next empty position
+    size_t count;
+    Value* values;
+} ValueArray;
+
 typedef struct ObjTable
 {
     Object obj;
@@ -97,22 +126,25 @@ typedef struct
     ObjUpvalue** upvalues;
 } ObjClosure;
 
-Object* allocateObj(ValueType type, size_t size);
+Object* allocateObj(ValueType type, size_t size, VM* vm);
 
 /* string functions */
-ObjString* copyString(const char* const_chars, int length, Table* strings);
-ObjString* takeString(char* chars, int length, Table* strings);
-ObjString* concatenateString(ObjString* a, ObjString* b, Table* strings);
+ObjString* copyString(const char* const_chars, int length, VM* vm);
+ObjString* takeString(char* chars, int length, VM* vm);
+ObjString* concatenateString(ObjString* a, ObjString* b, VM* vm);
 
 /* table functions */
-ObjTable* newObjTable();
+ObjTable* newObjTable(VM* vm);
+void initValueArray(ValueArray* array);
+void writeValueArray(ValueArray* array, Value value);
+void freeValueArray(ValueArray* array);
 
 /* functions and closures */
-ObjNativeFunction* newNativeFunction(NativeFn function);
-ObjFunction* newFunction();
-ObjClosure* newClosure(ObjFunction* function);
+ObjNativeFunction* newNativeFunction(NativeFn function, VM* vm);
+ObjFunction* newFunction(ObjFunction* parent, VM* vm);
+ObjClosure* newClosure(ObjFunction* function, VM* vm);
 
 /* upvalue */
-ObjUpvalue* newUpvalue(Value* location);
+ObjUpvalue* newUpvalue(Value* location, VM* vm);
 
 #endif

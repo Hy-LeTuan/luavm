@@ -2,7 +2,8 @@
 #define lib_mathlib_h
 
 #include <libutils.h>
-#include <vm.h>
+#include <vmstate.h>
+#include <vmdo.h>
 
 uint8_t lib_floor(uint8_t nargs, VM* vm);
 

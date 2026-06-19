@@ -1,11 +1,9 @@
-#include <vm.h>
+#include <vmdo.h>
 
 #include <disassemble.h>
-#include <memory.h>
 #include <gc.h>
 #include <utils.h>
 #include <objtable.h>
-#include <table.h>
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -15,7 +13,7 @@
 
 #define createevent(e, ename, vm)                                                                  \
     {                                                                                              \
-        ObjString* name = copyString(ename, strlen(ename), &vm->strings);                          \
+        ObjString* name = copyString(ename, strlen(ename), vm);                                    \
         linkObject(baseobj(name), vm);                                                             \
         vm->events[e] = name;                                                                      \
     }
@@ -157,7 +155,7 @@ static void concatenate(VM* vm)
     ObjString* b = AS_STRING(stackat(vm, 1));
     ObjString* a = AS_STRING(stackat(vm, 2));
 
-    ObjString* result = concatenateString(a, b, &vm->strings);
+    ObjString* result = concatenateString(a, b, vm);
     linkObject(baseobj(result), vm);
 
     reducestack(vm, 2);
@@ -206,7 +204,7 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
         // shift 1 to include all argument for `...`
         diff++;
 
-        ObjTable* table = type == TYPE_VARARG ? newObjTable() : NULL;
+        ObjTable* table = type == TYPE_VARARG ? newObjTable(vm) : NULL;
 
         vm->cacheSize += diff;
 
@@ -219,7 +217,7 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
 
             if (table != NULL)
             {
-                tableInsertOrSet(NUM_VAL(diff - i), *v, &table->content);
+                tableInsertOrSet(NUM_VAL(diff - i), *v, &table->content, vm);
             }
         }
 
@@ -227,9 +225,9 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
 
         if (table != NULL)
         {
-            ObjString* length = copyString("n", 1, &vm->strings);
+            ObjString* length = copyString("n", 1, vm);
 
-            tableInsertOrSet(STRING_VAL(length), NUM_VAL(diff), &table->content);
+            tableInsertOrSet(STRING_VAL(length), NUM_VAL(diff), &table->content, vm);
             pushStack(TABLE_VAL(table), vm);
         }
         else
@@ -310,7 +308,7 @@ static ObjUpvalue* captureUpvalue(Value* location, VM* vm)
         return upvalue;
     }
 
-    ObjUpvalue* createdUpvalue = newUpvalue(location);
+    ObjUpvalue* createdUpvalue = newUpvalue(location, vm);
     createdUpvalue->next = upvalue;
 
     if (prev == NULL)
@@ -412,7 +410,7 @@ InterpretResult run(VM* vm)
     CallFrame* frame = currframe(vm);
 
 #define READ_BYTE() (*frame->ip++)
-#define READ_CONSTANT() (&frame->closure->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT() (&frame->closure->function->chunk.constants[READ_BYTE()])
 #define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 #ifdef DEBUG_DISASSEMBLE_CHUNK
     disassembleChunk(&frame->closure->function->chunk, "Disassemble Chunk");
@@ -614,7 +612,7 @@ InterpretResult run(VM* vm)
             {
                 Value* key = READ_CONSTANT();
                 Value* value = getAssignValue(vm);
-                tableInsertOrSet(*key, *value, &vm->globals);
+                tableInsertOrSet(*key, *value, &vm->globals, vm);
                 break;
             }
             case OP_GET_LOCAL:
@@ -667,7 +665,7 @@ InterpretResult run(VM* vm)
             {
                 Value* constant = READ_CONSTANT();
                 ObjFunction* function = AS_FUNCTION(constant);
-                ObjClosure* closure = newClosure(function);
+                ObjClosure* closure = newClosure(function, vm);
 
                 linkObject((Object*)closure, vm);
 
@@ -718,7 +716,7 @@ InterpretResult run(VM* vm)
             }
             case OP_CONSTRUCT:
             {
-                ObjTable* table = newObjTable();
+                ObjTable* table = newObjTable(vm);
 
                 linkObject(baseobj(table), vm);
 
@@ -729,7 +727,7 @@ InterpretResult run(VM* vm)
                     Value* key = stackat(vm, (fields - i) * 2);
                     Value* value = stackat(vm, (fields - i) * 2 - 1);
 
-                    otSet(*key, *value, table);
+                    otSet(*key, *value, table, vm);
                 }
 
                 setstacktop(vm, vm->stackTop - fields * 2);
@@ -798,7 +796,7 @@ InterpretResult run(VM* vm)
                 ObjTable* table = AS_TABLE(tableVal);
 
                 Value* val = getAssignValue(vm);
-                otSet(*key, *val, table);
+                otSet(*key, *val, table, vm);
                 break;
             }
             case OP_CLOSE_UPVALUE:
@@ -869,10 +867,10 @@ void freeVM(VM* vm)
     resetStack(vm);
     freeTable(&vm->strings);
     freeTable(&vm->globals);
-    freeObjects(vm->objectStack);
+    freeObjects(vm->objectStack, vm);
 
     for (uint8_t i = 0; i < MT_SIZE; i++)
     {
-        freeObject(baseobj(vm->mts[i]));
+        freeObject(baseobj(vm->mts[i]), vm);
     }
 }

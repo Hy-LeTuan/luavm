@@ -1,31 +1,9 @@
 #include <value.h>
-#include <memory.h>
 #include <object.h>
 
 #include <stdio.h>
-#include <string.h>
 
 const Value NIL_CONSTANT = { NIL };
-
-void initValueArray(ValueArray* array)
-{
-    array->values = NULL;
-    array->capacity = 0;
-    array->count = 0;
-}
-
-void writeValueArray(ValueArray* array, Value value)
-{
-    if (array->count + 1 >= array->capacity)
-    {
-        int newCapacity = GROW_SIZE(array->capacity);
-        array->values = REALLOCATE(array->values, array->capacity, newCapacity, Value);
-        array->capacity = newCapacity;
-    }
-
-    array->values[array->count] = value;
-    array->count++;
-}
 
 void printValue(Value* value)
 {
@@ -116,9 +94,3 @@ bool isFalsey(Value* value)
     return false;
 }
 
-void freeValueArray(ValueArray* array)
-{
-    FREE_ARRAY(array->values, array->capacity, Value);
-    array->capacity = 0;
-    array->count = 0;
-}

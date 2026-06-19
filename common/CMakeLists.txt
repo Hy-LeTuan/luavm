@@ -22,9 +22,19 @@ add_library(common
     table/hash.c
 
     # var
-    var/locals.c
     var/reserved_var.c
 )
+
+option(LUAVM_DEBUG_STRESS_GC "Debug option to always activate GC on memory allocation." OFF)
+option(LUAVM_DEBUG_LOG_GC "Debug option to log GC activities." OFF)
+
+if (LUAVM_DEBUG_STRESS_GC)
+    target_compile_definitions(common PUBLIC DEBUG_STRESS_GC)
+endif()
+
+if (LUAVM_DEBUG_LOG_GC)
+    target_compile_definitions(common PUBLIC DEBUG_LOG_GC)
+endif()
 
 target_link_libraries(common PRIVATE m)
 
@@ -35,3 +45,4 @@ target_include_directories(common PUBLIC object)
 target_include_directories(common PUBLIC table)
 target_include_directories(common PUBLIC var)
 target_include_directories(common PUBLIC metatable)
+target_include_directories(common PUBLIC state)

@@ -1,13 +1,27 @@
 #include <memory.h>
 
+#include <gc.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 
-void* reallocate(void* ptr, size_t oldSize, size_t newSize)
+void* reallocate(void* ptr, size_t oldSize, size_t newSize, VM* vm)
 {
+    if (newSize > oldSize)
+    {
+#ifdef DEBUG_STRESS_GC
+        collectGarbage(vm);
+#endif
+    }
+
     if (newSize == oldSize)
     {
         return ptr;
+    }
+    else if (newSize == 0)
+    {
+        free(ptr);
+        return NULL;
     }
 
     void* newPtr = realloc(ptr, newSize);

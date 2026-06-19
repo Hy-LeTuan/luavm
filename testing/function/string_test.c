@@ -1,3 +1,4 @@
+#include <vmstate.h>
 #include <object.h>
 #include <table.h>
 #include <hash.h>
@@ -82,14 +83,14 @@ ConcatPair CONCAT_LITERALS[STRING_CONCAT_SIZE] = { [1] = { { .str = "", .length 
                "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
         .length = 200 } } };
 
-static void internTest(Table* strings)
+static void internTest(VM* vm)
 {
     // insert all strings
     ObjString* literalControls[STRING_LITERALS_SIZE];
     for (int i = 0; i < STRING_LITERALS_SIZE; i++)
     {
         StringPair* pair = &STRING_LITERALS[i];
-        ObjString* control = copyString(pair->str, pair->length, strings);
+        ObjString* control = copyString(pair->str, pair->length, vm);
         literalControls[i] = control;
     }
 
@@ -99,7 +100,7 @@ static void internTest(Table* strings)
         StringPair* pair = &STRING_LITERALS[i];
         ObjString* control = literalControls[i];
 
-        ObjString* test = copyString(pair->str, pair->length, strings);
+        ObjString* test = copyString(pair->str, pair->length, vm);
 
         if (control != test)
         {
@@ -111,14 +112,14 @@ static void internTest(Table* strings)
     fprintf(stdout, "Intern test passed successfully.\n");
 }
 
-static void concateTest(Table* strings)
+static void concateTest(VM* vm)
 {
     ObjString* literalControls[STRING_CONCAT_SIZE];
     for (int i = 0; i < STRING_CONCAT_SIZE; i++)
     {
         ConcatPair* pair = &CONCAT_LITERALS[i];
-        ObjString* joined = concatenateString(copyString(pair->a.str, pair->a.length, strings),
-          copyString(pair->b.str, pair->b.length, strings), strings);
+        ObjString* joined = concatenateString(copyString(pair->a.str, pair->a.length, vm),
+          copyString(pair->b.str, pair->b.length, vm), vm);
         literalControls[i] = joined;
     }
 
@@ -133,7 +134,7 @@ static void concateTest(Table* strings)
         memcpy(chars + pair->a.length, pair->b.str, pair->b.length);
         chars[length] = '\0';
 
-        ObjString* test = takeString(chars, length, strings);
+        ObjString* test = takeString(chars, length, vm);
 
         if (control != test)
         {
@@ -158,13 +159,15 @@ static void concateTest(Table* strings)
 
 int main(int argc, char* argv[])
 {
-    Table strings;
-    initTable(&strings);
+    VM vm;
+    vm.objectStack = NULL;
+    vm.openUpvalues = NULL;
+    initTable(&vm.strings);
 
-    internTest(&strings);
-    concateTest(&strings);
+    internTest(&vm);
+    concateTest(&vm);
 
-    freeTable(&strings);
+    freeTable(&vm.strings);
 
     return 0;
 }

@@ -1,8 +1,8 @@
 #include <object.h>
 
-ObjUpvalue* newUpvalue(Value* location)
+ObjUpvalue* newUpvalue(Value* location, VM* vm)
 {
-    ObjUpvalue* upvalue = ALLOCATE_OBJ(OBJ_UPVALUE, ObjUpvalue);
+    ObjUpvalue* upvalue = ALLOCATE_OBJ(OBJ_UPVALUE, ObjUpvalue, vm);
 
     upvalue->location = location;
     upvalue->storage = NIL_CONSTANT;

@@ -1,4 +1,5 @@
-#include <vm.h>
+#include <vmdo.h>
+#include <vmstate.h>
 #include <file_utils.h>
 #include <lapi.h>
 

@@ -1,67 +1,86 @@
-#include "value.h"
 #include <chunk.h>
 #include <memory.h>
 
 #include <stdio.h>
 
-void initChunk(Chunk* chunk)
+void initChunk(Chunk* c)
 {
-    chunk->capacity = 0;
-    chunk->count = 0;
-    chunk->code = NULL;
-    chunk->lines = NULL;
+    c->capacity = 0;
+    c->count = 0;
+    c->code = NULL;
+    c->lines = NULL;
 
-    initValueArray(&chunk->constants);
-    initTable(&chunk->lookup);
+    c->ccount = 0;
+    c->csize = 0;
+    c->constants = NULL;
+
+    initTable(&c->lookup);
 }
 
-void writeChunk(Chunk* chunk, uint8_t op, size_t line)
+void writeChunk(Chunk* c, uint8_t op, size_t l, VM* vm)
 {
-    if (chunk->count + 1 >= chunk->capacity)
+    if (c->count + 1 >= c->capacity)
     {
-        int newCapacity = GROW_SIZE(chunk->capacity);
+        int newCapacity = GROW_SIZE(c->capacity);
 
         // grow op
-        chunk->code = REALLOCATE(chunk->code, chunk->capacity, newCapacity, uint8_t);
+        c->code = REALLOCATE(c->code, c->capacity, newCapacity, uint8_t, vm);
 
         // grow line
-        chunk->lines = REALLOCATE(chunk->lines, chunk->capacity, newCapacity, size_t);
+        c->lines = REALLOCATE(c->lines, c->capacity, newCapacity, size_t, vm);
 
-        chunk->capacity = newCapacity;
+        c->capacity = newCapacity;
     }
 
-    chunk->code[chunk->count] = op;
-    chunk->lines[chunk->count] = line;
-    chunk->count++;
+    c->code[c->count] = op;
+    c->lines[c->count] = l;
+    c->count++;
 }
 
-size_t getOpCodeLine(Chunk* chunk, int offset)
+size_t getOpCodeLine(Chunk* c, int offset)
 {
-    return chunk->lines[offset];
+    return c->lines[offset];
 }
 
-size_t addConstant(Chunk* chunk, Value value)
+static size_t writeConstant(Chunk* c, Value v, VM* vm)
 {
-    Value* index = tableGet(&value, &chunk->lookup);
+    if (c->ccount + 1 >= c->csize)
+    {
+        size_t newSize = GROW_SIZE(c->csize);
+        c->constants = REALLOCATE(c->constants, c->csize, newSize, Value, vm);
+        c->csize = newSize;
+    }
+
+    c->constants[c->ccount++] = v;
+    return c->ccount - 1;
+}
+
+size_t addConstant(Chunk* c, Value v, VM* vm)
+{
+    Value* index = tableGet(&v, &c->lookup);
 
     if (IS_NIL(index))
     {
-        writeValueArray(&chunk->constants, value);
-        tableInsertOrSet(value, NUM_VAL((double)chunk->constants.count - 1), &chunk->lookup);
-        return chunk->constants.count - 1;
+        size_t vIdx = writeConstant(c, v, vm);
+
+        tableInsertOrSet(v, NUM_VAL((LuaNum)vIdx), &c->lookup, vm);
+        return vIdx;
     }
 
     return (size_t)AS_NUM(index);
 }
 
-void freeChunk(Chunk* chunk)
+void freeChunk(Chunk* c, VM* vm)
 {
-    FREE_ARRAY(chunk->code, chunk->capacity, uint8_t);
-    FREE_ARRAY(chunk->lines, chunk->capacity, size_t);
+    FREE_ARRAY(c->code, c->capacity, uint8_t, vm);
+    FREE_ARRAY(c->lines, c->capacity, size_t, vm);
+    FREE_ARRAY(c->constants, c->csize, Value, vm);
 
-    chunk->capacity = 0;
-    chunk->count = 0;
+    c->capacity = 0;
+    c->count = 0;
 
-    freeValueArray(&chunk->constants);
-    freeTable(&chunk->lookup);
+    c->csize = 0;
+    c->ccount = 0;
+
+    freeTable(&c->lookup);
 }

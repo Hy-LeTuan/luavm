@@ -77,17 +77,4 @@ void printValueNewLine(Value* value);
 bool compareValue(Value* a, Value* b);
 bool isFalsey(Value* value);
 
-typedef struct
-{
-    // stores the overall capacity
-    size_t capacity;
-    // stores the index of the next empty position
-    size_t count;
-    Value* values;
-} ValueArray;
-
-void initValueArray(ValueArray* array);
-void writeValueArray(ValueArray* array, Value value);
-void freeValueArray(ValueArray* array);
-
 #endif

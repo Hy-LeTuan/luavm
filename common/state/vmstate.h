@@ -1,40 +1,18 @@
-#ifndef vm_vm_h
-#define vm_vm_h
+#ifndef common_state_vmstate_h
+#define common_state_vmstate_h
 
-#include <chunk.h>
-#include <value.h>
 #include <object.h>
 #include <metatable.h>
 
-#define MT_SIZE 8
-
 #define STACK_MAX 512
 #define CACHE_MAX 128
-
-#define C_CALL 0
-#define LUA_CALL 1
-#define CALL_ERROR 2
-
-#define IS_MULTRET(status) (status == 0)
+#define MT_SIZE 8
 
 #define stackat(vm, x) ((vm->stackTop - (x)))
 #define stackprev(vm, x) (vm->stackTop - (x))
 #define reducestack(vm, x) (vm->stackTop -= (x))
 #define setstackat(stack, idx, v) (stack[(idx)] = (*v));
 #define setstacktop(vm, newSlot) (vm->stackTop = newSlot)
-
-#define nextframe(vm) (&vm->frames[vm->frameCount++])
-#define currframe(vm) (&vm->frames[vm->frameCount - 1])
-#define prevframe(vm) (&vm->frames[(--vm->frameCount) - 1])
-#define finalframe(vm) (vm->frameCount - 1 == 0)
-
-#define getmtdirect(vm, type) (vm->mts[type])
-
-typedef enum
-{
-    INTERPRET_SUCCESS,
-    INTERPRET_ERROR
-} InterpretResult;
 
 typedef struct
 {
@@ -71,16 +49,8 @@ typedef struct VM
     ObjString* events[EVENT_SIZE];
 } VM;
 
-void initVM(VM* vm);
-InterpretResult run(VM* vm);
-void linkObject(Object* obj, VM* vm);
-void freeVM(VM* vm);
-void runtimeError(VM* vm, const char* format, ...);
-uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm);
 void pushStack(Value value, VM* vm);
 void pushStackPtr(Value* value, VM* vm);
 Value* popStack(VM* vm);
-
-Value* getEventFromValue(const Value* v, uint8_t e, VM* vm);
 
 #endif
