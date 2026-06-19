@@ -48,8 +48,6 @@ uint8_t lib_lower(uint8_t narg, VM* vm)
     chars[str->length] = '\0';
 
     ObjString* new = takeString(chars, str->length, vm);
-    linkObject(baseobj(new), vm);
-
     pushStack(STRING_VAL(new), vm);
 
     return 1;
@@ -82,7 +80,6 @@ uint8_t lib_upper(uint8_t narg, VM* vm)
     chars[str->length] = '\0';
 
     ObjString* new = takeString(chars, str->length, vm);
-    linkObject(baseobj(new), vm);
 
     pushStack(STRING_VAL(new), vm);
 
@@ -113,7 +110,6 @@ uint8_t lib_rep(uint8_t narg, VM* vm)
     chars[str->length * n] = '\0';
 
     ObjString* new = takeString(chars, str->length * n, vm);
-    linkObject(baseobj(new), vm);
 
     pushStack(STRING_VAL(new), vm);
 
@@ -140,7 +136,6 @@ uint8_t lib_reverse(uint8_t narg, VM* vm)
     chars[str->length] = '\0';
 
     ObjString* new = takeString(chars, str->length, vm);
-    linkObject(baseobj(new), vm);
 
     pushStack(STRING_VAL(new), vm);
 

@@ -14,7 +14,6 @@
 #define createevent(e, ename, vm)                                                                  \
     {                                                                                              \
         ObjString* name = copyString(ename, strlen(ename), vm);                                    \
-        linkObject(baseobj(name), vm);                                                             \
         vm->events[e] = name;                                                                      \
     }
 
@@ -87,17 +86,6 @@ void runtimeError(VM* vm, const char* format, ...)
     resetStack(vm);
 }
 
-void linkObject(Object* obj, VM* vm)
-{
-    if (obj == NULL || obj->next != NULL)
-    {
-        return;
-    }
-
-    obj->next = vm->objectStack;
-    vm->objectStack = obj;
-}
-
 void pushStack(Value value, VM* vm)
 {
     if (vm->stackTop - vm->stack == STACK_MAX)
@@ -156,7 +144,6 @@ static void concatenate(VM* vm)
     ObjString* a = AS_STRING(stackat(vm, 2));
 
     ObjString* result = concatenateString(a, b, vm);
-    linkObject(baseobj(result), vm);
 
     reducestack(vm, 2);
     pushStack(STRING_VAL(result), vm);
@@ -447,12 +434,6 @@ InterpretResult run(VM* vm)
             case OP_CONSTANT:
             {
                 Value* constant = READ_CONSTANT();
-
-                if (CAN_GC(constant))
-                {
-                    linkObject(AS_OBJ(constant), vm);
-                }
-
                 pushStackPtr(constant, vm);
                 break;
             }
@@ -667,8 +648,6 @@ InterpretResult run(VM* vm)
                 ObjFunction* function = AS_FUNCTION(constant);
                 ObjClosure* closure = newClosure(function, vm);
 
-                linkObject((Object*)closure, vm);
-
                 for (int i = 0; i < closure->function->upvalueCount; i++)
                 {
                     uint8_t immediate = READ_BYTE();
@@ -717,9 +696,6 @@ InterpretResult run(VM* vm)
             case OP_CONSTRUCT:
             {
                 ObjTable* table = newObjTable(vm);
-
-                linkObject(baseobj(table), vm);
-
                 uint8_t fields = READ_BYTE();
 
                 for (int i = 0; i < fields; i++)
@@ -869,8 +845,8 @@ void freeVM(VM* vm)
     freeTable(&vm->globals);
     freeObjects(vm->objectStack, vm);
 
-    for (uint8_t i = 0; i < MT_SIZE; i++)
-    {
-        freeObject(baseobj(vm->mts[i]), vm);
-    }
+    // for (uint8_t i = 0; i < MT_SIZE; i++)
+    // {
+    //     freeObject(baseobj(vm->mts[i]), vm);
+    // }
 }

@@ -27,7 +27,6 @@ typedef enum
 
 void initVM(VM* vm);
 InterpretResult run(VM* vm);
-void linkObject(Object* obj, VM* vm);
 void freeVM(VM* vm);
 void runtimeError(VM* vm, const char* format, ...);
 uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm);

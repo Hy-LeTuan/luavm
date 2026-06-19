@@ -124,7 +124,6 @@ uint8_t lib_ipairs(uint8_t narg, VM* vm)
     }
 
     ObjNativeFunction* iter = newNativeFunction(ipairsAux, vm);
-    linkObject((Object*)iter, vm);
 
     pushStack(NATIVE_VAL(iter), vm);
     pushStackPtr(table, vm);

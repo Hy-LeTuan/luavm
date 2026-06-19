@@ -28,8 +28,6 @@ static void defineLib(LibExport* libExport, Table* lib, VM* vm)
 
         ObjString* key = copyString(name, strlen(name), vm);
         ObjNativeFunction* native = newNativeFunction(func, vm);
-        linkObject(baseobj(key), vm);
-        linkObject(baseobj(native), vm);
         tableInsertOrSet(STRING_VAL(key), NATIVE_VAL(native), lib, vm);
     }
 }
@@ -37,7 +35,6 @@ static void defineLib(LibExport* libExport, Table* lib, VM* vm)
 static void insertToGlobal(const char* name, Value v, VM* vm)
 {
     ObjString* objname = copyString(name, strlen(name), vm);
-    linkObject(baseobj(objname), vm);
     tableInsertOrSet(STRING_VAL(objname), v, &vm->globals, vm);
 }
 

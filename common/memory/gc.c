@@ -6,18 +6,19 @@
 
 #ifdef DEBUG_LOG_GC
 #include <stdio.h>
+#include <stdlib.h>
 #endif
 
 void freeObject(Object* obj, VM* vm)
 {
-#ifdef DEBUG_LOG_GC
-    printf("%p free type %d\n", (void*)obj, vtype(obj));
-#endif
-
     if (obj == NULL)
     {
         return;
     }
+
+#ifdef DEBUG_LOG_GC
+    printf("%p free type %d\n", (void*)obj, vtype(obj));
+#endif
 
     switch (otype(obj))
     {
@@ -32,19 +33,14 @@ void freeObject(Object* obj, VM* vm)
         {
             ObjFunction* function = (ObjFunction*)obj;
             freeChunk(&function->chunk, vm);
+            FREE_ARRAY(function->enclosed, function->esize, ObjFunction*, vm);
             FREE(function, ObjFunction, vm);
-
-            for (int i = 0; i < function->esize; i++)
-            {
-                freeObject(baseobj(function->enclosed[i]), vm);
-                function->enclosed[i] = NULL;
-            }
             break;
         }
         case OBJ_CLOSURE:
         {
             ObjClosure* closure = (ObjClosure*)obj;
-            FREE_ARRAY(closure->upvalues, closure->function->upvalueCount, ObjUpvalue, vm);
+            FREE_ARRAY(closure->upvalues, closure->function->upvalueCount, ObjUpvalue*, vm);
             FREE(closure, ObjClosure, vm);
             break;
         }
@@ -64,8 +60,6 @@ void freeObject(Object* obj, VM* vm)
             freeTable(&table->content);
             freeValueArray(&table->array);
             FREE(table, ObjTable, vm);
-
-            freeObject(baseobj(table->mt), vm);
             break;
         }
         default:
@@ -90,18 +84,16 @@ static void markRoots()
 {
 }
 
-// should everything be bound by the VM?
-// if it should, then everything has to happened when the VM is active, which admittedly looks a bit
-// riddiculous
 void collectGarbage(VM* vm)
 {
-    // skip gc for this allocationn
+#ifdef DEBUG_LOG_GC
+    /* vm should never be null */
     if (vm == NULL)
     {
-        return;
+        fprintf(stderr, "Error, vm is null when passed to gc.\n");
+        exit(EXIT_FAILURE);
     }
 
-#ifdef DEBUG_LOG_GC
     printf("--- gc begin\n");
 #endif
 
