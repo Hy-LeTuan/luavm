@@ -16,6 +16,9 @@
 #define IS_TABLE(v) (!IS_NIL(v) && vtype(v) == OBJ_TABLE)
 #define IS_UPVALUE(v) (!IS_NIL(v) && vtype(v) == OBJ_UPVALUE)
 
+// #define IS_LITERAL(v) (!IS_NIL(v) && vtype(v) == BOOL || vtype(v) == NUMBER)
+#define IS_OBJ(v) (!IS_NIL(v) && !IS_BOOL(v) && !IS_NUM(v))
+
 #define AS_BOOL(value) ((value)->as.boolean)
 #define AS_NUM(value) ((value)->as.number)
 #define AS_OBJ(value) ((value)->as.object)

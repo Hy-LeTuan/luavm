@@ -1,21 +1,29 @@
 #include <chunk.h>
 #include <assert.h>
 #include <memory.h>
+#include <table.h>
+#include <vmstate.h>
+#include <vmdo.h>
 
 #include <stdio.h>
 
-uint8_t opCodeControl[4] = { [0] = OP_ADD, [1] = OP_MINUS, [2] = OP_MUL, [3] = OP_DIV };
+uint8_t opCodeControl[4] = { OP_ADD, OP_MINUS, OP_MUL, OP_DIV };
 
 int main(int argc, char* argv[])
 {
     Chunk chunk;
+    Table table;
+    VM vm;
+
+    initVM(&vm);
     initChunk(&chunk);
+    initTable(&table);
 
     // write code test
-    writeChunk(&chunk, OP_ADD, 0, NULL);
-    writeChunk(&chunk, OP_MINUS, 0, NULL);
-    writeChunk(&chunk, OP_MUL, 0, NULL);
-    writeChunk(&chunk, OP_DIV, 0, NULL);
+    writeChunk(&chunk, OP_ADD, 0, &vm);
+    writeChunk(&chunk, OP_MINUS, 0, &vm);
+    writeChunk(&chunk, OP_MUL, 0, &vm);
+    writeChunk(&chunk, OP_DIV, 0, &vm);
 
     for (int i = 0; i < chunk.count; i++)
     {
@@ -25,17 +33,17 @@ int main(int argc, char* argv[])
     fprintf(stdout, "Direct write chunk test passed successfully.\n");
 
     // add num
-    addConstant(&chunk, NUM_VAL(1), NULL);
-    addConstant(&chunk, NUM_VAL(1), NULL);
+    addConstant(&chunk, NUM_VAL(1), &table, &vm);
+    addConstant(&chunk, NUM_VAL(1), &table, &vm);
 
-    addConstant(&chunk, NUM_VAL(2), NULL);
-    addConstant(&chunk, NUM_VAL(2), NULL);
+    addConstant(&chunk, NUM_VAL(2), &table, &vm);
+    addConstant(&chunk, NUM_VAL(2), &table, &vm);
 
-    addConstant(&chunk, NUM_VAL(3), NULL);
-    addConstant(&chunk, NUM_VAL(3), NULL);
+    addConstant(&chunk, NUM_VAL(3), &table, &vm);
+    addConstant(&chunk, NUM_VAL(3), &table, &vm);
 
-    addConstant(&chunk, NUM_VAL(4), NULL);
-    addConstant(&chunk, NUM_VAL(4), NULL);
+    addConstant(&chunk, NUM_VAL(4), &table, &vm);
+    addConstant(&chunk, NUM_VAL(4), &table, &vm);
 
     for (int i = 0; i < chunk.ccount; i++)
     {
@@ -44,7 +52,8 @@ int main(int argc, char* argv[])
 
     fprintf(stdout, "Adding constant test passed successfully.\n");
 
-    freeChunk(&chunk, NULL);
+    freeChunk(&chunk, &vm);
+    freeTable(&table, &vm);
 
     return 0;
 }

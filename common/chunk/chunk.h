@@ -46,7 +46,7 @@ typedef enum
 
 void initChunk(Chunk* c);
 void writeChunk(Chunk* c, uint8_t op, size_t l, VM* vm);
-size_t addConstant(Chunk* c, Value v, VM* vm);
+size_t addConstant(Chunk* c, Value v, Table* lookup, VM* vm);
 void freeChunk(Chunk* c, VM* vm);
 size_t getOpCodeLine(Chunk* c, int offset);
 

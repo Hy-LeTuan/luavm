@@ -18,6 +18,8 @@ static void initCompiler(Compiler* compiler, Compiler* prev, VM* vm)
     compiler->breakCount = 0;
     compiler->upvalueCount = 0;
 
+    initTable(&compiler->lookup);
+
     ObjFunction* function = prev == NULL ? NULL : newFunction(prev->function, vm);
     compiler->function = function;
 }
@@ -187,14 +189,14 @@ static void patchSingleByte(size_t offset, uint8_t value, Parser* p)
 
 static void emitConstant(Value value, Parser* p)
 {
-    size_t pos = addConstant(currentChunk(p), value, p->vm);
+    size_t pos = addConstant(currentChunk(p), value, &p->compiler->lookup, p->vm);
     emitBytes(OP_CONSTANT, pos, p);
 }
 
 static size_t identifierConstant(Token* name, Parser* p)
 {
     Value name_obj = STRING_VAL(copyString(name->start, name->length, p->vm));
-    size_t pos = addConstant(currentChunk(p), name_obj, p->vm);
+    size_t pos = addConstant(currentChunk(p), name_obj, &p->compiler->lookup, p->vm);
     return pos;
 }
 
@@ -298,10 +300,13 @@ static ObjFunction* endCompiler(Parser* p)
 {
     emitReturn(p);
 
-    ObjFunction* function = p->compiler->function;
-    p->compiler = p->compiler->enclosing;
+    Compiler* c = p->compiler;
+    p->compiler = c->enclosing;
 
-    return function;
+    /* free anything the compiler uses */
+    freeTable(&c->lookup, p->vm);
+
+    return c->function;
 }
 
 // common declaration
@@ -1277,7 +1282,7 @@ static uint8_t defineReservedVar(ReservedVarType type, Parser* p)
     Token var = genReservedVarToken(type);
     uint8_t varIdx = defineLocalVar(&var, p);
 
-   return varIdx;
+    return varIdx;
 }
 
 static void paramList(Parser* p)
@@ -1349,7 +1354,8 @@ static void functionBody(Parser* p)
 
     /* finish parsing current function */
 
-    size_t constant = addConstant(currentChunk(p), FUNCTION_VAL(function), p->vm);
+    size_t constant =
+      addConstant(currentChunk(p), FUNCTION_VAL(function), &p->compiler->lookup, p->vm);
 
     emitBytes(OP_CLOSURE, constant, p);
 
@@ -1627,7 +1633,7 @@ static void numericalFor(Token* loop_var, Parser* p)
     markInitialized(limIdx, p);
     markInitialized(stepIdx, p);
 
-    size_t zeroConstant = addConstant(currentChunk(p), NUM_VAL(0), p->vm);
+    size_t zeroConstant = addConstant(currentChunk(p), NUM_VAL(0), &p->compiler->lookup, p->vm);
 
     beginLoop(p);
     size_t loopStart = getBytePos(p);
@@ -1897,7 +1903,7 @@ ObjFunction* compile(const char* source, VM* vm)
     ObjFunction* mainFunc = newFunction(NULL, vm);
 
     // push to keep alive as root
-    pushStack(FUNCTION_VAL(mainFunc), vm);
+    unsafe_push(vm, FUNCTION_VAL(mainFunc));
 
     initCompiler(&compiler, NULL, vm);
     compiler.function = mainFunc;

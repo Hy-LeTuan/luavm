@@ -14,6 +14,9 @@
 #define setstackat(stack, idx, v) (stack[(idx)] = (*v));
 #define setstacktop(vm, newSlot) (vm->stackTop = newSlot)
 
+#define unsafe_push(vm, v) (*(vm->stackTop++) = v)
+#define unsafe_pop(vm) (vm->stackTop--)
+
 typedef struct
 {
     ObjClosure* closure;

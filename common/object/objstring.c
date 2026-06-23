@@ -1,6 +1,7 @@
 #include <object.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <memory.h>
 #include <hash.h>
@@ -15,7 +16,11 @@ static ObjString* newString(char* chars, size_t length, VM* vm)
     string->chars = chars;
     string->hash = hashString(chars, length, fnv1a_32);
 
+    unsafe_push(vm, STRING_VAL(string));
+
     tableSet(STRING_VAL(string), TRUE_VAL(), &vm->strings, vm);
+
+    unsafe_pop(vm);
 
     return string;
 }
@@ -39,7 +44,7 @@ ObjString* copyString(const char* const_chars, int length, VM* vm)
         return AS_STRING(&key);
     }
 
-    char* chars = ALLOCATE(char, length + 1, vm);
+    char* chars = malloc(sizeof(char) * (length + 1));
     memcpy(chars, const_chars, length);
     chars[length] = '\0';
 
@@ -49,7 +54,7 @@ ObjString* copyString(const char* const_chars, int length, VM* vm)
 ObjString* concatenateString(ObjString* a, ObjString* b, VM* vm)
 {
     size_t length = a->length + b->length;
-    char* chars = ALLOCATE(char, length + 1, vm);
+    char* chars = malloc(sizeof(char) * length + 1);
 
     memcpy(chars, a->chars, a->length);
     memcpy(chars + a->length, b->chars, b->length);

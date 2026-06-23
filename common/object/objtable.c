@@ -10,12 +10,12 @@ void initValueArray(ValueArray* array)
     array->count = 0;
 }
 
-void writeValueArray(ValueArray* array, Value value)
+void writeValueArray(ValueArray* array, Value value, VM* vm)
 {
     if (array->count + 1 >= array->capacity)
     {
         int newCapacity = GROW_SIZE(array->capacity);
-        array->values = REALLOCATE(array->values, array->capacity, newCapacity, Value, NULL);
+        array->values = REALLOCATE(array->values, array->capacity, newCapacity, Value, vm);
         array->capacity = newCapacity;
     }
 
@@ -23,9 +23,9 @@ void writeValueArray(ValueArray* array, Value value)
     array->count++;
 }
 
-void freeValueArray(ValueArray* array)
+void freeValueArray(ValueArray* array, VM* vm)
 {
-    FREE_ARRAY(array->values, array->capacity, Value, NULL);
+    FREE_ARRAY(array->values, array->capacity, Value, vm);
     array->capacity = 0;
     array->count = 0;
 }
@@ -34,9 +34,9 @@ ObjTable* newObjTable(VM* vm)
 {
     ObjTable* table = ALLOCATE_OBJ(OBJ_TABLE, ObjTable, vm);
 
+    table->mt = NULL;
     initTable(&table->content);
     initValueArray(&table->array);
-    table->mt = NULL;
 
     return table;
 }
@@ -51,7 +51,7 @@ void otSeti(int i, Value v, ObjTable* t, VM* vm)
     }
     else if (i == t->array.count)
     {
-        writeValueArray(&t->array, v);
+        writeValueArray(&t->array, v, vm);
     }
     else
     {
@@ -67,7 +67,6 @@ void otSet(Value k, Value v, ObjTable* t, VM* vm)
     }
     else
     {
-        // hash that shit
         tableInsertOrSet(k, v, TABLE(t), vm);
     }
 }
@@ -115,7 +114,7 @@ static int unboundSearch(unsigned int idx, ObjTable* t)
     unsigned int i = idx;
     unsigned int j = idx + 1;
 
-    while (IS_NIL(otGeti(j, t)))
+    while (!IS_NIL(otGeti(j, t)))
     {
         i = j;
         j *= 2;
@@ -123,7 +122,7 @@ static int unboundSearch(unsigned int idx, ObjTable* t)
         if (j > INT_MAX)
         {
             i = 1;
-            while (IS_NIL(otGeti(i, t)))
+            while (!IS_NIL(otGeti(i, t)))
             {
                 i++;
             }
@@ -148,9 +147,6 @@ static int unboundSearch(unsigned int idx, ObjTable* t)
 
 int otGetLen(ObjTable* t)
 {
-    // TODO: implement length for table
-    // default: have a table to set size
-    // if failed: look for a field `n` in the current array
     Value* v = otGetWithPtr("n", 1, t);
 
     if (IS_NUM(v))

@@ -4,9 +4,12 @@
 ObjClosure* newClosure(ObjFunction* function, VM* vm)
 {
     ObjClosure* closure = ALLOCATE_OBJ(OBJ_CLOSURE, ObjClosure, vm);
+    closure->function = function;
+    closure->upvalues = NULL;
 
-    ObjUpvalue** upvalues =
-      ALLOCATE(ObjUpvalue*, sizeof(ObjUpvalue*) * function->upvalueCount, NULL);
+    unsafe_push(vm, CLOSURE_VAL(closure));
+
+    ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, sizeof(ObjUpvalue*) * function->upvalueCount, vm);
 
     for (int i = 0; i < function->upvalueCount; i++)
     {
@@ -14,7 +17,8 @@ ObjClosure* newClosure(ObjFunction* function, VM* vm)
     }
 
     closure->upvalues = upvalues;
-    closure->function = function;
+
+    unsafe_pop(vm);
 
     return closure;
 }

@@ -52,6 +52,11 @@ void initVM(VM* vm)
         vm->mts[i] = NULL;
     }
 
+    for (uint8_t i = 0; i < EVENT_SIZE; i++)
+    {
+        vm->events[i] = NULL;
+    }
+
     // setup event keys
     createevent(EVENT_ADD, "__add", vm);
     createevent(EVENT_SUB, "__sub", vm);
@@ -133,8 +138,7 @@ static uint8_t getnexprs(uint8_t nexprs, VM* vm)
 
 static Value* getAssignValue(VM* vm)
 {
-    Value* v = &vm->cache[vm->cacheSize - 1];
-    vm->cacheSize--;
+    Value* v = &vm->cache[--vm->cacheSize];
     return v;
 }
 
@@ -192,15 +196,20 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
         diff++;
 
         ObjTable* table = type == TYPE_VARARG ? newObjTable(vm) : NULL;
+        if (table != NULL)
+        {
+            pushStack(TABLE_VAL(table), vm);
+        }
 
-        vm->cacheSize += diff;
+        int finalCSize = vm->cacheSize + diff;
 
         for (uint8_t i = 0; i < diff; i++)
         {
-            Value* v = stackat(vm, i + 1);
+            /* skip the temporary table */
+            Value* v = table == NULL ? stackat(vm, i + 1) : stackat(vm, i + 1 + 1);
 
             // keep stack order consistent
-            setstackat(vm->cache, vm->cacheSize - i - 1, v);
+            setstackat(vm->cache, finalCSize - i - 1, v);
 
             if (table != NULL)
             {
@@ -208,14 +217,19 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
             }
         }
 
+        vm->cacheSize = finalCSize;
+
+        if (table != NULL)
+        {
+            popStack(vm);
+        }
         reducestack(vm, diff);
 
         if (table != NULL)
         {
-            ObjString* length = copyString("n", 1, vm);
-
-            tableInsertOrSet(STRING_VAL(length), NUM_VAL(diff), &table->content, vm);
             pushStack(TABLE_VAL(table), vm);
+            ObjString* length = copyString("n", 1, vm);
+            tableInsertOrSet(STRING_VAL(length), NUM_VAL(diff), &table->content, vm);
         }
         else
         {
@@ -367,7 +381,7 @@ static void resovleNativeCall(uint8_t retStatus, VM* vm)
     resolveMultret(retStatus, nrets, returns, vm);
 }
 
-Value* getEventFromValue(const Value* v, uint8_t e, VM* vm)
+Value* getEventFromTypeMt(const Value* v, uint8_t e, VM* vm)
 {
     uint8_t t = vtype(v);
     ObjTable* table = vm->mts[t];
@@ -439,17 +453,19 @@ InterpretResult run(VM* vm)
             }
             case OP_LENGTH:
             {
-                Value* v = popStack(vm);
+                Value* v = stackat(vm, 1);
 
                 if (IS_TABLE(v))
                 {
                     ObjTable* t = AS_TABLE(v);
                     int n = otGetLen(t);
+                    popStack(vm);
                     pushStack(NUM_VAL(n), vm);
                 }
                 else if (IS_STRING(v))
                 {
                     ObjString* s = AS_STRING(v);
+                    popStack(vm);
                     pushStack(NUM_VAL(s->length), vm);
                 }
                 else
@@ -648,6 +664,8 @@ InterpretResult run(VM* vm)
                 ObjFunction* function = AS_FUNCTION(constant);
                 ObjClosure* closure = newClosure(function, vm);
 
+                pushStack(CLOSURE_VAL(closure), vm);
+
                 for (int i = 0; i < closure->function->upvalueCount; i++)
                 {
                     uint8_t immediate = READ_BYTE();
@@ -663,7 +681,6 @@ InterpretResult run(VM* vm)
                     }
                 }
 
-                pushStack(CLOSURE_VAL(closure), vm);
                 break;
             }
             case OP_CALL:
@@ -696,16 +713,19 @@ InterpretResult run(VM* vm)
             case OP_CONSTRUCT:
             {
                 ObjTable* table = newObjTable(vm);
+                pushStack(TABLE_VAL(table), vm);
+
                 uint8_t fields = READ_BYTE();
 
                 for (int i = 0; i < fields; i++)
                 {
-                    Value* key = stackat(vm, (fields - i) * 2);
-                    Value* value = stackat(vm, (fields - i) * 2 - 1);
+                    Value* key = stackat(vm, (fields - i) * 2 + 1);
+                    Value* value = stackat(vm, (fields - i) * 2 - 1 + 1);
 
                     otSet(*key, *value, table, vm);
                 }
 
+                popStack(vm);
                 setstacktop(vm, vm->stackTop - fields * 2);
 
                 pushStack(TABLE_VAL(table), vm);
@@ -715,7 +735,6 @@ InterpretResult run(VM* vm)
             {
                 Value* key = stackat(vm, 1);
                 Value* tableVal = stackat(vm, 2);
-                reducestack(vm, 2);
 
                 if (IS_TABLE(tableVal))
                 {
@@ -723,20 +742,23 @@ InterpretResult run(VM* vm)
                     Value* val = otGet(key, table);
                     if (!IS_NIL(val))
                     {
+                        reducestack(vm, 2);
                         pushStackPtr(val, vm);
                         break;
                     }
                 }
 
                 // attempt to get value from metatable
-                Value* indexed = getEventFromValue(tableVal, EVENT_INDEX, vm);
+                Value* indexed = getEventFromTypeMt(tableVal, EVENT_INDEX, vm);
 
                 if (IS_NIL(indexed))
                 {
+                    reducestack(vm, 2);
                     pushStack(NIL_CONSTANT, vm);
                 }
                 else if (IS_FUNCTION(indexed))
                 {
+                    reducestack(vm, 2);
                     pushStackPtr(indexed, vm);
 
                     if (precall(2, MAKE_RET(1), vm) == C_CALL)
@@ -753,6 +775,7 @@ InterpretResult run(VM* vm)
                 {
                     ObjTable* mt = AS_TABLE(indexed);
                     Value* val = otGet(key, mt);
+                    reducestack(vm, 2);
                     pushStackPtr(val, vm);
                 }
                 break;
@@ -761,7 +784,6 @@ InterpretResult run(VM* vm)
             {
                 Value* key = stackat(vm, 1);
                 Value* tableVal = stackat(vm, 2);
-                reducestack(vm, 2);
 
                 if (!IS_TABLE(tableVal))
                 {
@@ -772,7 +794,11 @@ InterpretResult run(VM* vm)
                 ObjTable* table = AS_TABLE(tableVal);
 
                 Value* val = getAssignValue(vm);
+
+                pushStackPtr(val, vm);
                 otSet(*key, *val, table, vm);
+
+                reducestack(vm, 3);
                 break;
             }
             case OP_CLOSE_UPVALUE:
@@ -791,16 +817,17 @@ InterpretResult run(VM* vm)
                     break;
                 }
 
-                vm->cacheSize += n;
+                int finalCSize = vm->cacheSize + n;
 
                 // reverse the order of the insertion
                 for (int i = 0; i < n; i++)
                 {
                     Value* v = stackat(vm, i + 1);
-                    setstackat(vm->cache, vm->cacheSize - i - 1, v)
+                    setstackat(vm->cache, finalCSize - i - 1, v)
                 }
 
                 reducestack(vm, n);
+                vm->cacheSize = finalCSize;
                 break;
             }
             case OP_POP:
@@ -809,7 +836,13 @@ InterpretResult run(VM* vm)
             case OP_RETURN:
             {
                 closeUpvalues(frame->slots, vm);
-                vm->cacheSize -= frame->info;
+
+                /* the only case where we cache is used */
+                if (frame->closure->function->type == TYPE_VARARG)
+                {
+                    vm->cacheSize -= frame->info;
+                }
+
                 if (finalframe(vm))
                 {
                     return INTERPRET_SUCCESS;
@@ -841,12 +874,11 @@ InterpretResult run(VM* vm)
 void freeVM(VM* vm)
 {
     resetStack(vm);
-    freeTable(&vm->strings);
-    freeTable(&vm->globals);
-    freeObjects(vm->objectStack, vm);
+    freeTable(&vm->globals, vm);
+    freeTable(&vm->strings, vm);
 
-    // for (uint8_t i = 0; i < MT_SIZE; i++)
-    // {
-    //     freeObject(baseobj(vm->mts[i]), vm);
-    // }
+    /*
+       free all live objects that hasn't been collected by GC
+    */
+    freeObjects(vm->objectStack, vm);
 }

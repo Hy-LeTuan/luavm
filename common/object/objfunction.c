@@ -3,25 +3,9 @@
 #include <chunk.h>
 #include <memory.h>
 
-static ObjFunction* subscribeTo(ObjFunction* parent, VM* vm)
-{
-    ObjFunction* f = ALLOCATE_OBJ(OBJ_FUNCTION, ObjFunction, vm);
-
-    if (parent != NULL)
-    {
-        // move to 1 enclosing
-        parent->enclosed =
-          REALLOCATE(parent->enclosed, parent->esize, parent->esize + 1, ObjFunction*, vm);
-        parent->enclosed[parent->esize++] = f;
-    }
-
-    return f;
-}
-
 ObjFunction* newFunction(ObjFunction* parent, VM* vm)
 {
-    ObjFunction* f = subscribeTo(parent, vm);
-
+    ObjFunction* f = ALLOCATE_OBJ(OBJ_FUNCTION, ObjFunction, vm);
     initChunk(&f->chunk);
 
     f->ip = f->chunk.code;
@@ -31,6 +15,16 @@ ObjFunction* newFunction(ObjFunction* parent, VM* vm)
 
     f->esize = 0;
     f->enclosed = NULL;
+
+    if (parent != NULL)
+    {
+        unsafe_push(vm, FUNCTION_VAL(f));
+        // move to 1 enclosing
+        parent->enclosed =
+          REALLOCATE(parent->enclosed, parent->esize, parent->esize + 1, ObjFunction*, vm);
+        parent->enclosed[parent->esize++] = f;
+        unsafe_pop(vm);
+    }
 
     return f;
 }

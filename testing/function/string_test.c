@@ -2,6 +2,7 @@
 #include <object.h>
 #include <table.h>
 #include <hash.h>
+#include <vmdo.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -160,14 +161,12 @@ static void concateTest(VM* vm)
 int main(int argc, char* argv[])
 {
     VM vm;
-    vm.objectStack = NULL;
-    vm.openUpvalues = NULL;
-    initTable(&vm.strings);
+    initVM(&vm);
 
     internTest(&vm);
     concateTest(&vm);
 
-    freeTable(&vm.strings);
+    freeTable(&vm.strings, &vm);
 
     return 0;
 }

@@ -3,14 +3,13 @@
 #include <hash.h>
 #include <value.h>
 #include <vmstate.h>
+#include <vmdo.h>
 
 #include <stdio.h>
 #include <assert.h>
 #include <limits.h>
 
 #define COMPARE(expr, func) (compare((expr), (expr), func))
-
-VM vm;
 
 static void compare(Value a, Value b, HashFn hashFunc)
 {
@@ -26,9 +25,8 @@ static void compare(Value a, Value b, HashFn hashFunc)
 
 int main(int argc, char* argv[])
 {
-    vm.objectStack = NULL;
-    vm.openUpvalues = NULL;
-    initTable(&vm.strings);
+    VM vm;
+    initVM(&vm);
 
     // numbers
     COMPARE(NUM_VAL(1.0), fnv1a_32);
@@ -57,14 +55,14 @@ int main(int argc, char* argv[])
     fprintf(stdout, "Test for strings passed.\n");
 
     // functions
-    COMPARE(FUNCTION_VAL(newFunction(NULL, NULL)), fnv1a_32);
+    COMPARE(FUNCTION_VAL(newFunction(NULL, &vm)), fnv1a_32);
 
-    ObjFunction* function = newFunction(NULL, NULL);
-    COMPARE(FUNCTION_VAL(newClosure(function, NULL)), fnv1a_32);
+    ObjFunction* function = newFunction(NULL, &vm);
+    COMPARE(FUNCTION_VAL(newClosure(function, &vm)), fnv1a_32);
 
     fprintf(stdout, "Test for functions and closures passed.\n");
 
-    freeTable(&vm.strings);
+    freeTable(&vm.strings, &vm);
 
     return 0;
 }

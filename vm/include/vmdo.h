@@ -31,6 +31,6 @@ void freeVM(VM* vm);
 void runtimeError(VM* vm, const char* format, ...);
 uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm);
 
-Value* getEventFromValue(const Value* v, uint8_t e, VM* vm);
+Value* getEventFromTypeMt(const Value* v, uint8_t e, VM* vm);
 
 #endif

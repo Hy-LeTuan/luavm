@@ -29,7 +29,9 @@
         "CMAKE_BUILD_TYPE": "Release",
         "LUAVM_DEBUG_STACK_TRACE": "OFF",
         "LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION": "OFF",
-        "LUAVM_DEBUG_DISASSEMBLE_CHUNK": "OFF"
+        "LUAVM_DEBUG_DISASSEMBLE_CHUNK": "OFF",
+        "LUAVM_DEBUG_STRESS_GC": "ON",
+        "LUAVM_DEBUG_LOG_GC": "OFF"
       }
     },
     {

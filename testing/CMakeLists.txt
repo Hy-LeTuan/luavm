@@ -12,6 +12,7 @@ target_link_libraries(TokenLexTest PRIVATE common)
 add_executable(ChunkOpsTest compiler/chunk_test.c)
 add_test(NAME ChunkOpsTest COMMAND ChunkOpsTest)
 target_link_libraries(ChunkOpsTest PRIVATE common)
+target_link_libraries(ChunkOpsTest PRIVATE vm)
 
 # test hashing
 add_executable(HashTest function/hash_test.c)

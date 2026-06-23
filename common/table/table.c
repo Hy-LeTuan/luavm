@@ -1,3 +1,4 @@
+#include "value.h"
 #include <table.h>
 
 #include <hash.h>
@@ -236,15 +237,16 @@ bool tableErase(Value* key, Table* table)
         return false;
     }
 
-    entry->value = NIL_VAL();
+    entry->value = NIL_CONSTANT;
     entry->type = ENTRY_TOMBSTONE;
+    entry->key = NIL_CONSTANT;
 
     return true;
 }
 
-void freeTable(Table* table)
+void freeTable(Table* table, VM* vm)
 {
-    FREE_ARRAY(table->entries, table->capacity, Entry, NULL);
+    FREE_ARRAY(table->entries, table->capacity, Entry, vm);
     table->count = 0;
     table->capacity = 0;
 }

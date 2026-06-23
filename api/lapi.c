@@ -8,6 +8,7 @@
 #include <mathlib.h>
 
 #include <string.h>
+// #include <stdio.h>
 
 #define setvmmetatable(type, value) (vm->mts[type] = value)
 
@@ -27,20 +28,32 @@ static void defineLib(LibExport* libExport, Table* lib, VM* vm)
         }
 
         ObjString* key = copyString(name, strlen(name), vm);
+        unsafe_push(vm, STRING_VAL(key));
+
         ObjNativeFunction* native = newNativeFunction(func, vm);
+        unsafe_push(vm, NATIVE_VAL(native));
+
         tableInsertOrSet(STRING_VAL(key), NATIVE_VAL(native), lib, vm);
+
+        unsafe_pop(vm);
+        unsafe_pop(vm);
     }
 }
 
 static void insertToGlobal(const char* name, Value v, VM* vm)
 {
     ObjString* objname = copyString(name, strlen(name), vm);
+    unsafe_push(vm, STRING_VAL(objname));
+
     tableInsertOrSet(STRING_VAL(objname), v, &vm->globals, vm);
+
+    unsafe_pop(vm);
 }
 
 static ObjTable* createStandardMetatable(VM* vm)
 {
     ObjTable* table = newObjTable(vm);
+    unsafe_push(vm, TABLE_VAL(table));
 
     for (uint8_t i = 0; i < EVENT_SIZE; i++)
     {
@@ -48,6 +61,7 @@ static ObjTable* createStandardMetatable(VM* vm)
         otSetRaw(STRING_VAL(event), NIL_CONSTANT, table, vm);
     }
 
+    unsafe_pop(vm);
     return table;
 }
 
@@ -59,22 +73,30 @@ static void defineMtsAndEnvs(VM* vm)
     defineLib(BASE_LIB, &vm->globals, vm);
 
     ObjTable* stringlib = newObjTable(vm);
+    unsafe_push(vm, TABLE_VAL(stringlib));
     defineLib(STRING_LIB, TABLE(stringlib), vm);
     insertToGlobal("string", TABLE_VAL(stringlib), vm);
+    unsafe_pop(vm);
 
     ObjTable* tablelib = newObjTable(vm);
+    unsafe_push(vm, TABLE_VAL(tablelib));
     defineLib(TABLE_LIB, TABLE(tablelib), vm);
     insertToGlobal("table", TABLE_VAL(tablelib), vm);
+    unsafe_pop(vm);
 
     ObjTable* mathlib = newObjTable(vm);
+    unsafe_push(vm, TABLE_VAL(mathlib));
     defineLib(MATH_LIB, TABLE(mathlib), vm);
     insertToGlobal("math", TABLE_VAL(mathlib), vm);
+    unsafe_pop(vm);
 
     /*
        define metatables
     */
     ObjTable* stringmt = createStandardMetatable(vm);
+    pushStack(TABLE_VAL(stringmt), vm);
     otSetRaw(STRING_VAL(vm->events[EVENT_INDEX]), TABLE_VAL(stringlib), stringmt, vm);
+    popStack(vm);
 
     setvmmetatable(OBJ_STRING, stringmt);
 }
@@ -83,15 +105,17 @@ void setupSingleChunkVM(const char* source, VM* vm)
 {
     initVM(vm);
     defineMtsAndEnvs(vm);
+    // printf("finish defining metatables and environments\n");
 
     ObjFunction* function = compile(source, vm);
+
     ObjClosure* closure = newClosure(function, vm);
 
-    // remove the old function
-    popStack(vm);
+    // remove the old function and push closure
+    unsafe_pop(vm);
+    unsafe_push(vm, CLOSURE_VAL(closure));
 
-    // push the closure and call main script
-    pushStack(CLOSURE_VAL(closure), vm);
+    // call main script
     precall(0, 1, vm);
 }
 

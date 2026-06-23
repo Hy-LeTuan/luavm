@@ -1,6 +1,7 @@
 #include <vmstate.h>
 #include <object.h>
 #include <table.h>
+#include <vmdo.h>
 
 #include <stdio.h>
 #include <assert.h>
@@ -10,17 +11,15 @@
 int main(int argc, char* argv[])
 {
     VM vm;
-    vm.objectStack = NULL;
-    vm.openUpvalues = NULL;
-    initTable(&vm.strings);
+    initVM(&vm);
 
     Table test_table;
     initTable(&test_table);
 
     // create all keys
 
-    Value functionKey = FUNCTION_VAL(newFunction(NULL, NULL));
-    Value closureKey = CLOSURE_VAL(newClosure(newFunction(NULL, NULL), NULL));
+    Value functionKey = FUNCTION_VAL(newFunction(NULL, &vm));
+    Value closureKey = CLOSURE_VAL(newClosure(newFunction(NULL, &vm), &vm));
 
     Value helloKey = CREATE_STRING("hello", 5, vm);
     Value keyKey = CREATE_STRING("key", 3, vm);
@@ -63,8 +62,8 @@ int main(int argc, char* argv[])
 
     fprintf(stdout, "Set/Insert test passed successfully.\n");
 
-    freeTable(&test_table);
-    freeTable(&vm.strings);
+    freeTable(&test_table, &vm);
+    freeTable(&vm.strings, &vm);
 
     return 0;
 }

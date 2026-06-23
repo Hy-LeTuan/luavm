@@ -19,6 +19,7 @@ typedef uint8_t (*NativeFn)(uint8_t nargs, VM* args);
 typedef struct Object
 {
     ValueType type;
+    bool marked;
     struct Object* next;
 } Object;
 
@@ -53,7 +54,6 @@ typedef struct
     size_t count;
     uint8_t* code;
     size_t* lines;
-    Table lookup;
 
     // size and count of constants array
     size_t csize;
@@ -136,8 +136,8 @@ ObjString* concatenateString(ObjString* a, ObjString* b, VM* vm);
 /* table functions */
 ObjTable* newObjTable(VM* vm);
 void initValueArray(ValueArray* array);
-void writeValueArray(ValueArray* array, Value value);
-void freeValueArray(ValueArray* array);
+void writeValueArray(ValueArray* array, Value value, VM* vm);
+void freeValueArray(ValueArray* array, VM* vm);
 
 /* functions and closures */
 ObjNativeFunction* newNativeFunction(NativeFn function, VM* vm);

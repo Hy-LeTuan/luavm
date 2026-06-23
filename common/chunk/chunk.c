@@ -1,3 +1,4 @@
+#include "vmstate.h"
 #include <chunk.h>
 #include <memory.h>
 
@@ -13,8 +14,6 @@ void initChunk(Chunk* c)
     c->ccount = 0;
     c->csize = 0;
     c->constants = NULL;
-
-    initTable(&c->lookup);
 }
 
 void writeChunk(Chunk* c, uint8_t op, size_t l, VM* vm)
@@ -55,15 +54,19 @@ static size_t writeConstant(Chunk* c, Value v, VM* vm)
     return c->ccount - 1;
 }
 
-size_t addConstant(Chunk* c, Value v, VM* vm)
+size_t addConstant(Chunk* c, Value v, Table* lookup, VM* vm)
 {
-    Value* index = tableGet(&v, &c->lookup);
+    Value* index = tableGet(&v, lookup);
 
     if (IS_NIL(index))
     {
-        size_t vIdx = writeConstant(c, v, vm);
+        unsafe_push(vm, v);
 
-        tableInsertOrSet(v, NUM_VAL((LuaNum)vIdx), &c->lookup, vm);
+        size_t vIdx = writeConstant(c, v, vm);
+        tableInsertOrSet(v, NUM_VAL((LuaNum)vIdx), lookup, vm);
+
+        unsafe_pop(vm);
+
         return vIdx;
     }
 
@@ -81,6 +84,4 @@ void freeChunk(Chunk* c, VM* vm)
 
     c->csize = 0;
     c->ccount = 0;
-
-    freeTable(&c->lookup);
 }

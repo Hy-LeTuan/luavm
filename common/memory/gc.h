@@ -10,6 +10,9 @@
 
 void freeObject(Object* obj, VM* vm);
 void freeObjects(Object* objects, VM* vm);
+void markValue(Value* v);
+void markObject(Object* obj);
+void markTable(Table* t);
 void collectGarbage(VM* vm);
 
 #endif

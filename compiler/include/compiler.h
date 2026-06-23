@@ -54,6 +54,7 @@ typedef struct Compiler
     Local locals[UINT8_MAX + 1];
     Upvalue upvalues[UINT8_MAX + 1];
     Break breaks[UINT8_MAX + 1];
+    Table lookup;
 } Compiler;
 
 typedef struct
