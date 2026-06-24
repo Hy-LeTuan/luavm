@@ -42,6 +42,8 @@ void initVM(VM* vm)
     vm->openUpvalues = NULL;
     vm->cacheSize = 0;
     vm->nvals = 0;
+    vm->bytesAllocated = 0;
+    vm->GCthreshold = 1024 * 1024;
 
     resetStack(vm);
     initTable(&vm->strings);

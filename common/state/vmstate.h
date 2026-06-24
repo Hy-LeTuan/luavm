@@ -40,6 +40,8 @@ typedef struct VM
     CallFrame frames[STACK_MAX];
     int frameCount;
     Value* stackTop;
+    size_t bytesAllocated;
+    size_t GCthreshold;
     Object* objectStack;
     Table strings;
     Table globals;

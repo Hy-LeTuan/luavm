@@ -9,6 +9,11 @@ void* reallocate(void* ptr, size_t oldSize, size_t newSize, VM* vm)
 {
     if (newSize > oldSize)
     {
+        vm->bytesAllocated += newSize - oldSize;
+        if (vm->bytesAllocated > vm->GCthreshold)
+        {
+            collectGarbage(vm);
+        }
 #ifdef DEBUG_STRESS_GC
         collectGarbage(vm);
 #endif

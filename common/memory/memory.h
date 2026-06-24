@@ -6,6 +6,7 @@
 
 #define GROWTH_RATE 4
 #define GROW_SIZE(oldSize) (max((oldSize) * 4, 4));
+#define GC_HEAP_GROW_FACTOR 2
 
 #define REALLOCATE(ptr, oldSize, newSize, type, vm)                                                \
     ((type*)(reallocate(ptr, sizeof(type) * (oldSize), sizeof(type) * (newSize), vm)))

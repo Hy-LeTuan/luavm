@@ -296,6 +296,7 @@ void collectGarbage(VM* vm)
     }
 
     printf("--- gc begin\n");
+    size_t before = vm->bytesAllocated;
 #endif
 
     markRoots(vm);
@@ -303,8 +304,11 @@ void collectGarbage(VM* vm)
     // clean up and sweep
     hSetCleanDangling(&vm->strings, vm);
     sweep(vm);
+    vm->GCthreshold = vm->bytesAllocated * GC_HEAP_GROW_FACTOR;
 
 #ifdef DEBUG_LOG_GC
     printf("--- gc end\n");
+    printf("   collected %zu bytes (from %zu to %zu) next at %zu\n", before - vm->bytesAllocated,
+      before, vm->bytesAllocated, vm->GCthreshold);
 #endif
 }
