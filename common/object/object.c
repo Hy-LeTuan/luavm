@@ -13,7 +13,7 @@ Object* allocateObj(ValueType type, size_t size, VM* vm)
 {
     Object* obj = ALLOCATE(Object, size, vm);
     obj->type = type;
-    obj->marked = false;
+    obj->marked = 0;
     obj->next = NULL;
 
     (obj)->next = vm->objectStack;

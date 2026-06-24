@@ -142,17 +142,6 @@ static Value* getAssignValue(VM* vm)
     return v;
 }
 
-static void concatenate(VM* vm)
-{
-    ObjString* b = AS_STRING(stackat(vm, 1));
-    ObjString* a = AS_STRING(stackat(vm, 2));
-
-    ObjString* result = concatenateString(a, b, vm);
-
-    reducestack(vm, 2);
-    pushStack(STRING_VAL(result), vm);
-}
-
 /*
    Adjust parameter list to match argument count. For vararg functions, an arg table will be
    generated (if permitted) and all extra arguments are lifted into cache
@@ -196,20 +185,16 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
         diff++;
 
         ObjTable* table = type == TYPE_VARARG ? newObjTable(vm) : NULL;
-        if (table != NULL)
-        {
-            pushStack(TABLE_VAL(table), vm);
-        }
+        lock_object(baseobj(table));
 
-        int finalCSize = vm->cacheSize + diff;
+        int cacheSize = vm->cacheSize + diff;
 
         for (uint8_t i = 0; i < diff; i++)
         {
-            /* skip the temporary table */
-            Value* v = table == NULL ? stackat(vm, i + 1) : stackat(vm, i + 1 + 1);
+            Value* v = stackat(vm, i + 1);
 
             // keep stack order consistent
-            setstackat(vm->cache, finalCSize - i - 1, v);
+            setstackat(vm->cache, cacheSize - i - 1, v);
 
             if (table != NULL)
             {
@@ -217,12 +202,9 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
             }
         }
 
-        vm->cacheSize = finalCSize;
+        vm->cacheSize = cacheSize;
 
-        if (table != NULL)
-        {
-            popStack(vm);
-        }
+        release_object(baseobj(table));
         reducestack(vm, diff);
 
         if (table != NULL)
@@ -454,24 +436,25 @@ InterpretResult run(VM* vm)
             case OP_LENGTH:
             {
                 Value* v = stackat(vm, 1);
+                int n = 0;
 
                 if (IS_TABLE(v))
                 {
                     ObjTable* t = AS_TABLE(v);
-                    int n = otGetLen(t);
-                    popStack(vm);
-                    pushStack(NUM_VAL(n), vm);
+                    n = otGetLen(t);
                 }
                 else if (IS_STRING(v))
                 {
                     ObjString* s = AS_STRING(v);
-                    popStack(vm);
-                    pushStack(NUM_VAL(s->length), vm);
+                    n = s->length;
                 }
                 else
                 {
                     runtimeError(vm, "Error, cannot get length of current object.");
                 }
+
+                popStack(vm);
+                pushStack(NUM_VAL(n), vm);
                 break;
             }
             case OP_ADD:
@@ -493,8 +476,8 @@ InterpretResult run(VM* vm)
 
                 if (IS_NUM(a) && IS_NUM(b))
                 {
-                    reducestack(vm, 2);
                     Value c = NUM_VAL(pow(AS_NUM(a), AS_NUM(b)));
+                    reducestack(vm, 2);
                     pushStack(c, vm);
                 }
                 else
@@ -509,9 +492,10 @@ InterpretResult run(VM* vm)
                 {
                     LuaNum b = AS_NUM(stackat(vm, 1));
                     LuaNum a = AS_NUM(stackat(vm, 2));
-                    reducestack(vm, 2);
 
                     Value c = NUM_VAL(a - floor(a / b) * b);
+
+                    reducestack(vm, 2);
                     pushStack(c, vm);
                 }
                 else
@@ -523,7 +507,13 @@ InterpretResult run(VM* vm)
             {
                 if (IS_STRING(peek(0, vm)) && IS_STRING(peek(1, vm)))
                 {
-                    concatenate(vm);
+                    ObjString* b = AS_STRING(stackat(vm, 1));
+                    ObjString* a = AS_STRING(stackat(vm, 2));
+
+                    ObjString* result = concatenateString(a, b, vm);
+
+                    reducestack(vm, 2);
+                    pushStack(STRING_VAL(result), vm);
                 }
                 else
                 {
@@ -662,8 +652,8 @@ InterpretResult run(VM* vm)
             {
                 Value* constant = READ_CONSTANT();
                 ObjFunction* function = AS_FUNCTION(constant);
-                ObjClosure* closure = newClosure(function, vm);
 
+                ObjClosure* closure = newClosure(function, vm);
                 pushStack(CLOSURE_VAL(closure), vm);
 
                 for (int i = 0; i < closure->function->upvalueCount; i++)
@@ -712,23 +702,23 @@ InterpretResult run(VM* vm)
             }
             case OP_CONSTRUCT:
             {
-                ObjTable* table = newObjTable(vm);
-                pushStack(TABLE_VAL(table), vm);
+                ObjTable* t = newObjTable(vm);
 
                 uint8_t fields = READ_BYTE();
+                lock_object(baseobj(t));
 
                 for (int i = 0; i < fields; i++)
                 {
-                    Value* key = stackat(vm, (fields - i) * 2 + 1);
-                    Value* value = stackat(vm, (fields - i) * 2 - 1 + 1);
+                    Value* key = stackat(vm, (fields - i) * 2);
+                    Value* value = stackat(vm, (fields - i) * 2 - 1);
 
-                    otSet(*key, *value, table, vm);
+                    otSet(*key, *value, t, vm);
                 }
 
-                popStack(vm);
+                release_object(baseobj(t));
                 setstacktop(vm, vm->stackTop - fields * 2);
 
-                pushStack(TABLE_VAL(table), vm);
+                pushStack(TABLE_VAL(t), vm);
                 break;
             }
             case OP_GET_FIELD:
@@ -795,10 +785,11 @@ InterpretResult run(VM* vm)
 
                 Value* val = getAssignValue(vm);
 
-                pushStackPtr(val, vm);
+                lock_value(val);
                 otSet(*key, *val, table, vm);
+                release_value(val);
 
-                reducestack(vm, 3);
+                reducestack(vm, 2);
                 break;
             }
             case OP_CLOSE_UPVALUE:
@@ -817,17 +808,17 @@ InterpretResult run(VM* vm)
                     break;
                 }
 
-                int finalCSize = vm->cacheSize + n;
+                int cacheSize = vm->cacheSize + n;
 
                 // reverse the order of the insertion
                 for (int i = 0; i < n; i++)
                 {
                     Value* v = stackat(vm, i + 1);
-                    setstackat(vm->cache, finalCSize - i - 1, v)
+                    setstackat(vm->cache, cacheSize - i - 1, v)
                 }
 
                 reducestack(vm, n);
-                vm->cacheSize = finalCSize;
+                vm->cacheSize = cacheSize;
                 break;
             }
             case OP_POP:

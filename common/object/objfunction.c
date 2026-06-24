@@ -2,6 +2,7 @@
 
 #include <chunk.h>
 #include <memory.h>
+#include <gc.h>
 
 ObjFunction* newFunction(ObjFunction* parent, VM* vm)
 {
@@ -16,15 +17,18 @@ ObjFunction* newFunction(ObjFunction* parent, VM* vm)
     f->esize = 0;
     f->enclosed = NULL;
 
+    lock_object(baseobj(f));
+
     if (parent != NULL)
     {
-        unsafe_push(vm, FUNCTION_VAL(f));
+
         // move to 1 enclosing
         parent->enclosed =
           REALLOCATE(parent->enclosed, parent->esize, parent->esize + 1, ObjFunction*, vm);
         parent->enclosed[parent->esize++] = f;
-        unsafe_pop(vm);
     }
+
+    release_object(baseobj(f));
 
     return f;
 }

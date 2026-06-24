@@ -1,6 +1,6 @@
-#include "vmstate.h"
 #include <chunk.h>
 #include <memory.h>
+#include <gc.h>
 
 #include <stdio.h>
 
@@ -60,12 +60,12 @@ size_t addConstant(Chunk* c, Value v, Table* lookup, VM* vm)
 
     if (IS_NIL(index))
     {
-        unsafe_push(vm, v);
+        lock_value(&v);
 
         size_t vIdx = writeConstant(c, v, vm);
         tableInsertOrSet(v, NUM_VAL((LuaNum)vIdx), lookup, vm);
 
-        unsafe_pop(vm);
+        release_value(&v);
 
         return vIdx;
     }

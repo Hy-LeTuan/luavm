@@ -15,11 +15,17 @@
 #include <stdint.h>
 
 typedef uint8_t (*NativeFn)(uint8_t nargs, VM* args);
+typedef unsigned char ubyte;
 
 typedef struct Object
 {
     ValueType type;
-    bool marked;
+    /*
+       0: not marked and is included in GC cycle
+       1: marked and is included in GC cycle
+       2: locked, not included in GC cycle
+    */
+    ubyte marked;
     struct Object* next;
 } Object;
 

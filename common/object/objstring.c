@@ -5,6 +5,7 @@
 #include <string.h>
 #include <memory.h>
 #include <hash.h>
+#include <gc.h>
 
 /*
  * Called when a new string is found. New string will be interned
@@ -16,11 +17,11 @@ static ObjString* newString(char* chars, size_t length, VM* vm)
     string->chars = chars;
     string->hash = hashString(chars, length, fnv1a_32);
 
-    unsafe_push(vm, STRING_VAL(string));
+    lock_object(baseobj(string));
 
     tableSet(STRING_VAL(string), TRUE_VAL(), &vm->strings, vm);
 
-    unsafe_pop(vm);
+    release_object(baseobj(string));
 
     return string;
 }

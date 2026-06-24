@@ -1,5 +1,6 @@
 #include <object.h>
 #include <memory.h>
+#include <gc.h>
 
 ObjClosure* newClosure(ObjFunction* function, VM* vm)
 {
@@ -7,7 +8,7 @@ ObjClosure* newClosure(ObjFunction* function, VM* vm)
     closure->function = function;
     closure->upvalues = NULL;
 
-    unsafe_push(vm, CLOSURE_VAL(closure));
+    lock_object(baseobj(closure));
 
     ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, sizeof(ObjUpvalue*) * function->upvalueCount, vm);
 
@@ -18,7 +19,7 @@ ObjClosure* newClosure(ObjFunction* function, VM* vm)
 
     closure->upvalues = upvalues;
 
-    unsafe_pop(vm);
+    release_object(baseobj(closure));
 
     return closure;
 }

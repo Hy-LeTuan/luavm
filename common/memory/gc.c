@@ -85,9 +85,9 @@ void freeObjects(Object* objects, VM* vm)
     }
 }
 
-void markObject(Object* obj)
+void markObject(Object* obj, ubyte markVal)
 {
-    if (obj == NULL || obj->marked)
+    if (obj == NULL || obj->marked == markVal)
     {
         return;
     }
@@ -100,7 +100,7 @@ void markObject(Object* obj)
     printf("\n");
 #endif
 
-    obj->marked = true;
+    obj->marked = markVal;
 
     /*
        trace the references that the object also keeps track of
@@ -110,12 +110,12 @@ void markObject(Object* obj)
         case OBJ_TABLE:
         {
             ObjTable* t = castobjto(ObjTable, obj);
-            markObject(baseobj(t->mt));
+            markObject(baseobj(t->mt), markVal);
 
             // mark array part
             for (size_t i = 0; i < t->array.count; i++)
             {
-                markValue(&t->array.values[i]);
+                markValue(&t->array.values[i], markVal);
             }
 
             // mark table part
@@ -128,13 +128,13 @@ void markObject(Object* obj)
 
             for (size_t i = 0; i < f->chunk.ccount; i++)
             {
-                markValue(&f->chunk.constants[i]);
+                markValue(&f->chunk.constants[i], markVal);
             }
 
             // mark all enclosing functions
             for (int i = 0; i < f->esize; i++)
             {
-                markObject(baseobj(f->enclosed[i]));
+                markObject(baseobj(f->enclosed[i]), markVal);
             }
 
             break;
@@ -150,18 +150,18 @@ void markObject(Object* obj)
             {
                 for (int i = 0; i < closure->function->upvalueCount; i++)
                 {
-                    markObject(baseobj(closure->upvalues[i]));
+                    markObject(baseobj(closure->upvalues[i]), markVal);
                 }
             }
 
             // mark base function
-            markObject(baseobj(closure->function));
+            markObject(baseobj(closure->function), markVal);
             break;
         }
         case OBJ_UPVALUE:
         {
             ObjUpvalue* uv = castobjto(ObjUpvalue, obj);
-            markValue(uv->location);
+            markValue(uv->location, markVal);
             break;
         }
         default:
@@ -169,11 +169,11 @@ void markObject(Object* obj)
     }
 }
 
-void markValue(Value* v)
+void markValue(Value* v, ubyte markVal)
 {
     if (IS_OBJ(v))
     {
-        markObject(AS_OBJ(v));
+        markObject(AS_OBJ(v), markVal);
     }
 }
 
@@ -191,8 +191,8 @@ void markTable(Table* t)
     for (size_t i = 0; i < t->capacity; i++)
     {
         Entry* entry = &t->entries[i];
-        markValue(&entry->key);
-        markValue(&entry->value);
+        markValue(&entry->key, GC_MARKED);
+        markValue(&entry->value, GC_MARKED);
     }
 }
 
@@ -201,28 +201,24 @@ static void markRoots(VM* vm)
     /* mark values on stack */
     for (Value* slot = vm->stack; slot < vm->stackTop; slot++)
     {
-        markValue(slot);
+        markValue(slot, GC_MARKED);
     }
-
-#ifdef DEBUG_LOG_GC
-    printf("cache size is: %d\n", vm->cacheSize);
-#endif
 
     for (int i = 0; i < vm->cacheSize; i++)
     {
-        markValue(&vm->cache[i]);
+        markValue(&vm->cache[i], GC_MARKED);
     }
 
     /* mark closures on frame */
     for (size_t i = 0; i < vm->frameCount; i++)
     {
-        markObject(baseobj(vm->frames[i].closure));
+        markObject(baseobj(vm->frames[i].closure), GC_MARKED);
     }
 
     /* mark upvalues still reachable */
     for (ObjUpvalue* uv = vm->openUpvalues; uv != NULL; uv = uv->next)
     {
-        markObject(baseobj(uv));
+        markObject(baseobj(uv), GC_MARKED);
     }
 
     /* mark values on globals */
@@ -231,13 +227,13 @@ static void markRoots(VM* vm)
     /* mark metatables */
     for (uint8_t i = 0; i < MT_SIZE; i++)
     {
-        markObject(baseobj(vm->mts[i]));
+        markObject(baseobj(vm->mts[i]), GC_MARKED);
     }
 
     /* mark events */
     for (uint8_t i = 0; i < EVENT_SIZE; i++)
     {
-        markObject(baseobj(vm->events[i]));
+        markObject(baseobj(vm->events[i]), GC_MARKED);
     }
 }
 
@@ -249,7 +245,11 @@ static void sweep(VM* vm)
     {
         if (obj->marked)
         {
-            obj->marked = false;
+            if (obj->marked == GC_MARKED)
+            {
+                obj->marked = GC_RELEASE;
+            }
+
             prev = obj;
             obj = obj->next;
         }

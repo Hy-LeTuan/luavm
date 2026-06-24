@@ -68,7 +68,7 @@ static Entry* findEntryWithChar(const char* c, int l, Table* t)
         return NULL;
     }
 
-    uint32_t hash = fnv1a_32(c, l);
+    uint32_t hash = hashString(c, l, fnv1a_32);
     int index = hash % t->capacity;
     int iteration = 0;
 
