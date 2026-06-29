@@ -24,11 +24,15 @@ typedef struct
     Value* slots;
     Value* callee;
 
-    /* expected number of return value */
-    uint8_t expected;
+    /*
+       expected number of return value in status form, which needs conversion before usage
+    */
+    uint8_t status;
 
-    /* the number of extra arguments hidden in a vararg function in Lua call OR the number of return
-     * values from a C function */
+    /*
+       the number of extra arguments hidden in a vararg function in Lua call OR the exact return
+       values after conversion if it's a C function
+    */
     uint8_t info;
 } CallFrame;
 

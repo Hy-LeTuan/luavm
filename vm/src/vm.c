@@ -245,7 +245,7 @@ uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm)
     CallFrame* newFrame = nextframe(vm);
     newFrame->slots = stackprev(vm, callArity);
     newFrame->callee = stackprev(vm, callArity + 1);
-    newFrame->expected = status;
+    newFrame->status = status;
 
     if (IS_CLOSURE(caller))
     {
@@ -540,11 +540,11 @@ InterpretResult run(VM* vm)
                     Value* top = popStack(vm);
                     if (isFalsey(top))
                     {
-                        pushStack(TRUE_VAL(), vm);
+                        pushStack(TRUE_CONSTANT, vm);
                     }
                     else
                     {
-                        pushStack(FALSE_VAL(), vm);
+                        pushStack(FALSE_CONSTANT, vm);
                     }
                 }
                 break;
@@ -687,6 +687,14 @@ InterpretResult run(VM* vm)
                 }
                 else
                 {
+                    InterpretResult subRes = run(vm);
+
+                    if (subRes == INTERPRET_ERROR)
+                    {
+                        return INTERPRET_ERROR;
+                    }
+
+                    // reload the current frame after return
                     frame = currframe(vm);
                 }
                 break;
@@ -836,21 +844,21 @@ InterpretResult run(VM* vm)
                     vm->cacheSize -= frame->info;
                 }
 
-                if (finalframe(vm))
+                if (!finalframe(vm))
                 {
-                    return INTERPRET_SUCCESS;
+                    uint8_t nexprs = READ_BYTE();
+                    uint8_t nrets = getnexprs(nexprs, vm);
+                    uint8_t retStatus = frame->status;
+
+                    Value* returns = stackprev(vm, nrets);
+                    setstacktop(vm, frame->callee);
+                    resolveMultret(retStatus, nrets, returns, vm);
+
+                    /* this also reduces frame count */
+                    frame = prevframe(vm);
                 }
 
-                uint8_t nexprs = READ_BYTE();
-                uint8_t nrets = getnexprs(nexprs, vm);
-                uint8_t retStatus = frame->expected;
-
-                Value* returns = stackprev(vm, nrets);
-                setstacktop(vm, frame->callee);
-                resolveMultret(retStatus, nrets, returns, vm);
-
-                frame = prevframe(vm);
-                break;
+                return INTERPRET_SUCCESS;
             }
             default:
                 return INTERPRET_ERROR;

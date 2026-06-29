@@ -19,7 +19,7 @@ static ObjString* newString(char* chars, size_t length, VM* vm)
 
     lock_object(baseobj(string));
 
-    tableSet(STRING_VAL(string), TRUE_VAL(), &vm->strings, vm);
+    tableSet(STRING_VAL(string), TRUE_CONSTANT, &vm->strings, vm);
 
     release_object(baseobj(string));
 

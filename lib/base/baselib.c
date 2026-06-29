@@ -2,9 +2,30 @@
 
 #include <object.h>
 #include <objtable.h>
+#include <vmdo.h>
+#include <file_utils.h>
+#include <compiler.h>
+#include <gc.h>
 
+#include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <math.h>
+
+#ifdef DEBUG_REQUIRE
+#define DEFAULT_PATTERN_COUNT 3
+#else
+#define DEFAULT_PATTERN_COUNT 1
+#endif
+
+/* default patterns */
+Field DefaultPatterns[DEFAULT_PATTERN_COUNT] = {
+    { .s = "./?.lua", .len = 7 },
+#ifdef DEBUG_REQUIRE
+    { .s = "../?.lua", .len = 8 },
+    { .s = "../../?.lua", .len = 11 },
+#endif
+};
 
 static void printAux(Value* arg)
 {
@@ -132,4 +153,107 @@ uint8_t lib_ipairs(uint8_t narg, VM* vm)
     return 3;
 }
 
-LibExport BASE_LIB[] = { { "print", lib_print }, { "ipairs", lib_ipairs }, { NULL, NULL } };
+static char* replacePattern(const char* filename, int nameLen, const char* pattern, int patternLen)
+{
+    char* path = malloc(patternLen + nameLen);
+    char* curr = path;
+
+    for (int i = 0; i < patternLen; i++)
+    {
+        char c = pattern[i];
+
+        if (c == '?')
+        {
+            memcpy(curr, filename, nameLen);
+            curr += nameLen;
+
+            if (curr - path < patternLen + nameLen)
+            {
+                memcpy(curr, pattern + i + 1, patternLen - i - 1);
+            }
+            break;
+        }
+        else
+        {
+            *curr++ = c;
+        }
+    }
+
+    path[patternLen + nameLen - 1] = '\0';
+    return path;
+}
+
+static bool requireAux(const char* filename, int nameLen, VM* vm)
+{
+    const char* finalPath = NULL;
+
+    for (uint8_t i = 0; i < DEFAULT_PATTERN_COUNT; i++)
+    {
+        Field* field = &DefaultPatterns[i];
+        const char* moduleName = replacePattern(filename, nameLen, field->s, field->len);
+
+        if (fileExists(moduleName))
+        {
+            finalPath = moduleName;
+            break;
+        }
+    }
+
+    if (finalPath == NULL)
+    {
+        return false;
+    }
+
+    char* source = readSourceFile(finalPath);
+    ObjFunction* f = compile(source, vm);
+    ObjClosure* newChunk = newClosure(f, vm);
+
+    unsafe_pop(vm);
+    unsafe_push(vm, CLOSURE_VAL(newChunk));
+
+    /*
+       spawn a subroutine here that shares crucial states with the previous vm but has a unique
+       global table. this doesn't work because then i would have to copy the table over, and that
+       would be very cubersome.
+    */
+
+    // this loads a new frame onto the current vm
+    precall(0, SINGLERET, vm);
+
+    /*
+       executes the new frame and removes it. when the chunk ends, it will end in an OP_RETURN that
+       would either return null or return a single value (the module itself)
+    */
+    InterpretResult subRes = run(vm);
+    if (subRes == INTERPRET_ERROR)
+    {
+        return false;
+    }
+
+    unsafe_push(vm, IS_NIL(stackat(vm, 1)) ? FALSE_CONSTANT : TRUE_CONSTANT);
+
+    return true;
+}
+
+uint8_t lib_require(uint8_t narg, VM* vm)
+{
+    CallFrame* frame = currframe(vm);
+    Value* arg1 = &frame->slots[0];
+
+    if (!IS_STRING(arg1))
+    {
+        fprintf(stderr, "Error, required path is not a string.");
+        return 0;
+    }
+
+    ObjString* path = AS_STRING(arg1);
+    if (!requireAux(path->chars, path->length, vm))
+    {
+        return 0;
+    }
+
+    return 2;
+}
+
+LibExport BASE_LIB[] = { { "print", lib_print }, { "ipairs", lib_ipairs },
+    { "require", lib_require }, { NULL, NULL } };

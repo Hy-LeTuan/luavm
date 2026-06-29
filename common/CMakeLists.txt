@@ -27,6 +27,7 @@ add_library(common
 
 option(LUAVM_DEBUG_STRESS_GC "Debug option to always activate GC on memory allocation." OFF)
 option(LUAVM_DEBUG_LOG_GC "Debug option to log GC activities." OFF)
+option(LUAVM_DEBUG_LOG_SWEEP "Debug option to log sweep phases of the GC." OFF)
 
 if (LUAVM_DEBUG_STRESS_GC)
     target_compile_definitions(common PUBLIC DEBUG_STRESS_GC)
@@ -34,6 +35,10 @@ endif()
 
 if (LUAVM_DEBUG_LOG_GC)
     target_compile_definitions(common PUBLIC DEBUG_LOG_GC)
+endif()
+
+if (LUAVM_DEBUG_LOG_SWEEP )
+    target_compile_definitions(common PUBLIC DEBUG_LOG_SWEEP)
 endif()
 
 target_link_libraries(common PRIVATE m)

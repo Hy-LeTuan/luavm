@@ -4,7 +4,7 @@ include(CTest)
 
 # test token production from lexer
 add_executable(TokenLexTest lexer/token_test.c)
-add_test(NAME TokenLexTest COMMAND TokenLexTest ${CMAKE_SOURCE_DIR}/testing/data/token_test_input.lua)
+add_test(NAME TokenLexTest COMMAND TokenLexTest ${CMAKE_SOURCE_DIR}/testing/data/unit/token_test_input.lua)
 target_link_libraries(TokenLexTest PRIVATE compiler)
 target_link_libraries(TokenLexTest PRIVATE common)
 
@@ -40,7 +40,7 @@ target_link_libraries(ObjtableTest PRIVATE luavmapi)
 add_test(NAME ObjtableTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ObjtableTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/objtable_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/objtable_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/objtable_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/objtable_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -52,7 +52,7 @@ target_link_libraries(ExpressionTest PRIVATE luavmapi)
 add_test(NAME ExpressionTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ExpressionTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/expression_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/expression_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/expression_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/expression_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -64,7 +64,7 @@ target_link_libraries(JumpTest PRIVATE luavmapi)
 add_test(NAME JumpTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:JumpTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/jump_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/jump_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/jump_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/jump_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -76,7 +76,7 @@ target_link_libraries(AssignTest PRIVATE luavmapi)
 add_test(NAME AssignTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:AssignTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/assign_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/assign_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/assign_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/assign_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -88,7 +88,7 @@ target_link_libraries(FunctionTest PRIVATE luavmapi)
 add_test(NAME FunctionTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:FunctionTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/function_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/function_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/function_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/function_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -100,7 +100,7 @@ target_link_libraries(ClosureAndIterTest PRIVATE luavmapi)
 add_test(NAME ClosureAndIterTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:ClosureAndIterTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/closure_and_iter_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/closure_and_iter_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/closure_and_iter_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/closure_and_iter_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -112,7 +112,7 @@ target_link_libraries(MultretTest PRIVATE luavmapi)
 add_test(NAME MultretTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:MultretTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/multret_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/multret_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/multret_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/multret_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -126,7 +126,7 @@ target_link_libraries(BaseLibTest PRIVATE luavmapi)
 add_test(NAME BaseLibTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:BaseLibTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/baselib_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/baselib_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/baselib_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/baselib_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -137,7 +137,7 @@ target_link_libraries(StringLibTest PRIVATE luavmapi)
 add_test(NAME StringLibTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:StringLibTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/stringlib_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/stringlib_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/stringlib_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/stringlib_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"
@@ -148,7 +148,7 @@ target_link_libraries(TableLibTest PRIVATE luavmapi)
 add_test(NAME TableLibTest
     COMMAND ${CMAKE_COMMAND}
     -D "TEST_EXECUTABLE=$<TARGET_FILE:TableLibTest>"
-    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/tablelib_test_input.lua"
+    -D "INPUT_FILE=${CMAKE_SOURCE_DIR}/testing/data/unit/tablelib_test_input.lua"
     -D "EXPECTED_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/testing/data/expected/tablelib_test.expected"
     -D "ACTUAL_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/tablelib_test.actual"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunAndCompare.cmake"

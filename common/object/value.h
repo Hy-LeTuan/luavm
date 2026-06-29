@@ -36,8 +36,6 @@
 #define NATIVE_VAL(native) (OBJ_VAL(OBJ_NATIVE, native))
 #define TABLE_VAL(table) (OBJ_VAL(OBJ_TABLE, table))
 #define BOOL_VAL(b) ((Value){ BOOL, { .boolean = b } })
-#define TRUE_VAL() ((Value){ BOOL, { .boolean = true } })
-#define FALSE_VAL() ((Value){ BOOL, { .boolean = false } })
 #define NUM_VAL(n) ((Value){ NUMBER, { .number = n } })
 #define NIL_VAL() ((Value){ NIL })
 
@@ -74,6 +72,8 @@ typedef struct
 } Value;
 
 extern const Value NIL_CONSTANT;
+extern const Value TRUE_CONSTANT;
+extern const Value FALSE_CONSTANT;
 
 void printValue(Value* value);
 void printValueNewLine(Value* value);

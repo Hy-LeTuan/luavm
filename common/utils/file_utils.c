@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 char* readSourceFile(const char* path)
 {
@@ -43,4 +44,19 @@ char* readSourceFile(const char* path)
 
     buffer[buffer_size] = '\0';
     return buffer;
+}
+
+bool fileExists(const char* path)
+{
+    struct stat buffer;
+    int exist = stat(path, &buffer);
+
+    if (exist == 0)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }

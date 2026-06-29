@@ -19,7 +19,7 @@ Object* allocateObj(ValueType type, size_t size, VM* vm)
     (obj)->next = vm->objectStack;
     vm->objectStack = obj;
 
-#ifdef DEBUG_LOG_GC
+#ifdef DEBUG_LOG_SWEEP
     printf("%p allocate %zu for %d\n", (void*)obj, size, type);
 #endif
 

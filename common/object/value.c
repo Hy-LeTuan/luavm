@@ -4,6 +4,8 @@
 #include <stdio.h>
 
 const Value NIL_CONSTANT = { NIL };
+const Value TRUE_CONSTANT = { BOOL, { .boolean = true } };
+const Value FALSE_CONSTANT = { BOOL, { .boolean = false } };
 
 void printValue(Value* value)
 {
@@ -93,4 +95,3 @@ bool isFalsey(Value* value)
 
     return false;
 }
-

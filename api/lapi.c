@@ -116,7 +116,7 @@ void setupSingleChunkVM(const char* source, VM* vm)
     unsafe_push(vm, CLOSURE_VAL(closure));
 
     // call main script
-    precall(0, 1, vm);
+    precall(0, ZERORET, vm);
 }
 
 InterpretResult execChunkST(const char* source)

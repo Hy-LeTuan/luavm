@@ -17,7 +17,9 @@
         "LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION": "ON",
         "LUAVM_DEBUG_DISASSEMBLE_CHUNK": "ON",
         "LUAVM_DEBUG_STRESS_GC": "ON",
-        "LUAVM_DEBUG_LOG_GC": "ON"
+        "LUAVM_DEBUG_LOG_GC": "ON",
+        "LUAVM_DEBUG_LOG_SWEEP": "ON",
+        "LUAVM_DEBUG_REQUIRE": "ON"
       }
     },
     {
@@ -31,7 +33,9 @@
         "LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION": "OFF",
         "LUAVM_DEBUG_DISASSEMBLE_CHUNK": "OFF",
         "LUAVM_DEBUG_STRESS_GC": "ON",
-        "LUAVM_DEBUG_LOG_GC": "OFF"
+        "LUAVM_DEBUG_LOG_GC": "OFF",
+        "LUAVM_DEBUG_LOG_SWEEP": "OFF",
+        "LUAVM_DEBUG_REQUIRE": "ON"
       }
     },
     {
@@ -45,7 +49,9 @@
         "LUAVM_DEBUG_DISASSEMBLE_INSTRUCTION": "OFF",
         "LUAVM_DEBUG_DISASSEMBLE_CHUNK": "OFF",
         "LUAVM_DEBUG_STRESS_GC": "OFF",
-        "LUAVM_DEBUG_LOG_GC": "OFF"
+        "LUAVM_DEBUG_LOG_GC": "OFF",
+        "LUAVM_DEBUG_LOG_SWEEP": "OFF",
+        "LUAVM_DEBUG_REQUIRE": "OFF"
       }
     }
   ]

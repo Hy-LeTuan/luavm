@@ -17,7 +17,7 @@ void freeObject(Object* obj, VM* vm)
         return;
     }
 
-#ifdef DEBUG_LOG_GC
+#ifdef DEBUG_LOG_SWEEP
     printf("%p free obj ", (void*)obj);
 
     Value original = OBJ_VAL(otype(obj), obj);
@@ -92,7 +92,7 @@ void markObject(Object* obj, ubyte markVal)
         return;
     }
 
-#ifdef DEBUG_LOG_GC
+#ifdef DEBUG_LOG_SWEEP
     printf("%p mark obj ", (void*)obj);
     Value objVal = OBJ_VAL(otype(obj), obj);
     printValue(&objVal);
@@ -184,7 +184,7 @@ void markTable(Table* t)
         return;
     }
 
-#ifdef DEBUG_LOG_GC
+#ifdef DEBUG_LOG_SWEEP
     printf("%p mark table \n", (void*)t);
 #endif
 
