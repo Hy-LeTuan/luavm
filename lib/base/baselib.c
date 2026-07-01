@@ -204,33 +204,35 @@ static bool requireAux(const char* filename, int nameLen, VM* vm)
         return false;
     }
 
-    char* source = readSourceFile(finalPath);
-    ObjFunction* f = compile(source, vm);
-    ObjClosure* newChunk = newClosure(f, vm);
-
-    unsafe_pop(vm);
-    unsafe_push(vm, CLOSURE_VAL(newChunk));
-
     /*
        spawn a subroutine here that shares crucial states with the previous vm but has a unique
        global table. this doesn't work because then i would have to copy the table over, and that
        would be very cubersome.
     */
+    VM routine;
+    initVM(G(vm), true, &routine);
+
+    char* source = readSourceFile(finalPath);
+    ObjFunction* f = compile(source, &routine);
+    ObjClosure* newChunk = newClosure(f, &routine);
+
+    unsafe_pop(&routine);
+    unsafe_push(&routine, CLOSURE_VAL(newChunk));
 
     // this loads a new frame onto the current vm
-    precall(0, SINGLERET, vm);
+    precall(0, SINGLERET, &routine);
 
     /*
        executes the new frame and removes it. when the chunk ends, it will end in an OP_RETURN that
        would either return null or return a single value (the module itself)
     */
-    InterpretResult subRes = run(vm);
+    InterpretResult subRes = run(&routine);
     if (subRes == INTERPRET_ERROR)
     {
         return false;
     }
 
-    unsafe_push(vm, IS_NIL(stackat(vm, 1)) ? FALSE_CONSTANT : TRUE_CONSTANT);
+    unsafe_push(&routine, IS_NIL(stackat(&routine, 1)) ? FALSE_CONSTANT : TRUE_CONSTANT);
 
     return true;
 }

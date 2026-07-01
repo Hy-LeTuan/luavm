@@ -46,6 +46,8 @@ void initGlobal(GlobalState* g, VM* vm)
 
     /* set null for GC */
     g->strings = NULL;
+    g->libGlobals = NULL;
+
     for (uint8_t i = 0; i < MT_SIZE; i++)
     {
         g->mts[i] = NULL;
@@ -57,6 +59,7 @@ void initGlobal(GlobalState* g, VM* vm)
 
     /* init with allocation */
     g->strings = newObjTable(vm);
+    g->libGlobals = newObjTable(vm);
 
     createevent(EVENT_ADD, "__add", vm);
     createevent(EVENT_SUB, "__sub", vm);
@@ -122,7 +125,14 @@ void pushStack(Value value, VM* vm)
 
 void pushStackPtr(Value* value, VM* vm)
 {
-    pushStack(*value, vm);
+    if (value == NULL)
+    {
+        pushStack(NIL_CONSTANT, vm);
+    }
+    else
+    {
+        pushStack(*value, vm);
+    }
 }
 
 static Value* peek(int index, VM* vm)
@@ -607,6 +617,12 @@ InterpretResult run(VM* vm)
                 Value* key = READ_CONSTANT();
                 Value* v = tableGet(key, TABLE(vm->globals));
 
+                // if global in current module not found, try library globals
+                if (IS_NIL(v))
+                {
+                    v = tableGet(key, TABLE(G(vm)->libGlobals));
+                }
+
                 // accept a global variable with nil
                 pushStackPtr(v, vm);
                 break;
@@ -615,7 +631,22 @@ InterpretResult run(VM* vm)
             {
                 Value* key = READ_CONSTANT();
                 Value* value = getAssignValue(vm);
-                tableInsertOrSet(*key, *value, TABLE(vm->globals), vm);
+
+                lock_value(value);
+
+                /*
+                   assigning to the library global
+                */
+                if (IS_NIL(tableGet(key, TABLE(G(vm)->libGlobals))))
+                {
+                    tableInsertOrSet(*key, *value, TABLE(vm->globals), vm);
+                }
+                else
+                {
+                    tableInsertOrSet(*key, *value, TABLE(G(vm)->libGlobals), vm);
+                }
+
+                release_value(value);
                 break;
             }
             case OP_GET_LOCAL:

@@ -239,6 +239,7 @@ static void markRoots(VM* vm)
     }
 
     /* mark values on globals */
+    markObject(baseobj(G(vm)->libGlobals), GC_MARKED);
     markObject(baseobj(vm->globals), GC_MARKED);
 
     /* mark weak ref tables */

@@ -8,7 +8,7 @@
 #define CACHE_MAX 128
 #define MT_SIZE 8
 
-#define G(vm) (vm->gState)
+#define G(vm) ((vm)->gState)
 
 #define getmtdirect(vm, type) (G(vm)->mts[type])
 #define getevent(vm, event) (G(vm)->events[event])
@@ -47,6 +47,7 @@ typedef struct GlobalState
     size_t bytesAllocated;
     size_t GCthreshold;
     ObjTable* strings;
+    ObjTable* libGlobals;
     Value* stackTop;
     Value stack[STACK_MAX];
     CallFrame frames[STACK_MAX];
