@@ -9,8 +9,8 @@ void* reallocate(void* ptr, size_t oldSize, size_t newSize, VM* vm)
 {
     if (newSize > oldSize)
     {
-        vm->bytesAllocated += newSize - oldSize;
-        if (vm->bytesAllocated > vm->GCthreshold)
+        G(vm)->bytesAllocated += newSize - oldSize;
+        if (G(vm)->bytesAllocated > G(vm)->GCthreshold)
         {
             collectGarbage(vm);
         }

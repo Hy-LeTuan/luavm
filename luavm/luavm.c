@@ -8,10 +8,7 @@
 
 static uint8_t execute(const char* source)
 {
-    VM vm;
-    setupSingleChunkVM(source, &vm);
-    InterpretResult result = run(&vm);
-    freeVM(&vm);
+    InterpretResult result = execChunkST(source);
 
     if (result == INTERPRET_SUCCESS)
     {

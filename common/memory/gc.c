@@ -4,6 +4,7 @@
 #include <chunk.h>
 #include <metatable.h>
 #include <value.h>
+#include <vmstate.h>
 
 #ifdef DEBUG_LOG_GC
 #include <stdio.h>
@@ -215,7 +216,7 @@ void markTable(Table* t)
 static void markRoots(VM* vm)
 {
     /* mark values on stack */
-    for (Value* slot = vm->stack; slot < vm->stackTop; slot++)
+    for (Value* slot = G(vm)->stack; slot < G(vm)->stackTop; slot++)
     {
         markValue(slot, GC_MARKED);
     }
@@ -226,9 +227,9 @@ static void markRoots(VM* vm)
     }
 
     /* mark closures on frame */
-    for (size_t i = 0; i < vm->frameCount; i++)
+    for (size_t i = 0; i < G(vm)->frameCount; i++)
     {
-        markObject(baseobj(vm->frames[i].closure), GC_MARKED);
+        markObject(baseobj(G(vm)->frames[i].closure), GC_MARKED);
     }
 
     /* mark upvalues still reachable */
@@ -241,25 +242,25 @@ static void markRoots(VM* vm)
     markObject(baseobj(vm->globals), GC_MARKED);
 
     /* mark weak ref tables */
-    markTableWeak(vm->strings);
+    markTableWeak(G(vm)->strings);
 
     /* mark metatables */
     for (uint8_t i = 0; i < MT_SIZE; i++)
     {
-        markObject(baseobj(vm->mts[i]), GC_MARKED);
+        markObject(baseobj(getmtdirect(vm, i)), GC_MARKED);
     }
 
     /* mark events */
     for (uint8_t i = 0; i < EVENT_SIZE; i++)
     {
-        markObject(baseobj(vm->events[i]), GC_MARKED);
+        markObject(baseobj(getevent(vm, i)), GC_MARKED);
     }
 }
 
 static void sweep(VM* vm)
 {
     Object* prev = NULL;
-    Object* obj = vm->objectStack;
+    Object* obj = G(vm)->objectStack;
     while (obj != NULL)
     {
         if (obj->marked)
@@ -282,7 +283,7 @@ static void sweep(VM* vm)
             }
             else
             {
-                vm->objectStack = obj;
+                G(vm)->objectStack = obj;
             }
 
             freeObject(unreached, vm);
@@ -329,9 +330,9 @@ void collectGarbage(VM* vm)
     markRoots(vm);
 
     // clean up and sweep
-    hSetCleanDangling(vm->strings, vm);
+    hSetCleanDangling(G(vm)->strings, vm);
     sweep(vm);
-    vm->GCthreshold = vm->bytesAllocated * GC_HEAP_GROW_FACTOR;
+    G(vm)->GCthreshold = G(vm)->bytesAllocated * GC_HEAP_GROW_FACTOR;
 
 #ifdef DEBUG_LOG_GC
     printf("--- gc end\n");

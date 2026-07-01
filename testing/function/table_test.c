@@ -11,7 +11,9 @@
 int main(int argc, char* argv[])
 {
     VM vm;
-    initVM(&vm);
+    GlobalState g;
+
+    initVM(&g, false, &vm);
 
     Table test_table;
     initTable(&test_table);

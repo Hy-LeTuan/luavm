@@ -8,16 +8,19 @@
 #define CACHE_MAX 128
 #define MT_SIZE 8
 
-#define stackat(vm, x) ((vm->stackTop - (x)))
-#define stackprev(vm, x) (vm->stackTop - (x))
-#define reducestack(vm, x) (vm->stackTop -= (x))
-#define setstackat(stack, idx, v) (stack[(idx)] = (*v));
-#define setstacktop(vm, newSlot) (vm->stackTop = newSlot)
-
-#define unsafe_push(vm, v) (*(vm->stackTop++) = v)
-#define unsafe_pop(vm) (vm->stackTop--)
-
 #define G(vm) (vm->gState)
+
+#define getmtdirect(vm, type) (G(vm)->mts[type])
+#define getevent(vm, event) (G(vm)->events[event])
+
+#define stackat(vm, x) ((G(vm)->stackTop - (x)))
+#define stackprev(vm, x) (G(vm)->stackTop - (x))
+#define reducestack(vm, x) (G(vm)->stackTop -= (x))
+#define setstackat(stack, idx, v) (stack[(idx)] = (*v));
+#define setstacktop(vm, newSlot) (G(vm)->stackTop = newSlot)
+
+#define unsafe_push(vm, v) (*(G(vm)->stackTop++) = v)
+#define unsafe_pop(vm) (G(vm)->stackTop--)
 
 typedef struct
 {
@@ -44,6 +47,7 @@ typedef struct GlobalState
     size_t bytesAllocated;
     size_t GCthreshold;
     ObjTable* strings;
+    Value* stackTop;
     Value stack[STACK_MAX];
     CallFrame frames[STACK_MAX];
     ObjTable* mts[MT_SIZE];
@@ -54,24 +58,15 @@ typedef struct GlobalState
 typedef struct VM
 {
     GlobalState* gState;
-    Value stack[STACK_MAX];
-    Value cache[CACHE_MAX];
     uint8_t cacheSize;
-    CallFrame frames[STACK_MAX];
-    int frameCount;
-    Value* stackTop;
-    size_t bytesAllocated;
-    size_t GCthreshold;
-    Object* objectStack;
-    ObjTable* strings;
+    /*
+       used to keep track of number of values generated from multret expressions
+    */
+    uint8_t nvals;
     ObjTable* globals;
     ObjUpvalue* openUpvalues;
+    Value cache[CACHE_MAX];
 
-    /* this field is used to keep track of how many values are generated from multret expressions */
-    uint8_t nvals;
-
-    ObjTable* mts[MT_SIZE];
-    ObjString* events[EVENT_SIZE];
 } VM;
 
 void pushStack(Value value, VM* vm);

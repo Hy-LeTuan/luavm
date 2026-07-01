@@ -12,12 +12,10 @@
 
 #define IS_MULTRET(status) (status == 0)
 
-#define nextframe(vm) (&vm->frames[vm->frameCount++])
-#define currframe(vm) (&vm->frames[vm->frameCount - 1])
-#define prevframe(vm) (&vm->frames[(--vm->frameCount) - 1])
-#define finalframe(vm) (vm->frameCount - 1 == 0)
-
-#define getmtdirect(vm, type) (vm->mts[type])
+#define nextframe(vm) (&G(vm)->frames[G(vm)->frameCount++])
+#define currframe(vm) (&G(vm)->frames[G(vm)->frameCount - 1])
+#define prevframe(vm) (&G(vm)->frames[(--G(vm)->frameCount) - 1])
+#define finalframe(vm) (G(vm)->frameCount - 1 == 0)
 
 typedef enum
 {
@@ -25,7 +23,7 @@ typedef enum
     INTERPRET_ERROR
 } InterpretResult;
 
-void initVM(VM* vm);
+void initVM(GlobalState* g, bool gInit, VM* vm);
 InterpretResult run(VM* vm);
 void freeVM(VM* vm);
 void runtimeError(VM* vm, const char* format, ...);

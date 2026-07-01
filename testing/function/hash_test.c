@@ -26,7 +26,9 @@ static void compare(Value a, Value b, HashFn hashFunc)
 int main(int argc, char* argv[])
 {
     VM vm;
-    initVM(&vm);
+    GlobalState g;
+
+    initVM(&g, false, &vm);
 
     // numbers
     COMPARE(NUM_VAL(1.0), fnv1a_32);

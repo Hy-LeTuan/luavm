@@ -10,7 +10,7 @@
 #include <string.h>
 // #include <stdio.h>
 
-#define setvmmetatable(type, value) (vm->mts[type] = value)
+#define setvmmetatable(type, value) (G(vm)->mts[type] = value)
 
 /*
    @param lib: The library that matches the function name with the actual function
@@ -57,7 +57,7 @@ static ObjTable* createStandardMetatable(VM* vm)
 
     for (uint8_t i = 0; i < EVENT_SIZE; i++)
     {
-        ObjString* event = vm->events[i];
+        ObjString* event = getevent(vm, i);
         otSetRaw(STRING_VAL(event), NIL_CONSTANT, table, vm);
     }
 
@@ -95,15 +95,15 @@ static void defineMtsAndEnvs(VM* vm)
     */
     ObjTable* stringmt = createStandardMetatable(vm);
     pushStack(TABLE_VAL(stringmt), vm);
-    otSetRaw(STRING_VAL(vm->events[EVENT_INDEX]), TABLE_VAL(stringlib), stringmt, vm);
+    otSetRaw(STRING_VAL(getevent(vm, EVENT_INDEX)), TABLE_VAL(stringlib), stringmt, vm);
     popStack(vm);
 
     setvmmetatable(OBJ_STRING, stringmt);
 }
 
-void setupSingleChunkVM(const char* source, VM* vm)
+void setupSingleChunkVM(const char* source, GlobalState* g, VM* vm)
 {
-    initVM(vm);
+    initVM(g, false, vm);
     defineMtsAndEnvs(vm);
     // printf("finish defining metatables and environments\n");
 
@@ -122,8 +122,11 @@ void setupSingleChunkVM(const char* source, VM* vm)
 InterpretResult execChunkST(const char* source)
 {
     VM vm;
-    setupSingleChunkVM(source, &vm);
+    GlobalState g;
+
+    setupSingleChunkVM(source, &g, &vm);
     InterpretResult result = run(&vm);
     freeVM(&vm);
+
     return result;
 }

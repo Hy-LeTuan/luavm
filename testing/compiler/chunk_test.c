@@ -14,8 +14,9 @@ int main(int argc, char* argv[])
     Chunk chunk;
     Table table;
     VM vm;
+    GlobalState g;
 
-    initVM(&vm);
+    initVM(&g, false, &vm);
     initChunk(&chunk);
     initTable(&table);
 

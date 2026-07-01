@@ -161,7 +161,9 @@ static void concateTest(VM* vm)
 int main(int argc, char* argv[])
 {
     VM vm;
-    initVM(&vm);
+    GlobalState g;
+
+    initVM(&g, false, &vm);
 
     internTest(&vm);
     concateTest(&vm);

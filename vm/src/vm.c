@@ -14,7 +14,7 @@
 #define createevent(e, ename, vm)                                                                  \
     {                                                                                              \
         ObjString* name = copyString(ename, strlen(ename), vm);                                    \
-        vm->events[e] = name;                                                                      \
+        G(vm)->events[e] = name;                                                                   \
     }
 
 #define Arith(vm, op, inv, event)                                                                  \
@@ -30,9 +30,9 @@
             arith(event, vm);                                                                      \
     }
 
-static void resetStack(VM* vm)
+static void resetStack(GlobalState* g)
 {
-    vm->stackTop = vm->stack;
+    g->stackTop = g->stack;
 }
 
 void initGlobal(GlobalState* g, VM* vm)
@@ -42,16 +42,21 @@ void initGlobal(GlobalState* g, VM* vm)
     g->bytesAllocated = 0;
     g->GCthreshold = 1024 * 1024;
 
-    // setup event keys
+    resetStack(g);
+
+    /* set null for GC */
+    g->strings = NULL;
     for (uint8_t i = 0; i < MT_SIZE; i++)
     {
         g->mts[i] = NULL;
     }
-
     for (uint8_t i = 0; i < EVENT_SIZE; i++)
     {
         g->events[i] = NULL;
     }
+
+    /* init with allocation */
+    g->strings = newObjTable(vm);
 
     createevent(EVENT_ADD, "__add", vm);
     createevent(EVENT_SUB, "__sub", vm);
@@ -70,50 +75,21 @@ void initGlobal(GlobalState* g, VM* vm)
     createevent(EVENT_CALL, "__call", vm);
 }
 
-void initVM(VM* vm)
+void initVM(GlobalState* g, bool gInit, VM* vm)
 {
-    vm->objectStack = NULL;
-    vm->frameCount = 0;
     vm->openUpvalues = NULL;
+    vm->globals = NULL;
     vm->cacheSize = 0;
     vm->nvals = 0;
-    vm->bytesAllocated = 0;
-    vm->GCthreshold = 1024 * 1024;
 
-    resetStack(vm);
-    vm->globals = NULL;
-    vm->strings = NULL;
-
-    for (uint8_t i = 0; i < MT_SIZE; i++)
+    vm->gState = g;
+    if (!gInit)
     {
-        vm->mts[i] = NULL;
+        initGlobal(g, vm);
     }
 
-    for (uint8_t i = 0; i < EVENT_SIZE; i++)
-    {
-        vm->events[i] = NULL;
-    }
-
-    /* initialization involving allocation */
-    vm->strings = newObjTable(vm);
+    /* init with allocation */
     vm->globals = newObjTable(vm);
-
-    // setup event keys
-    createevent(EVENT_ADD, "__add", vm);
-    createevent(EVENT_SUB, "__sub", vm);
-    createevent(EVENT_MUL, "__mul", vm);
-    createevent(EVENT_DIV, "__div", vm);
-    createevent(EVENT_MOD, "__mod", vm);
-    createevent(EVENT_POW, "__pow", vm);
-    createevent(EVENT_UNM, "__unm", vm);
-    createevent(EVENT_CONCAT, "__concat", vm);
-    createevent(EVENT_LEN, "__len", vm);
-    createevent(EVENT_EQ, "__eq", vm);
-    createevent(EVENT_LT, "__lt", vm);
-    createevent(EVENT_LE, "__le", vm);
-    createevent(EVENT_INDEX, "__index", vm);
-    createevent(EVENT_NEWINDEX, "__newindex", vm);
-    createevent(EVENT_CALL, "__call", vm);
 }
 
 void runtimeError(VM* vm, const char* format, ...)
@@ -124,24 +100,24 @@ void runtimeError(VM* vm, const char* format, ...)
     va_end(args);
     fputs("\n", stderr);
 
-    size_t instruction = vm->frames[vm->frameCount - 1].ip -
-      vm->frames[vm->frameCount - 1].closure->function->chunk.code - 1;
-    int line = vm->frames[vm->frameCount - 1].closure->function->chunk.lines[instruction];
+    size_t instruction = G(vm)->frames[G(vm)->frameCount - 1].ip -
+      G(vm)->frames[G(vm)->frameCount - 1].closure->function->chunk.code - 1;
+    int line = G(vm)->frames[G(vm)->frameCount - 1].closure->function->chunk.lines[instruction];
 
     fprintf(stderr, "[line %d] in \n", line);
-    resetStack(vm);
+    resetStack(G(vm));
 }
 
 void pushStack(Value value, VM* vm)
 {
-    if (vm->stackTop - vm->stack == STACK_MAX)
+    if (G(vm)->stackTop - G(vm)->stack == STACK_MAX)
     {
         runtimeError(vm, "Error, stack limit exceeded.");
         return;
     }
 
-    *vm->stackTop = value;
-    vm->stackTop++;
+    *G(vm)->stackTop = value;
+    G(vm)->stackTop++;
 }
 
 void pushStackPtr(Value* value, VM* vm)
@@ -151,13 +127,13 @@ void pushStackPtr(Value* value, VM* vm)
 
 static Value* peek(int index, VM* vm)
 {
-    return &vm->stackTop[-1 - index];
+    return &G(vm)->stackTop[-1 - index];
 }
 
 Value* popStack(VM* vm)
 {
-    vm->stackTop--;
-    return vm->stackTop;
+    G(vm)->stackTop--;
+    return G(vm)->stackTop;
 }
 
 static void setnvals(uint8_t val, VM* vm)
@@ -272,7 +248,7 @@ static uint8_t adjustParams(uint8_t callArity, uint8_t functionArity, FunctionTy
 */
 uint8_t precall(uint8_t nexprs, uint8_t status, VM* vm)
 {
-    if (vm->frameCount > STACK_MAX)
+    if (G(vm)->frameCount > STACK_MAX)
     {
         runtimeError(vm, "Error, stack overflow.");
         return false;
@@ -406,15 +382,14 @@ static void resovleNativeCall(uint8_t retStatus, VM* vm)
 
 Value* getEventFromTypeMt(const Value* v, uint8_t e, VM* vm)
 {
-    uint8_t t = vtype(v);
-    ObjTable* table = vm->mts[t];
+    ObjTable* table = getmtdirect(vm, vtype(v));
 
     if (table == NULL)
     {
         return NULL;
     }
 
-    Value eventKey = STRING_VAL(vm->events[e]);
+    Value eventKey = STRING_VAL(G(vm)->events[e]);
     return otGetRaw(&eventKey, table);
 }
 
@@ -444,13 +419,13 @@ InterpretResult run(VM* vm)
     {
 #ifdef DEBUG_STACK_TRACE
         fprintf(stdout, "        STACK: ");
-        if (vm->stackTop == vm->stack)
+        if (G(vm)->stackTop == G(vm)->stack)
         {
             printf("[EMPTY]");
         }
         else
         {
-            for (Value* slot = vm->stack; slot < vm->stackTop; slot++)
+            for (Value* slot = G(vm)->stack; slot < G(vm)->stackTop; slot++)
             {
                 printf("[ ");
                 printValue(slot);
@@ -461,9 +436,9 @@ InterpretResult run(VM* vm)
         fprintf(stdout, "%s\n", "        -----");
 #endif
 #ifdef DEBUG_DISASSEMBLE_INSTRUCTION
-        disassembleInstruction(&vm->frames[vm->frameCount - 1].closure->function->chunk,
-          vm->frames[vm->frameCount - 1].ip -
-            vm->frames[vm->frameCount - 1].closure->function->chunk.code);
+        disassembleInstruction(&G(vm)->frames[G(vm)->frameCount - 1].closure->function->chunk,
+          G(vm)->frames[G(vm)->frameCount - 1].ip -
+            G(vm)->frames[G(vm)->frameCount - 1].closure->function->chunk.code);
 #endif
         uint8_t instruction;
         switch (instruction = READ_BYTE())
@@ -765,7 +740,7 @@ InterpretResult run(VM* vm)
                 }
 
                 release_object(baseobj(t));
-                setstacktop(vm, vm->stackTop - fields * 2);
+                setstacktop(vm, G(vm)->stackTop - fields * 2);
 
                 pushStack(TABLE_VAL(t), vm);
                 break;
@@ -843,7 +818,7 @@ InterpretResult run(VM* vm)
             }
             case OP_CLOSE_UPVALUE:
             {
-                closeUpvalues(vm->stackTop - 1, vm);
+                closeUpvalues(G(vm)->stackTop - 1, vm);
                 popStack(vm);
                 break;
             }
@@ -913,13 +888,11 @@ InterpretResult run(VM* vm)
 
 void freeVM(VM* vm)
 {
-    resetStack(vm);
-
     // freeTable(&vm->globals, vm);
     // freeTable(&vm->strings, vm);
 
     /*
        free all live objects that hasn't been collected by GC
     */
-    freeObjects(vm->objectStack, vm);
+    freeObjects(G(vm)->objectStack, vm);
 }
