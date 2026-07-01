@@ -35,6 +35,41 @@ static void resetStack(VM* vm)
     vm->stackTop = vm->stack;
 }
 
+void initGlobal(GlobalState* g, VM* vm)
+{
+    g->objectStack = NULL;
+    g->frameCount = 0;
+    g->bytesAllocated = 0;
+    g->GCthreshold = 1024 * 1024;
+
+    // setup event keys
+    for (uint8_t i = 0; i < MT_SIZE; i++)
+    {
+        g->mts[i] = NULL;
+    }
+
+    for (uint8_t i = 0; i < EVENT_SIZE; i++)
+    {
+        g->events[i] = NULL;
+    }
+
+    createevent(EVENT_ADD, "__add", vm);
+    createevent(EVENT_SUB, "__sub", vm);
+    createevent(EVENT_MUL, "__mul", vm);
+    createevent(EVENT_DIV, "__div", vm);
+    createevent(EVENT_MOD, "__mod", vm);
+    createevent(EVENT_POW, "__pow", vm);
+    createevent(EVENT_UNM, "__unm", vm);
+    createevent(EVENT_CONCAT, "__concat", vm);
+    createevent(EVENT_LEN, "__len", vm);
+    createevent(EVENT_EQ, "__eq", vm);
+    createevent(EVENT_LT, "__lt", vm);
+    createevent(EVENT_LE, "__le", vm);
+    createevent(EVENT_INDEX, "__index", vm);
+    createevent(EVENT_NEWINDEX, "__newindex", vm);
+    createevent(EVENT_CALL, "__call", vm);
+}
+
 void initVM(VM* vm)
 {
     vm->objectStack = NULL;
@@ -46,8 +81,8 @@ void initVM(VM* vm)
     vm->GCthreshold = 1024 * 1024;
 
     resetStack(vm);
-    initTable(&vm->strings);
-    initTable(&vm->globals);
+    vm->globals = NULL;
+    vm->strings = NULL;
 
     for (uint8_t i = 0; i < MT_SIZE; i++)
     {
@@ -58,6 +93,10 @@ void initVM(VM* vm)
     {
         vm->events[i] = NULL;
     }
+
+    /* initialization involving allocation */
+    vm->strings = newObjTable(vm);
+    vm->globals = newObjTable(vm);
 
     // setup event keys
     createevent(EVENT_ADD, "__add", vm);
@@ -591,7 +630,7 @@ InterpretResult run(VM* vm)
             case OP_GET_GLOBAL:
             {
                 Value* key = READ_CONSTANT();
-                Value* v = tableGet(key, &vm->globals);
+                Value* v = tableGet(key, TABLE(vm->globals));
 
                 // accept a global variable with nil
                 pushStackPtr(v, vm);
@@ -601,7 +640,7 @@ InterpretResult run(VM* vm)
             {
                 Value* key = READ_CONSTANT();
                 Value* value = getAssignValue(vm);
-                tableInsertOrSet(*key, *value, &vm->globals, vm);
+                tableInsertOrSet(*key, *value, TABLE(vm->globals), vm);
                 break;
             }
             case OP_GET_LOCAL:
@@ -875,8 +914,9 @@ InterpretResult run(VM* vm)
 void freeVM(VM* vm)
 {
     resetStack(vm);
-    freeTable(&vm->globals, vm);
-    freeTable(&vm->strings, vm);
+
+    // freeTable(&vm->globals, vm);
+    // freeTable(&vm->strings, vm);
 
     /*
        free all live objects that hasn't been collected by GC

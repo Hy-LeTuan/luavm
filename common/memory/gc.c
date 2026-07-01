@@ -169,12 +169,28 @@ void markObject(Object* obj, ubyte markVal)
     }
 }
 
+void markSingleObject(Object* obj, ubyte markedVal)
+{
+    if (obj == NULL || obj->marked == markedVal)
+    {
+        return;
+    }
+
+    obj->marked = markedVal;
+}
+
 void markValue(Value* v, ubyte markVal)
 {
     if (IS_OBJ(v))
     {
         markObject(AS_OBJ(v), markVal);
     }
+}
+
+void markTableWeak(ObjTable* t)
+{
+    /* mark only the table and nothing else */
+    markSingleObject(baseobj(t), GC_MARKED);
 }
 
 void markTable(Table* t)
@@ -222,7 +238,10 @@ static void markRoots(VM* vm)
     }
 
     /* mark values on globals */
-    markTable(&vm->globals);
+    markObject(baseobj(vm->globals), GC_MARKED);
+
+    /* mark weak ref tables */
+    markTableWeak(vm->strings);
 
     /* mark metatables */
     for (uint8_t i = 0; i < MT_SIZE; i++)
@@ -271,16 +290,24 @@ static void sweep(VM* vm)
     }
 }
 
-static void hSetCleanDangling(Table* t, VM* vm)
+/*
+   clean up on the hash part of an objtable only
+*/
+static void hSetCleanDangling(ObjTable* t, VM* vm)
 {
-    for (size_t i = 0; i < t->capacity; i++)
+    if (t == NULL)
     {
-        Entry* entry = &t->entries[i];
+        return;
+    }
+
+    for (size_t i = 0; i < TABLE(t)->capacity; i++)
+    {
+        Entry* entry = &TABLE(t)->entries[i];
 
         if (!IS_NIL(&entry->key) && !AS_OBJ(&entry->key)->marked)
         {
             Value key = entry->key;
-            tableErase(&key, t);
+            tableErase(&key, TABLE(t));
         }
     }
 }
@@ -302,7 +329,7 @@ void collectGarbage(VM* vm)
     markRoots(vm);
 
     // clean up and sweep
-    hSetCleanDangling(&vm->strings, vm);
+    hSetCleanDangling(vm->strings, vm);
     sweep(vm);
     vm->GCthreshold = vm->bytesAllocated * GC_HEAP_GROW_FACTOR;
 

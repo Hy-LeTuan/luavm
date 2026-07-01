@@ -166,7 +166,7 @@ int main(int argc, char* argv[])
     internTest(&vm);
     concateTest(&vm);
 
-    freeTable(&vm.strings, &vm);
+    freeVM(&vm);
 
     return 0;
 }

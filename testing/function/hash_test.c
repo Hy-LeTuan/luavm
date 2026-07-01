@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 
     fprintf(stdout, "Test for functions and closures passed.\n");
 
-    freeTable(&vm.strings, &vm);
+    freeVM(&vm);
 
     return 0;
 }

@@ -45,7 +45,7 @@ static void insertToGlobal(const char* name, Value v, VM* vm)
     ObjString* objname = copyString(name, strlen(name), vm);
     unsafe_push(vm, STRING_VAL(objname));
 
-    tableInsertOrSet(STRING_VAL(objname), v, &vm->globals, vm);
+    tableInsertOrSet(STRING_VAL(objname), v, TABLE(vm->globals), vm);
 
     unsafe_pop(vm);
 }
@@ -70,7 +70,7 @@ static void defineMtsAndEnvs(VM* vm)
     /*
        define all libraries
     */
-    defineLib(BASE_LIB, &vm->globals, vm);
+    defineLib(BASE_LIB, TABLE(vm->globals), vm);
 
     ObjTable* stringlib = newObjTable(vm);
     unsafe_push(vm, TABLE_VAL(stringlib));

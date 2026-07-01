@@ -22,6 +22,8 @@ void freeObject(Object* obj, VM* vm);
 void freeObjects(Object* objects, VM* vm);
 void markValue(Value* v, ubyte makrVal);
 void markObject(Object* obj, ubyte markVal);
+void markSingleObject(Object* obj, ubyte markedVal);
+void markTableWeak(ObjTable* t);
 void markTable(Table* t);
 void collectGarbage(VM* vm);
 

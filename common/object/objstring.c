@@ -19,7 +19,7 @@ static ObjString* newString(char* chars, size_t length, VM* vm)
 
     lock_object(baseobj(string));
 
-    tableSet(STRING_VAL(string), TRUE_CONSTANT, &vm->strings, vm);
+    tableSet(STRING_VAL(string), TRUE_CONSTANT, TABLE(vm->strings), vm);
 
     release_object(baseobj(string));
 
@@ -28,7 +28,7 @@ static ObjString* newString(char* chars, size_t length, VM* vm)
 
 ObjString* takeString(char* chars, int length, VM* vm)
 {
-    Value key = tableFindString(chars, length, &vm->strings);
+    Value key = tableFindString(chars, length, TABLE(vm->strings));
     if (IS_STRING(&key))
     {
         return AS_STRING(&key);
@@ -39,7 +39,7 @@ ObjString* takeString(char* chars, int length, VM* vm)
 
 ObjString* copyString(const char* const_chars, int length, VM* vm)
 {
-    Value key = tableFindString(const_chars, length, &vm->strings);
+    Value key = tableFindString(const_chars, length, TABLE(vm->strings));
     if (IS_STRING(&key))
     {
         return AS_STRING(&key);

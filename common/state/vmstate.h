@@ -17,6 +17,8 @@
 #define unsafe_push(vm, v) (*(vm->stackTop++) = v)
 #define unsafe_pop(vm) (vm->stackTop--)
 
+#define G(vm) (vm->gState)
+
 typedef struct
 {
     ObjClosure* closure;
@@ -36,8 +38,22 @@ typedef struct
     uint8_t info;
 } CallFrame;
 
+typedef struct GlobalState
+{
+    int frameCount;
+    size_t bytesAllocated;
+    size_t GCthreshold;
+    ObjTable* strings;
+    Value stack[STACK_MAX];
+    CallFrame frames[STACK_MAX];
+    ObjTable* mts[MT_SIZE];
+    ObjString* events[EVENT_SIZE];
+    Object* objectStack;
+} GlobalState;
+
 typedef struct VM
 {
+    GlobalState* gState;
     Value stack[STACK_MAX];
     Value cache[CACHE_MAX];
     uint8_t cacheSize;
@@ -47,8 +63,8 @@ typedef struct VM
     size_t bytesAllocated;
     size_t GCthreshold;
     Object* objectStack;
-    Table strings;
-    Table globals;
+    ObjTable* strings;
+    ObjTable* globals;
     ObjUpvalue* openUpvalues;
 
     /* this field is used to keep track of how many values are generated from multret expressions */

@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
     fprintf(stdout, "Set/Insert test passed successfully.\n");
 
     freeTable(&test_table, &vm);
-    freeTable(&vm.strings, &vm);
+    freeVM(&vm);
 
     return 0;
 }
