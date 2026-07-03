@@ -1672,8 +1672,9 @@ static void numericalFor(Token* loop_var, Parser* p)
     emitByte(OP_POP, p);
     emitBytes(OP_GET_LOCAL, varIdx, p);
     emitBytes(OP_GET_LOCAL, limIdx, p);
-    emitBytes(OP_NOT, OP_LESS, p);
+    emitBytes(OP_LESS, OP_NOT, p);
     patchJump(andJump2, p);
+
     patchJump(orEndJump, p);
 
     // end condition
