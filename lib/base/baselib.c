@@ -13,17 +13,17 @@
 #include <math.h>
 
 #ifdef DEBUG_REQUIRE
-#define DEFAULT_PATTERN_COUNT 3
+#define DEFAULT_PATTERN_COUNT 5
 #else
 #define DEFAULT_PATTERN_COUNT 1
 #endif
 
 /* default patterns */
-Field DefaultPatterns[DEFAULT_PATTERN_COUNT] = {
-    { .s = "./?.lua", .len = 7 },
+Field DefaultPatterns[DEFAULT_PATTERN_COUNT] = { { .s = "./?.lua", .len = 7 },
 #ifdef DEBUG_REQUIRE
-    { .s = "../?.lua", .len = 8 },
-    { .s = "../../?.lua", .len = 11 },
+    { .s = "../?.lua", .len = 8 }, { .s = "../../?.lua", .len = 11 },
+    { .s = "../testing/data/benchmarks/?.lua", .len = 32 },
+    { .s = "../../testing/data/benchmarks/?.lua", .len = 35 }
 #endif
 };
 
