@@ -519,7 +519,7 @@ InterpretResult run(VM* vm)
                     LuaNum b = AS_NUM(stackat(vm, 1));
                     LuaNum a = AS_NUM(stackat(vm, 2));
 
-                    Value c = NUM_VAL(a - floor(a / b) * b);
+                    Value c = NUM_VAL(MOD(a, b));
 
                     reducestack(vm, 2);
                     pushStack(c, vm);

@@ -930,6 +930,10 @@ static void prefixExpression(ExpDesc* e, LhsAssign* lhs, Parser* p)
             e->kind = EXP_NIL;
             break;
         default:
+            /*
+               TODO: before error, check to see if at least 1 prefix expression has been parsed. the
+               next token could be an empty statement `;`
+             */
             error("Error, unknown symbol encountered.", p);
             return;
     }
